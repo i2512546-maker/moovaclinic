@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MOOVA Clinic - Centro de Rehabilitación</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Nunito:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <!-- Contentsquare - UX & Usability Testing -->
+    <script src="https://t.contentsquare.com/uxa/6897c7b83eb5.js"></script>
+</head>
+<body>
+
+    <nav class="nav-centrado">
+        <ul>
+            <li><a href="#">Inicio</a></li>
+            <li><a href="#especialidades">Especialidades</a></li>
+            <li><a href="#galeria">Galería</a></li>
+            <li><a href="#nosotros">Nosotros</a></li>
+            <li><a href="#contacto">Contacto</a></li>
+            <li class="dropdown-wrap">
+                <button class="btn-cita dropdown-toggle" type="button">
+                    <i class="fas fa-calendar-check"></i> Citas <i class="fas fa-chevron-down dropdown-arrow"></i>
+                </button>
+                <div class="dropdown-menu">
+                    <a href="{{ url_for('citas_page') }}" class="dropdown-item">
+                        <i class="fas fa-calendar-plus"></i>
+                        <span>Agendar cita</span>
+                    </a>
+                    <a href="{{ url_for('modificar_cita_page') }}" class="dropdown-item">
+                        <i class="fas fa-edit"></i>
+                        <span>Modificar cita</span>
+                    </a>
+                    <a href="{{ url_for('cancelar_cita_page') }}" class="dropdown-item">
+                        <i class="fas fa-times-circle"></i>
+                        <span>Cancelar cita</span>
+                    </a>
+                </div>
+            </li>
+        </ul>
+    </nav>
+
+    <section class="hero">
+        <div class="hero-content">
+            <h1>Centro de Rehabilitación</h1>
+            <p>Recupera tu calidad de vida con nuestros programas especializados de rehabilitación física, neurológica y deportiva</p>
+            <a href="#especialidades" class="btn-hero">
+                <i class="fas fa-arrow-down"></i> Conoce nuestros servicios
+            </a>
+        </div>
+    </section>
+
+    <section class="stats">
+        <div class="stats-container">
+            <div class="stat-item">
+                <i class="fas fa-users"></i>
+                <h3 id="stat-recuperados">---</h3>
+                <p>Pacientes Recuperados</p>
+            </div>
+            <div class="stat-item">
+                <i class="fas fa-user-md"></i>
+                <h3 id="stat-especialistas">---</h3>
+                <p>Especialistas</p>
+            </div>
+            <div class="stat-item">
+                <i class="fas fa-award"></i>
+                <h3 id="stat-anios">---</h3>
+                <p>Años de Experiencia</p>
+            </div>
+            <div class="stat-item">
+                <i class="fas fa-clinic-medical"></i>
+                <h3 id="stat-exito">---</h3>
+                <p>Tasa de Éxito</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="especialidades" class="especialidades">
+        <div class="section-title">
+            <span class="subtitle">Nuestros Servicios</span>
+            <h2>Especialidades en Rehabilitación</h2>
+            <p>Ofrecemos programas integrales adaptados a las necesidades de cada paciente</p>
+        </div>
+        <div class="grid">
+            <div class="card">
+                <div class="card-icon"><i class="fas fa-hands"></i></div>
+                <h3>Fisioterapia</h3>
+                <p>Tratamientos manuales y técnicas especializadas para restaurar el movimiento y la función física.</p>
+                <ul class="card-features">
+                    <li><i class="fas fa-check"></i> Terapia manual</li>
+                    <li><i class="fas fa-check"></i> Electroterapia</li>
+                    <li><i class="fas fa-check"></i> Ultrasonido terapéutico</li>
+                </ul>
+                <a href="#" class="btn btn-mas-info" data-especialidad="fisioterapia">Más información</a>
+            </div>
+            <div class="card featured">
+                <div class="card-badge">Popular</div>
+                <div class="card-icon"><i class="fas fa-brain"></i></div>
+                <h3>Rehabilitación Neurológica</h3>
+                <p>Programas especializados para pacientes con lesiones cerebrales, ACV, esclerosis múltiple y Parkinson.</p>
+                <ul class="card-features">
+                    <li><i class="fas fa-check"></i> Neuroplasticidad</li>
+                    <li><i class="fas fa-check"></i> Estimulación cognitiva</li>
+                    <li><i class="fas fa-check"></i> Coordinación motora</li>
+                </ul>
+                <a href="#" class="btn btn-mas-info" data-especialidad="neurologica">Más información</a>
+            </div>
+            <div class="card">
+                <div class="card-icon"><i class="fas fa-running"></i></div>
+                <h3>Rehabilitación Deportiva</h3>
+                <p>Recuperación de lesiones deportivas con técnicas avanzadas y equipamiento especializado.</p>
+                <ul class="card-features">
+                    <li><i class="fas fa-check"></i> Lesiones musculares</li>
+                    <li><i class="fas fa-check"></i> Rehabilitación de ligamentos</li>
+                    <li><i class="fas fa-check"></i> Readaptación deportiva</li>
+                </ul>
+                <a href="#" class="btn btn-mas-info" data-especialidad="deportiva">Más información</a>
+            </div>
+            <div class="card">
+                <div class="card-icon"><i class="fas fa-hand-holding-heart"></i></div>
+                <h3>Terapia Ocupacional</h3>
+                <p>Recuperación de la independencia en actividades cotidianas y mejora de la calidad de vida.</p>
+                <ul class="card-features">
+                    <li><i class="fas fa-check"></i> Actividades de la vida diaria</li>
+                    <li><i class="fas fa-check"></i> Adaptación del hogar</li>
+                    <li><i class="fas fa-check"></i> Reintegración laboral</li>
+                </ul>
+                <a href="#" class="btn btn-mas-info" data-especialidad="ocupacional">Más información</a>
+            </div>
+            <div class="card">
+                <div class="card-icon"><i class="fas fa-heartbeat"></i></div>
+                <h3>Rehabilitación Cardiopulmonar</h3>
+                <p>Ejercicio supervisado y educación para pacientes con enfermedades cardíacas y respiratorias.</p>
+                <ul class="card-features">
+                    <li><i class="fas fa-check"></i> Post-infarto</li>
+                    <li><i class="fas fa-check"></i> EPOC</li>
+                    <li><i class="fas fa-check"></i> Capacidad aeróbica</li>
+                </ul>
+                <a href="#" class="btn btn-mas-info" data-especialidad="cardiaca">Más información</a>
+            </div>
+            <div class="card">
+                <div class="card-icon"><i class="fas fa-water"></i></div>
+                <h3>Hidroterapia</h3>
+                <p>Terapia acuática en piscina climatizada, ideal para artritis y lesiones articulares.</p>
+                <ul class="card-features">
+                    <li><i class="fas fa-check"></i> Piscina terapéutica</li>
+                    <li><i class="fas fa-check"></i> Ejercicios acuáticos</li>
+                    <li><i class="fas fa-check"></i> Relajación muscular</li>
+                </ul>
+                <a href="#" class="btn btn-mas-info" data-especialidad="hidroterapia">Más información</a>
+            </div>
+            <div class="card">
+                <div class="card-icon"><i class="fas fa-user-nurse"></i></div>
+                <h3>Rehabilitación Geriátrica</h3>
+                <p>Atención especializada para adultos mayores enfocada en movilidad, equilibrio y prevención de caídas.</p>
+                <ul class="card-features">
+                    <li><i class="fas fa-check"></i> Equilibrio y marcha</li>
+                    <li><i class="fas fa-check"></i> Fortalecimiento</li>
+                    <li><i class="fas fa-check"></i> Prevención de caídas</li>
+                </ul>
+                <a href="#" class="btn btn-mas-info" data-especialidad="geriatrica">Más información</a>
+            </div>
+            <div class="card">
+                <div class="card-icon"><i class="fas fa-comments"></i></div>
+                <h3>Terapia del Habla</h3>
+                <p>Rehabilitación de trastornos del lenguaje, habla y deglución causados por lesiones.</p>
+                <ul class="card-features">
+                    <li><i class="fas fa-check"></i> Afasia</li>
+                    <li><i class="fas fa-check"></i> Disfagia</li>
+                    <li><i class="fas fa-check"></i> Disartria</li>
+                </ul>
+                <a href="#" class="btn btn-mas-info" data-especialidad="habla">Más información</a>
+            </div>
+            <div class="card">
+                <div class="card-icon"><i class="fas fa-child"></i></div>
+                <h3>Rehabilitación Pediátrica</h3>
+                <p>Terapias para niños con retrasos en el desarrollo, parálisis cerebral y condiciones pediátricas.</p>
+                <ul class="card-features">
+                    <li><i class="fas fa-check"></i> Desarrollo motor</li>
+                    <li><i class="fas fa-check"></i> Estimulación temprana</li>
+                    <li><i class="fas fa-check"></i> Terapia de juego</li>
+                </ul>
+                <a href="#" class="btn btn-mas-info" data-especialidad="pediatrica">Más información</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- MODAL ESPECIALIDADES -->
+    <div id="modal-especialidad" class="modal-overlay">
+        <div class="modal-content">
+            <button class="modal-close" id="modal-close-btn">&times;</button>
+            <div class="modal-header">
+                <div class="modal-icon" id="modal-icon"></div>
+                <div>
+                    <h2 id="modal-titulo"></h2>
+                    <span class="modal-subtitle" id="modal-subtitulo"></span>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div class="modal-section">
+                    <h3><i class="fas fa-info-circle"></i> Descripción</h3>
+                    <p id="modal-descripcion"></p>
+                </div>
+                <div class="modal-section">
+                    <h3><i class="fas fa-stethoscope"></i> ¿Qué trata?</h3>
+                    <ul id="modal-trata"></ul>
+                </div>
+                <div class="modal-section">
+                    <h3><i class="fas fa-tools"></i> Técnicas y Equipos</h3>
+                    <ul id="modal-tecnicas"></ul>
+                </div>
+                <div class="modal-section">
+                    <h3><i class="fas fa-clock"></i> Duración y Frecuencia</h3>
+                    <p id="modal-duracion"></p>
+                </div>
+                <div class="modal-section modal-beneficios">
+                    <h3><i class="fas fa-star"></i> Beneficios</h3>
+                    <div id="modal-beneficios-grid" class="beneficios-grid"></div>
+                </div>
+                <div class="modal-cta">
+                    <a href="{{ url_for('citas_page') }}" class="btn-hero"><i class="fas fa-calendar-plus"></i> Agendar Cita</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+   <section id="galeria" class="galeria">
+    <div class="galeria-inner">
+        <div class="section-title">
+            <span class="subtitle">Instalaciones</span>
+            <h2>Conoce Nuestro Centro</h2>
+            <p>Espacios modernos y equipados para tu recuperación</p>
+        </div>
+
+        <div class="galeria-grid">
+
+            <!-- VIDEO -->
+            <div class="galeria-item">
+                <video controls width="100%">
+                    <source src="{{ url_for('static', filename='video.mp4') }}" type="video/mp4">
+                    Tu navegador no soporta video.
+                </video>
+                <span>Video principal</span>
+            </div>
+
+            <!-- IMAGEN -->
+            <div class="galeria-item">
+                <img src="{{ url_for('static', filename='cccc.png') }}" 
+                     alt="Sala de fisioterapia"
+                     style="width:100%; border-radius:10px;">
+
+                <span>Sala de fisioterapia</span>
+            </div>
+
+            <div class="galeria-item">
+                <img src="{{ url_for('static', filename='pp.png') }}" 
+                     alt="Sala de fisioterapia"
+                     style="width:100%; border-radius:10px;">
+                <span>Área de hidroterapia</span>
+            </div>
+
+            <div class="galeria-item">
+                <i class="fas fa-image"></i>
+                <span>Equipos especializados</span>
+            </div>
+
+            <div class="galeria-item">
+                <i class="fas fa-play"></i>
+                <span>Testimonios de pacientes</span>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+    <section class="proceso">
+        <div class="section-title">
+            <span class="subtitle">¿Cómo trabajamos?</span>
+            <h2>Nuestro Proceso de Rehabilitación</h2>
+        </div>
+        <div class="proceso-container">
+            <div class="proceso-step">
+                <div class="step-number">1</div>
+                <h3>Evaluación Inicial</h3>
+                <p>Diagnóstico completo de tu condición física y objetivos de recuperación.</p>
+            </div>
+            <div class="proceso-step">
+                <div class="step-number">2</div>
+                <h3>Plan Personalizado</h3>
+                <p>Diseñamos un programa de rehabilitación adaptado a tus necesidades específicas.</p>
+            </div>
+            <div class="proceso-step">
+                <div class="step-number">3</div>
+                <h3>Tratamiento Activo</h3>
+                <p>Sesiones de terapia con seguimiento continuo y ajustes según tu progreso.</p>
+            </div>
+            <div class="proceso-step">
+                <div class="step-number">4</div>
+                <h3>Alta y Seguimiento</h3>
+                <p>Programa de mantenimiento y recomendaciones para prevenir recaídas.</p>
+            </div>
+        </div>
+    </section>
+
+    <footer id="contacto">
+        <div class="footer-container">
+            <div class="footer-section">
+                <div class="logo">MOOVA <span>Clinic</span></div>
+                <p>Centro de Rehabilitación especializado en devolver la calidad de vida a nuestros pacientes.</p>
+                <div class="social-links">
+                    <a href="{{ REDES.facebook }}" target="_blank" rel="noopener noreferrer" aria-label="Facebook"><i class="fab fa-facebook"></i></a>
+                    <a href="{{ REDES.instagram }}" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+                    <a href="{{ REDES.twitter }}" target="_blank" rel="noopener noreferrer" aria-label="X"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="width:0.95rem;height:0.95rem;display:block;"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></a>
+                    <a href="{{ REDES.youtube }}" target="_blank" rel="noopener noreferrer" aria-label="YouTube"><i class="fab fa-youtube"></i></a>
+                    <a href="{{ REDES.whatsapp }}" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp"><i class="fab fa-whatsapp"></i></a>
+                    <a href="{{ REDES.tiktok }}" target="_blank" rel="noopener noreferrer" aria-label="TikTok"><i class="fab fa-tiktok"></i></a>
+                </div>
+            </div>
+            <div class="footer-section">
+                <h3>Especialidades</h3>
+                <ul>
+                    <li><a href="#especialidades">Fisioterapia</a></li>
+                    <li><a href="#especialidades">Rehabilitación Neurológica</a></li>
+                    <li><a href="#especialidades">Rehabilitación Deportiva</a></li>
+                    <li><a href="#especialidades">Terapia Ocupacional</a></li>
+                    <li><a href="#especialidades">Hidroterapia</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h3>Enlaces Rápidos</h3>
+                <ul>
+                    <li><a href="#">Sobre Nosotros</a></li>
+                    <li><a href="#">Nuestro Equipo</a></li>
+                    <li><a href="#">Instalaciones</a></li>
+                    <li><a href="#">Blog de Salud</a></li>
+                    <li><a href="#">Trabaja con Nosotros</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h3>Contacto</h3>
+                <div class="contact-info">
+                    <p><i class="fas fa-map-marker-alt"></i> Jr. Federico Gálvez Duran #235., Ciudad</p>
+                    <p><i class="fas fa-phone"></i> +----------</p>
+                    <p><i class="fas fa-envelope"></i> info@moovaclinic.com</p>
+                    <p><i class="fas fa-clock"></i> Lun - Vie: 9:00 - 5:00</p>
+                    <p><i class="fas fa-clock"></i> Sáb: 9:30 - 14:00</p>
+                    <p><i class="fas fa-file-alt"></i> RUC: 10738665835</p>
+                </div>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>© 2025 MOOVA Clinic - Centro de Rehabilitación. Todos los derechos reservados.</p>
+        </div>
+        <a href="{{ url_for('login') }}" class="btn-login-footer">🔑 Acceso médicos</a>
+    </footer>
+
+
+<script>
+// Estadisticas dinamicas desde la API
+fetch('/api/estadisticas')
+    .then(function(resp) { return resp.json(); })
+    .then(function(data) {
+        var recuperados = data.pacientes_recuperados || 0;
+        var r = String(recuperados).padStart(3, '0');
+        document.getElementById('stat-recuperados').textContent = r;
+
+        document.getElementById('stat-especialistas').textContent = data.especialistas || 0;
+
+        var anios = data.anios_experiencia || 0;
+        document.getElementById('stat-anios').textContent = anios;
+
+        var exito = data.tasa_exito || 0;
+        document.getElementById('stat-exito').textContent = exito + '%';
+    })
+    .catch(function() {
+        document.getElementById('stat-recuperados').textContent = '000';
+        document.getElementById('stat-especialistas').textContent = '0';
+        document.getElementById('stat-anios').textContent = '0';
+        document.getElementById('stat-exito').textContent = '0%';
+    });
+
+// Dropdown citas
+document.querySelectorAll('.dropdown-wrap').forEach(function(wrap) {
+    var toggle = wrap.querySelector('.dropdown-toggle');
+    toggle.addEventListener('click', function(e) {
+        e.stopPropagation();
+        wrap.classList.toggle('open');
+    });
+});
+document.addEventListener('click', function() {
+    document.querySelectorAll('.dropdown-wrap.open').forEach(function(w) { w.classList.remove('open'); });
+});
+
+// Datos de especialidades
+var especialidades = {
+    fisioterapia: {
+        icono: 'fas fa-hands',
+        titulo: 'Fisioterapia',
+        subtitulo: 'Rehabilitacion Fisica',
+        descripcion: 'La fisioterapia es una disciplina de la salud que utiliza agentes fisicos, mecanicos y naturales para prevenir, tratar, rehabilitar y adaptar a personas con limitaciones funcionales o discapacidad. Nuestro equipo de fisioterapeutas certificados utiliza tecnicas manuales y agentes fisicos para restaurar el movimiento, reducir el dolor y mejorar la calidad de vida de nuestros pacientes.',
+        trata: [
+            'Lesiones musculares y tendinosas',
+            'Fracturas y esguinces',
+            'Lumbalgias y cervicalgias',
+            'Hernias discales',
+            'Lesiones deportivas',
+            'Rehabilitacion post-operatoria',
+            'Artritis y artrosis',
+            'Fibromialgia'
+        ],
+        tecnicas: [
+            'Terapia manual ortopedica',
+            'Electroterapia (TENS, ultrasound)',
+            'Ondas de choque extracorporeas',
+            'Laser terapeutico',
+            'Puncion seca',
+            'Vendaje neuromuscular (Kinesio Tape)',
+            'Ejercicio terapeutico',
+            'Traccion vertebral'
+        ],
+        duracion: 'Sesiones de 45-60 minutos. Frecuencia recomendada: 2-3 veces por semana durante 6-12 semanas, segun la condicion del paciente.',
+        beneficios: [
+            'Reduccion del dolor',
+            'Mejora de la movilidad',
+            'Fortalecimiento muscular',
+            'Prevencion de recaidas',
+            'Retorno a actividades',
+            'Mejor postura'
+        ]
+    },
+    neurologica: {
+        icono: 'fas fa-brain',
+        titulo: 'Rehabilitacion Neurologica',
+        subtitulo: 'Recuperacion del Sistema Nervioso',
+        descripcion: 'La rehabilitacion neurologica se enfoca en la recuperacion funcional de pacientes con lesiones o enfermedades del sistema nervioso central y periferico. Utilizamos tecnicas basadas en la neuroplasticidad para ayudar al cerebro a reorganizarse y recuperar funciones perdidas, mejorando la independencia y calidad de vida.',
+        trata: [
+            'Accidente cerebrovascular (ACV/Ictus)',
+            'Lesiones cerebrales traumaticas',
+            'Esclerosis multiple',
+            'Enfermedad de Parkinson',
+            'Lesiones de medula espinal',
+            'Paralisis cerebral',
+            'Enfermedades neurodegenerativas',
+            'Neuropatias perifericas'
+        ],
+        tecnicas: [
+            'Terapia de movimiento inducido por restriccion',
+            'Entrenamiento de la marcha',
+            'Estimulacion cognitiva',
+            'Terapia de equilibrio',
+            'Entrenamiento de actividades de la vida diaria',
+            'Electroestimulacion funcional',
+            'Biofeedback',
+            'Tecnicas de facilitacion neurologica'
+        ],
+        duracion: 'Sesiones de 60-90 minutos. Frecuencia recomendada: 3-5 veces por semana durante 3-6 meses o mas, segun la evolucion del paciente.',
+        beneficios: [
+            'Recuperacion motora',
+            'Mejora del equilibrio',
+            'Mayor independencia',
+            'Reduccion de espasticidad',
+            'Mejora cognitiva',
+            'Calidad de vida'
+        ]
+    },
+    deportiva: {
+        icono: 'fas fa-running',
+        titulo: 'Rehabilitacion Deportiva',
+        subtitulo: 'Recuperacion y Readaptacion',
+        descripcion: 'La rehabilitacion deportiva combina tecnicas de fisioterapia avanzada con principios del entrenamiento deportivo para lograr la recuperacion completa de lesiones musculoesqueleticas en atletas y personas activas. Nuestro enfoque integral incluye desde la fase aguda hasta el retorno seguro a la actividad deportiva.',
+        trata: [
+            'Ruptura de ligamentos (LCA, LCP, LCM)',
+            'Lesiones meniscales',
+            'Tendinopatias (aquiles, rotuliana)',
+            'Distensiones musculares',
+            'Fracturas por estres',
+            'Luxaciones de hombro',
+            'Sindromes compresivos',
+            'Lesiones de cartilago'
+        ],
+        tecnicas: [
+            'Ejercicio terapeutico progresivo',
+            'Entrenamiento de propriocepcion',
+            'Pliometria y potencia',
+            'Entrenamiento de velocidad y agilidad',
+            'Analisis biomecanico del movimiento',
+            'Terapia manual deportiva',
+            'Crioterapia y termoterapia',
+            'Readaptacion deportiva especifica'
+        ],
+        duracion: 'Sesiones de 60-75 minutos. Programa completo de 8-16 semanas dependiendo de la lesion y deporte del paciente.',
+        beneficios: [
+            'Retorno deportivo seguro',
+            'Prevencion de relesiones',
+            'Mejora del rendimiento',
+            'Mayor confianza',
+            'Fortalecimiento especifico',
+            'Recuperacion completa'
+        ]
+    },
+    ocupacional: {
+        icono: 'fas fa-hand-holding-heart',
+        titulo: 'Terapia Ocupacional',
+        subtitulo: 'Independencia y Funcionalidad',
+        descripcion: 'La terapia ocupacional ayuda a las personas a participar en las actividades de su vida diaria que desean o necesitan realizar. Trabajamos para desarrollar, recuperar o mantener las habilidades necesarias para la autoatencion, el trabajo, el ocio y la participacion social, adaptando el entorno cuando es necesario.',
+        trata: [
+            'Discapacidad fisica temporal o permanente',
+            'Limitaciones en actividades de la vida diaria',
+            'Deficits en habilidades motoras finas',
+            'Problemas de coordinacion',
+            'Deficits cognitivos funcionales',
+            'Rehabilitacion de mano',
+            'Adaptacion al entorno',
+            'Reintegracion laboral'
+        ],
+        tecnicas: [
+            'Entrenamiento en actividades de la vida diaria',
+            'Terapia de mano y dedos',
+            'Entrenamiento cognitivo-funcional',
+            'Adaptacion y ayuda tecnica',
+            'Ergonomia y adaptacion del puesto de trabajo',
+            'Estimulacion sensorial',
+            'Entrenamiento en habilidades sociales',
+            'Diseño de programas de habilidades'
+        ],
+        duracion: 'Sesiones de 45-60 minutos. Frecuencia: 2-3 veces por semana. Duracion del programa: 4-12 semanas segun el caso.',
+        beneficios: [
+            'Mayor independencia',
+            'Mejora en AVD',
+            'Adaptacion del hogar',
+            'Retorno laboral',
+            'Mejora cognitiva',
+            'Mayor participacion'
+        ]
+    },
+    cardiaca: {
+        icono: 'fas fa-heartbeat',
+        titulo: 'Rehabilitacion Cardiaca',
+        subtitulo: 'Salud Cardiovascular',
+        descripcion: 'El programa de rehabilitacion cardiaca es un conjunto supervisado de intervenciones diseñadas para optimizar el estado fisico, psicologico y social de pacientes con enfermedades cardiovasculares. Incluye educacion sobre factores de riesgo, ejercicio fisico supervisado y modificacion del estilo de vida.',
+        trata: [
+            'Post-infarto de miocardio',
+            'Despues de bypass coronario',
+            'Insuficiencia cardiaca',
+            'Enfermedad arterial coronaria',
+            'Post-angioplastia',
+            'Valvulopatias',
+            'EPOC y enfermedad pulmonar',
+            'Hipertension pulmonar'
+        ],
+        tecnicas: [
+            'Ejercicio aerobico supervisado',
+            'Entrenamiento de resistencia',
+            'Monitoreo cardiaco continuo',
+            'Educacion sobre dieta cardiaca',
+            'Manejo del estres',
+            'Rehabilitacion respiratoria',
+            'Programa de cambio de estilo de vida',
+            'Apoyo psicologico'
+        ],
+        duracion: 'Sesiones de 60-90 minutos. Programa de 12-36 semanas. Frecuencia: 3 veces por semana inicialmente, luego 2 veces.',
+        beneficios: [
+            'Mejora cardiaca',
+            'Mayor tolerancia al esfuerzo',
+            'Reduccion de factores de riesgo',
+            'Mejor calidad de vida',
+            'Reduccion de ansiedad',
+            'Mayor sobrevida'
+        ]
+    },
+    hidroterapia: {
+        icono: 'fas fa-water',
+        titulo: 'Hidroterapia',
+        subtitulo: 'Terapia Acuatica',
+        descripcion: 'La hidroterapia o terapia acuatica utiliza las propiedades del agua para facilitar el ejercicio terapeutico. El agua proporciona un ambiente de bajo impacto que permite realizar movimientos con menor carga sobre las articulaciones, ideal para pacientes con dolor intenso o limitaciones de movilidad.',
+        trata: [
+            'Artritis reumatoide y osteoartritis',
+            'Fibromialgia',
+            'Lumbalgia cronica',
+            'Rehabilitacion post-operatoria de cadera y rodilla',
+            'Dolor cronico',
+            'Obesidad y sobrepeso',
+            'Embarazo con dolor lumbar',
+            'Lesiones musculares'
+        ],
+        tecnicas: [
+            'Ejercicios en piscina terapeutica',
+            'Gimnasia acuatica',
+            'Relajacion en agua caliente',
+            'Circuito de hidromasaje',
+            'Ejercicios de flotacion',
+            'Aqua aerobics terapeutico',
+            'Traccion acuatica',
+            'Terapia con corrientes de agua'
+        ],
+        duracion: 'Sesiones de 45-60 minutos en piscina climatizada a 33-34 grados. Frecuencia: 2-3 veces por semana durante 8-12 semanas.',
+        beneficios: [
+            'Reduccion del dolor',
+            'Mayor movilidad articular',
+            'Fortalecimiento sin impacto',
+            'Relajacion muscular',
+            'Mejora circulatoria',
+            'Bienestar general'
+        ]
+    },
+    geriatrica: {
+        icono: 'fas fa-user-nurse',
+        titulo: 'Rehabilitacion Geriatrica',
+        subtitulo: 'Adultos Mayores Activos',
+        descripcion: 'La rehabilitacion geriatrica es un enfoque integral para adultos mayores que busca mantener y mejorar su capacidad funcional, prevenir la dependencia y caidas, y promover un envejecimiento saludable. Nuestros programas estan disenados especificamente para las necesidades y limitaciones de la tercera edad.',
+        trata: [
+            'Prevencion de caidas',
+            'Desequilibrio y mareos',
+            'Debilidad muscular por aging',
+            'Artrosis de cadera y rodilla',
+            'Osteoporosis',
+            'Demencias leves y moderadas',
+            'Rehabilitacion post-fractura de cadera',
+            'Sarcopenia'
+        ],
+        tecnicas: [
+            'Entrenamiento de equilibrio y marcha',
+            'Fortalecimiento muscular progresivo',
+            'Ejercicios de coordinacion',
+            'Entrenamiento de flexibilidad',
+            'Rehabilitacion respiratoria',
+            'Estimulacion cognitiva',
+            'Entrenamiento funcional',
+            'Prevencion de fragilidad'
+        ],
+        duracion: 'Sesiones de 45-60 minutos. Frecuencia: 2-3 veces por semana. Programa continuo de mantenimiento recomendado.',
+        beneficios: [
+            'Prevencion de caidas',
+            'Mayor movilidad',
+            'Independencia funcional',
+            'Fortalecimiento',
+            'Mejor equilibrio',
+            'Calidad de vida'
+        ]
+    },
+    habla: {
+        icono: 'fas fa-comments',
+        titulo: 'Terapia del Habla',
+        subtitulo: 'Fonoaudiologia',
+        descripcion: 'La terapia del habla o fonoaudiologia se encarga de la prevencion, evaluacion, diagnostico y tratamiento de los trastornos de la comunicacion humana, incluyendo el lenguaje oral y escrito, la audicion, la voz, el habla, la motricidad orofacial y la deglucion. Trabajamos con pacientes de todas las edades.',
+        trata: [
+            'Afasia (perdida del lenguaje)',
+            'Disartria (dificultad para articular)',
+            'Disfagia (dificultad para tragar)',
+            'Tartamudez',
+            'Trastornos de la voz',
+            'Retraso del lenguaje en ninos',
+            'Trastornos fonologicos',
+            'Problemas de deglucion'
+        ],
+        tecnicas: [
+            'Ejercicios de articulacion',
+            'Terapia de lenguaje y comunicacion',
+            'Ejercicios de deglucion',
+            'Entrenamiento vocal',
+            'Estimulacion del lenguaje',
+            'Tecnicas de modificacion de voz',
+            'Ejercicios de respiracion para el habla',
+            'Programas de comunicacion alternativa'
+        ],
+        duracion: 'Sesiones de 45-60 minutos. Frecuencia: 2-3 veces por semana. Programa de 8-16 semanas segun la condicion.',
+        beneficios: [
+            'Mejora comunicacion',
+            'Mayor seguridad',
+            'Alimentacion segura',
+            'Voz mas clara',
+            'Comprension mejorada',
+            'Integracion social'
+        ]
+    },
+    pediatrica: {
+        icono: 'fas fa-child',
+        titulo: 'Rehabilitacion Pediatrica',
+        subtitulo: 'Ninos y Adolescentes',
+        descripcion: 'La rehabilitacion pediatrica ofrece intervencion temprana y continua para ninos con retrasos en el desarrollo, discapacidades fisicas o condiciones neurologicas. Nuestros terapeutas utilizan enfoques lúdicos y motivadores adaptados a la edad y necesidades de cada nino, trabajando en colaboracion con la familia.',
+        trata: [
+            'Paralisis cerebral',
+            'Retraso en el desarrollo motor',
+            'Torticolis congenita',
+            'Pie zambo (equinovaro)',
+            'Sindrome de Down',
+            'Lesiones del plexo braquial',
+            'Mielomeningocele',
+            'Trastornos del desarrollo'
+        ],
+        tecnicas: [
+            'Terapia de juego terapeutico',
+            'Estimulacion del desarrollo motor',
+            'Bobath pediatrico',
+            'Ejercicios de fortalecimiento',
+            'Entrenamiento de marcha',
+            'Terapia sensorial integrada',
+            'Programas de estimulacion temprana',
+            'Orientacion a padres'
+        ],
+        duracion: 'Sesiones de 30-45 minutos. Frecuencia: 2-4 veces por semana. Programa adaptado al ritmo de desarrollo del nino.',
+        beneficios: [
+            'Desarrollo motor',
+            'Mayor independencia',
+            'Mejora postural',
+            'Integracion escolar',
+            'Fortalecimiento',
+            'Desarrollo cognitivo'
+        ]
+    }
+};
+
+// Modal
+var modal = document.getElementById('modal-especialidad');
+var btnClose = document.getElementById('modal-close-btn');
+
+// Abrir modal
+document.querySelectorAll('.btn-mas-info').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        var key = this.getAttribute('data-especialidad');
+        var esp = especialidades[key];
+        if (!esp) return;
+
+        document.getElementById('modal-icon').innerHTML = '<i class="' + esp.icono + '"></i>';
+        document.getElementById('modal-titulo').textContent = esp.titulo;
+        document.getElementById('modal-subtitulo').textContent = esp.subtitulo;
+        document.getElementById('modal-descripcion').textContent = esp.descripcion;
+        document.getElementById('modal-duracion').textContent = esp.duracion;
+
+        var trataList = document.getElementById('modal-trata');
+        trataList.innerHTML = '';
+        esp.trata.forEach(function(item) {
+            trataList.innerHTML += '<li><i class="fas fa-check-circle"></i> ' + item + '</li>';
+        });
+
+        var tecList = document.getElementById('modal-tecnicas');
+        tecList.innerHTML = '';
+        esp.tecnicas.forEach(function(item) {
+            tecList.innerHTML += '<li><i class="fas fa-cog"></i> ' + item + '</li>';
+        });
+
+        var benGrid = document.getElementById('modal-beneficios-grid');
+        benGrid.innerHTML = '';
+        esp.beneficios.forEach(function(item) {
+            benGrid.innerHTML += '<div class="beneficio-item"><i class="fas fa-check"></i> ' + item + '</div>';
+        });
+
+        modal.classList.add('activo');
+        document.body.style.overflow = 'hidden';
+    });
+});
+
+// Cerrar modal
+function cerrarModal() {
+    modal.classList.remove('activo');
+    document.body.style.overflow = '';
+}
+
+btnClose.addEventListener('click', cerrarModal);
+
+modal.addEventListener('click', function(e) {
+    if (e.target === modal) cerrarModal();
+});
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && modal.classList.contains('activo')) cerrarModal();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,101 @@
+services:
+  # ============================================
+  # GATEWAY — Reverse proxy + sirve HTML
+  # ============================================
+  - type: web
+    name: moova-gateway
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn gateway.app:app --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.8"
+      - key: FLASK_DEBUG
+        value: "false"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: AUTH_SERVICE_URL
+        fromService:
+          name: moova-auth
+          type: web
+          property: host
+      - key: PACIENTES_SERVICE_URL
+        fromService:
+          name: moova-pacientes
+          type: web
+          property: host
+      - key: CITAS_SERVICE_URL
+        fromService:
+          name: moova-citas
+          type: web
+          property: host
+      - key: PAGOS_SERVICE_URL
+        fromService:
+          name: moova-pagos
+          type: web
+          property: host
+      - key: NOTAS_SERVICE_URL
+        fromService:
+          name: moova-notas
+          type: web
+          property: host
+
+  # ============================================
+  # AUTH SERVICE — Puerto 5001
+  # ============================================
+  - type: web
+    name: moova-auth
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn "services.auth_service.app:create_app()" --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.8"
+
+  # ============================================
+  # PACIENTES SERVICE — Puerto 5002
+  # ============================================
+  - type: web
+    name: moova-pacientes
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn "services.pacientes_service.app:create_app()" --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.8"
+
+  # ============================================
+  # CITAS SERVICE — Puerto 5003
+  # ============================================
+  - type: web
+    name: moova-citas
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn "services.citas_service.app:create_app()" --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.8"
+
+  # ============================================
+  # PAGOS SERVICE — Puerto 5004
+  # ============================================
+  - type: web
+    name: moova-pagos
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn "services.pagos_service.app:create_app()" --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.8"
+
+  # ============================================
+  # NOTAS SERVICE — Puerto 5005
+  # ============================================
+  - type: web
+    name: moova-notas
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn "services.notas_service.app:create_app()" --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.8"
