@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalle Paciente - MOOVA Clinic</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='paneladmin.css') }}">
+    <style>
+        .paciente-info { background: #fff; border-radius: 12px; padding: 2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 1.5rem; }
+        .paciente-info h2 { margin: 0 0 1rem; color: #2d3748; }
+        .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; }
+        .info-item label { display: block; font-size: 0.8rem; color: #718096; text-transform: uppercase; }
+        .info-item span { font-size: 1rem; color: #2d3748; font-weight: 600; }
+        .historial-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .historial-table th { background: #4a5568; color: #fff; padding: 12px; text-align: left; }
+        .historial-table td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; }
+        .historial-table tr:hover { background: #f7fafc; }
+        .badge { padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 600; }
+        .badge-programada { background: #bee3f8; color: #2b6cb0; }
+        .badge-completada { background: #c6f6d5; color: #22543d; }
+        .badge-cancelada { background: #fed7d7; color: #9b2c2c; }
+    </style>
+</head>
+<body>
+    <div class="panel-container">
+        <div class="panel-header">
+            <h1>Historial del Paciente</h1>
+            <div>
+                <a href="{{ url_for('pacientes_page') }}">Volver a Pacientes</a>
+                <a href="{{ url_for('panel_admin') }}">Panel Admin</a>
+                <a href="{{ url_for('logout') }}">Cerrar sesion</a>
+            </div>
+        </div>
+
+        <div class="paciente-info">
+            <h2>{{ paciente.nombre }} {{ paciente.apellido }}</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <label>DNI</label>
+                    <span>{{ paciente.dni }}</span>
+                </div>
+                <div class="info-item">
+                    <label>Telefono</label>
+                    <span>{{ paciente.telefono }}</span>
+                </div>
+                <div class="info-item">
+                    <label>Email</label>
+                    <span>{{ paciente.email or 'No registrado' }}</span>
+                </div>
+                <div class="info-item">
+                    <label>Estado</label>
+                    <span>{{ paciente.estado|capitalize }}</span>
+                </div>
+            </div>
+        </div>
+
+        <h2 style="color:#2d3748; margin-bottom:1rem;">Historial de Citas</h2>
+        <table class="historial-table">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Terapeuta</th>
+                    <th>Especialidad</th>
+                    <th>Estado</th>
+                    <th>Monto</th>
+                    <th>Pago</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for h in historial %}
+                <tr>
+                    <td>{{ h.fecha_cita }}</td>
+                    <td>{{ h.terapeuta }}</td>
+                    <td>{{ h.Especialidad }}</td>
+                    <td>
+                        <span class="badge badge-{{ h.estado }}">{{ h.estado|capitalize }}</span>
+                    </td>
+                    <td>S/. {{ '%.2f'|format(h.monto|default(0, true)) }}</td>
+                    <td>
+                        <span class="badge badge-{{ h.estado_pago|default('pendiente', true) }}">
+                            {{ h.estado_pago|default('N/A', true)|capitalize }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

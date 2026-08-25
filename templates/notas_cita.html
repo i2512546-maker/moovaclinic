@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notas Clinicas - MOOVA Clinic</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='interfaz.css') }}">
+    <style>
+        .nota-card { background: #fff; border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .nota-card .nota-header { display: flex; justify-content: space-between; margin-bottom: 0.5rem; }
+        .nota-card .nota-autor { color: #718096; font-size: 0.85rem; }
+        .nota-card .nota-fecha { color: #a0aec0; font-size: 0.85rem; }
+        .nota-card .nota-texto { color: #2d3748; line-height: 1.6; }
+        .nota-card .diagnostico { background: #ebf8ff; padding: 8px 12px; border-radius: 6px; margin-top: 0.5rem; font-size: 0.9rem; color: #2b6cb0; }
+        .form-nota { background: #fff; border-radius: 12px; padding: 2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 1.5rem; }
+        .form-nota textarea { width: 100%; min-height: 120px; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1rem; resize: vertical; }
+        .form-nota input[type="text"] { width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1rem; }
+        .btn-guardar { background: #48bb78; color: #fff; border: none; padding: 10px 24px; border-radius: 8px; font-size: 1rem; cursor: pointer; margin-top: 1rem; }
+        .btn-guardar:hover { background: #38a169; }
+    </style>
+</head>
+<body>
+    <div class="panel-container">
+        <div class="panel-header">
+            <h1>Notas Clinicas - Cita #{{ cita.id }}</h1>
+            <div>
+                <a href="{{ url_for('interfaz') }}">Horarios</a>
+                <a href="{{ url_for('logout') }}">Cerrar sesion</a>
+            </div>
+        </div>
+
+        <div class="nota-card">
+            <h3 style="margin:0 0 0.5rem; color:#2d3748;">
+                Paciente: {{ cita.nombre }} {{ cita.apellido }}
+            </h3>
+            <div class="meta" style="color:#718096;">
+                DNI: {{ cita.dni }} | Terapeuta: {{ cita.terapeuta }} | Especialidad: {{ cita.Especialidad }} | Fecha: {{ cita.fecha_cita }}
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        {% for msg in messages %}
+        <div class="alert {% if msg.startswith('exito:') %}alert-success{% else %}alert-error{% endif %}" style="padding:12px;border-radius:8px;margin-bottom:1rem;
+            {% if msg.startswith('exito:') %}background:#c6f6d5;color:#22543d;{% else %}background:#fed7d7;color:#9b2c2c;{% endif %}">
+            {{ msg.replace('exito:', '') }}
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <div class="form-nota">
+            <h3 style="margin:0 0 1rem; color:#2d3748;">Nueva Nota Clinica</h3>
+            <form method="POST">
+                <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#4a5568;">Diagnostico (opcional)</label>
+                <input type="text" name="diagnostico" placeholder="Ej: Contractura muscular lumbar">
+                <label style="display:block;margin:1rem 0 0.5rem;font-weight:600;color:#4a5568;">Nota de la sesion</label>
+                <textarea name="nota" placeholder="Describe la sesion de tratamiento, evolucion del paciente, ejercicios realizados..."></textarea>
+                <button type="submit" class="btn-guardar">Guardar Nota</button>
+            </form>
+        </div>
+
+        <h2 style="color:#2d3748; margin-bottom:1rem;">Notas Anteriores</h2>
+        {% for nota in notas %}
+        <div class="nota-card">
+            <div class="nota-header">
+                <span class="nota-autor">{{ nota.autor or 'Terapeuta' }}</span>
+                <span class="nota-fecha">{{ nota.fecha_creacion }}</span>
+            </div>
+            <div class="nota-texto">{{ nota.nota }}</div>
+            {% if nota.diagnostico %}
+            <div class="diagnostico">Diagnostico: {{ nota.diagnostico }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        {% if not notas %}
+        <p style="color:#718096;text-align:center;">No hay notas clinicas registradas para esta cita.</p>
+        {% endif %}
+    </div>
+</body>
+</html>

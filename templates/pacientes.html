@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pacientes - MOOVA Clinic</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='paneladmin.css') }}">
+    <style>
+        .pacientes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; margin-top: 1rem; }
+        .paciente-card { background: #fff; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: transform 0.2s; }
+        .paciente-card:hover { transform: translateY(-2px); }
+        .paciente-card h3 { margin: 0 0 0.5rem; color: #2d3748; }
+        .paciente-card .meta { color: #718096; font-size: 0.9rem; margin-bottom: 0.5rem; }
+        .paciente-card .estado { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: 600; }
+        .estado-activo { background: #c6f6d5; color: #22543d; }
+        .estado-inactivo { background: #fed7d7; color: #9b2c2c; }
+        .btn-ver { display: inline-block; margin-top: 0.5rem; padding: 6px 16px; background: #4299e1; color: #fff; border-radius: 6px; text-decoration: none; font-size: 0.85rem; }
+        .btn-ver:hover { background: #3182ce; }
+        .search-box { margin-bottom: 1rem; }
+        .search-box input { width: 100%; max-width: 400px; padding: 10px 16px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1rem; }
+    </style>
+</head>
+<body>
+    <div class="panel-container">
+        <div class="panel-header">
+            <h1>Pacientes Registrados</h1>
+            <div>
+                <a href="{{ url_for('panel_admin') }}">Panel Admin</a>
+                <a href="{{ url_for('interfaz') }}">Horarios</a>
+                <a href="{{ url_for('index') }}">Inicio</a>
+                <a href="{{ url_for('logout') }}">Cerrar sesion</a>
+            </div>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="buscarPaciente" placeholder="Buscar por nombre, apellido o DNI..." onkeyup="filtrarPacientes()">
+        </div>
+
+        <div class="pacientes-grid" id="listaPacientes">
+            {% for p in pacientes %}
+            <div class="paciente-card" data-buscar="{{ p.nombre|lower }} {{ p.apellido|lower }} {{ p.dni }}">
+                <h3>{{ p.nombre }} {{ p.apellido }}</h3>
+                <div class="meta">DNI: {{ p.dni }} | Tel: {{ p.telefono }}</div>
+                <div class="meta">Email: {{ p.email or 'No registrado' }}</div>
+                <div class="meta">Citas: {{ p.total_citas }} | Ultima: {{ p.ultima_cita or 'Ninguna' }}</div>
+                <span class="estado estado-{{ p.estado }}">{{ p.estado|capitalize }}</span>
+                <a href="{{ url_for('detalle_paciente_page', paciente_id=p.id) }}" class="btn-ver">Ver historial</a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script>
+        function filtrarPacientes() {
+            const busqueda = document.getElementById('buscarPaciente').value.toLowerCase();
+            const cards = document.querySelectorAll('.paciente-card');
+            cards.forEach(card => {
+                const texto = card.getAttribute('data-buscar');
+                card.style.display = texto.includes(busqueda) ? '' : 'none';
+            });
+        }
+    </script>
+</body>
+</html>
