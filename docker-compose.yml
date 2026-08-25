@@ -1,0 +1,72 @@
+version: "3.8"
+
+services:
+  gateway:
+    build: .
+    command: python run.py
+    ports:
+      - "5000:5000"
+    env_file: .env
+    depends_on:
+      - auth-service
+      - pacientes-service
+      - citas-service
+      - pagos-service
+      - notas-service
+    environment:
+      - AUTH_SERVICE_URL=http://auth-service:5001
+      - PACIENTES_SERVICE_URL=http://pacientes-service:5002
+      - CITAS_SERVICE_URL=http://citas-service:5003
+      - PAGOS_SERVICE_URL=http://pagos-service:5004
+      - NOTAS_SERVICE_URL=http://notas-service:5005
+    networks:
+      - moova-net
+
+  auth-service:
+    build: .
+    command: python -m services.auth_service.run
+    ports:
+      - "5001:5001"
+    env_file: .env
+    networks:
+      - moova-net
+
+  pacientes-service:
+    build: .
+    command: python -m services.pacientes_service.run
+    ports:
+      - "5002:5002"
+    env_file: .env
+    networks:
+      - moova-net
+
+  citas-service:
+    build: .
+    command: python -m services.citas_service.run
+    ports:
+      - "5003:5003"
+    env_file: .env
+    networks:
+      - moova-net
+
+  pagos-service:
+    build: .
+    command: python -m services.pagos_service.run
+    ports:
+      - "5004:5004"
+    env_file: .env
+    networks:
+      - moova-net
+
+  notas-service:
+    build: .
+    command: python -m services.notas_service.run
+    ports:
+      - "5005:5005"
+    env_file: .env
+    networks:
+      - moova-net
+
+networks:
+  moova-net:
+    driver: bridge

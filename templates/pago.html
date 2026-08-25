@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Completa tu pago - MOOVA Clinic</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Nunito:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='citas.css') }}">
+    {% if niubiz_sdk_url %}<script src="{{ niubiz_sdk_url }}"></script>{% endif %}
+</head>
+<body>
+
+    <header>
+        <div class="header-container">
+            <nav>
+                <ul>
+                    <li><a href="{{ url_for('index') }}"><i class="fas fa-home"></i> Inicio</a></li>
+                    <li class="dropdown-wrap">
+                        <button class="btn-cita dropdown-toggle" type="button">
+                            <i class="fas fa-calendar-check"></i> Citas <i class="fas fa-chevron-down dropdown-arrow"></i>
+                        </button>
+                        <div class="dropdown-menu">
+                            <a href="{{ url_for('citas_page') }}" class="dropdown-item"><i class="fas fa-calendar-plus"></i><span>Agendar cita</span></a>
+                            <a href="{{ url_for('modificar_cita_page') }}" class="dropdown-item dropdown-modificar"><i class="fas fa-edit"></i><span>Modificar cita</span></a>
+                            <a href="{{ url_for('cancelar_cita_page') }}" class="dropdown-item dropdown-cancelar"><i class="fas fa-times-circle"></i><span>Cancelar cita</span></a>
+                        </div>
+                    </li>
+                </ul>
+            </nav>
+            <div class="logo">MOOVA <span>Clinic</span></div>
+        </div>
+    </header>
+
+    <div class="page-wrap">
+        <div class="page-header">
+            <span class="subtitle">Paso 2 de 3</span>
+            <h1><i class="fas fa-credit-card"></i> Realiza tu pago</h1>
+            <p>Tu cita aún no está confirmada. Completa el anticipo para agendarla.</p>
+        </div>
+
+        <div class="container" style="justify-content:center;">
+            <div class="form-container" style="max-width:520px; width:100%;">
+
+                {% with messages = get_flashed_messages() %}
+                    {% if messages %}
+                        {% for msg in messages %}
+                        {% if msg.startswith('exito:') %}
+                        <div class="alerta exito"><i class="fas fa-check-circle"></i> {{ msg[6:] }}</div>
+                        {% else %}
+                        <div class="alerta error"><i class="fas fa-exclamation-circle"></i> {{ msg }}</div>
+                        {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <div class="card-resumen" style="background:#fff; border:2px solid var(--border); border-radius:16px; padding:22px; margin-bottom:20px; box-shadow:0 4px 16px rgba(26,58,92,0.08);">
+                    <h3 style="color:var(--navy); font-size:1rem; margin-bottom:14px;"><i class="fas fa-file-invoice"></i> Resumen de tu cita</h3>
+                    <div class="resumen-row">
+                        <span class="resumen-label"><i class="fas fa-user"></i> Paciente</span>
+                        <span class="resumen-value">{{ cita.nombre }} {{ cita.apellido }}</span>
+                    </div>
+                    <div class="resumen-row">
+                        <span class="resumen-label"><i class="fas fa-user-md"></i> Especialista</span>
+                        <span class="resumen-value">{{ cita.terapeuta }}</span>
+                    </div>
+                    <div class="resumen-row">
+                        <span class="resumen-label"><i class="fas fa-stethoscope"></i> Especialidad</span>
+                        <span class="resumen-value">{{ cita.Especialidad }}</span>
+                    </div>
+                    <div class="resumen-row">
+                        <span class="resumen-label"><i class="fas fa-calendar-alt"></i> Fecha</span>
+                        <span class="resumen-value">{{ cita.fecha_cita }}</span>
+                    </div>
+                    <div class="resumen-row">
+                        <span class="resumen-label"><i class="fas fa-hand-holding-usd"></i> Anticipo (50%)</span>
+                        <span class="resumen-value" style="color:var(--navy); font-weight:700;">S/ {{ '%.2f'|format(cita.monto) }}</span>
+                    </div>
+                    <div class="resumen-row">
+                        <span class="resumen-label"><i class="fas fa-money-check-alt"></i> Método de pago</span>
+                        <span class="resumen-value">{{ cita.metodo_pago|capitalize }}</span>
+                    </div>
+                </div>
+
+                <!-- ============ PANEL DE PAGO SEGÚN MÉTODO ============ -->
+                {% set monto_txt = '%.2f'|format(cita.monto) %}
+                {% if cita.metodo_pago == 'yape' %}
+                <div class="pago-panel">
+                    <div class="pago-method-head">
+                        <div class="pago-method-icon"><i class="fa-solid fa-wallet"></i></div>
+                        <div>
+                            <h2>Paga con Yape</h2>
+                            <p>Escanea el código QR y confirma el pago desde tu app Yape.</p>
+                        </div>
+                    </div>
+                    <div class="pago-monto">S/ {{ monto_txt }}</div>
+                    <button type="button" class="btn-pago" id="btnAbrirYape">
+                        <i class="fas fa-qrcode"></i> Mostrar código QR de Yape
+                    </button>
+                    <p class="pago-nota"><i class="fas fa-shield-alt"></i> Solo marcamos tu cita como pagada cuando Yape confirma el cobro.</p>
+                </div>
+
+                {% elif cita.metodo_pago == 'plin' %}
+                <div class="pago-panel">
+                    <div class="pago-method-head">
+                        <div class="pago-method-icon"><i class="fa-solid fa-mobile-screen-button"></i></div>
+                        <div>
+                            <h2>Paga con Plin</h2>
+                            <p>Escanea el código QR y confirma el pago desde tu app Plin.</p>
+                        </div>
+                    </div>
+                    <div class="pago-monto">S/ {{ monto_txt }}</div>
+                    <button type="button" class="btn-pago" id="btnAbrirPlin">
+                        <i class="fas fa-qrcode"></i> Mostrar código QR de Plin
+                    </button>
+                    <p class="pago-nota"><i class="fas fa-shield-alt"></i> Solo marcamos tu cita como pagada cuando Plin confirma el cobro.</p>
+                </div>
+
+                {% elif cita.metodo_pago == 'tarjeta' %}
+                <div class="pago-panel">
+                    <div class="pago-method-head">
+                        <div class="pago-method-icon"><i class="fas fa-credit-card"></i></div>
+                        <div>
+                            <h2>Pago con tarjeta</h2>
+                            <p>Débito o crédito. Pago procesado de forma segura por Niubiz.</p>
+                        </div>
+                    </div>
+                    <div class="pago-monto">S/ {{ monto_txt }}</div>
+
+                    <div class="card-preview" id="cardPreview">
+                        <div class="card-preview-chip"><i class="fas fa-wifi"></i></div>
+                        <div class="card-preview-num" id="cardPreviewNum">•••• •••• •••• ••••</div>
+                        <div class="card-preview-bottom">
+                            <div>
+                                <span class="card-preview-label">Titular</span>
+                                <span class="card-preview-val" id="cardPreviewTitular">NOMBRE DEL TITULAR</span>
+                            </div>
+                            <div>
+                                <span class="card-preview-label">Vence</span>
+                                <span class="card-preview-val" id="cardPreviewExp">MM/AA</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form id="formTarjeta" autocomplete="off">
+                        <div class="form-group">
+                            <label><i class="fas fa-credit-card"></i> Número de tarjeta</label>
+                            <input type="text" id="cardNumero" inputmode="numeric" maxlength="19" placeholder="0000 0000 0000 0000" class="card-input">
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-user"></i> Titular de la tarjeta</label>
+                            <input type="text" id="cardTitular" maxlength="60" placeholder="NOMBRE COMO APARECE EN LA TARJETA" class="card-input">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label><i class="fas fa-calendar-alt"></i> Vencimiento</label>
+                                <input type="text" id="cardExp" inputmode="numeric" maxlength="5" placeholder="MM/AA" class="card-input">
+                            </div>
+                            <div class="form-group">
+                                <label><i class="fas fa-lock"></i> CVV</label>
+                                <input type="password" id="cardCvv" inputmode="numeric" maxlength="4" placeholder="•••" class="card-input">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-pago" id="btnPagarTarjeta">
+                            <i class="fas fa-lock"></i> Pagar S/ {{ monto_txt }}
+                        </button>
+                        <p class="pago-error" id="msgTarjeta"></p>
+                    </form>
+                    <p class="pago-nota"><i class="fas fa-shield-alt"></i> Pago 100% seguro. Tus datos de tarjeta se cifran en tu navegador (PCI-DSS) y nunca se almacenan en nuestra web.</p>
+                </div>
+
+                {% else %}
+                <div class="pago-panel">
+                    <div class="pago-method-head">
+                        <div class="pago-method-icon"><i class="fas fa-university"></i></div>
+                        <div>
+                            <h2>Transferencia bancaria</h2>
+                            <p>Realiza una transferencia de S/ {{ monto_txt }} y presiona confirmar.</p>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-pago" id="btnTransferencia">
+                        <i class="fas fa-check-circle"></i> Confirmar pago
+                    </button>
+                    <p class="pago-error" id="msgTransferencia"></p>
+                </div>
+                {% endif %}
+
+                <p style="text-align:center; margin-top:16px; font-size:0.85rem; color:var(--text-soft);">
+                    <i class="fas fa-info-circle"></i> Para reservar tu cita se requiere un anticipo del 50% del costo de la atención.
+                </p>
+                <p style="text-align:center; margin-top:10px; font-size:0.85rem;">
+                    <a href="{{ url_for('index') }}" style="color:var(--accent); font-weight:600;">
+                        <i class="fas fa-arrow-left"></i> Volver al inicio
+                    </a>
+                </p>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ MODAL YAPE ============ -->
+    <div class="modal-overlay" id="modalYape" style="display:none;">
+        <div class="modal">
+            <button type="button" class="modal-close" onclick="cerrarModal('modalYape')">&times;</button>
+            <h3><i class="fa-solid fa-wallet"></i> Paga con Yape</h3>
+            <div class="modal-monto">S/ {{ monto_txt }}</div>
+            <div class="qr-box" id="qrYape"></div>
+            <ol class="modal-pasos">
+                <li>Escanea el código QR con tu app Yape.</li>
+                <li>Verifica que el monto sea correcto y confirma el pago.</li>
+                <li>Presiona el botón cuando hayas pagado.</li>
+            </ol>
+            <button type="button" class="btn-pago" id="btnVerificarYape" onclick="verificarYape()">
+                <i class="fas fa-check-double"></i> Ya realicé el pago
+            </button>
+            <p class="pago-error" id="msgYape"></p>
+        </div>
+    </div>
+
+    <!-- ============ MODAL PLIN ============ -->
+    <div class="modal-overlay" id="modalPlin" style="display:none;">
+        <div class="modal">
+            <button type="button" class="modal-close" onclick="cerrarModal('modalPlin')">&times;</button>
+            <h3><i class="fa-solid fa-mobile-screen-button"></i> Paga con Plin</h3>
+            <div class="modal-monto">S/ {{ monto_txt }}</div>
+            <div class="qr-box" id="qrPlin"></div>
+            <ol class="modal-pasos">
+                <li>Escanea el código QR con tu app Plin.</li>
+                <li>Verifica que el monto sea correcto y confirma el pago.</li>
+                <li>Presiona el botón cuando hayas pagado.</li>
+            </ol>
+            <button type="button" class="btn-pago" id="btnVerificarPlin" onclick="verificarPlin()">
+                <i class="fas fa-check-double"></i> Ya realicé el pago
+            </button>
+            <p class="pago-error" id="msgPlin"></p>
+        </div>
+    </div>
+
+    <!-- ============ OVERLAY PAGO EXITOSO ============ -->
+    <div class="modal-overlay" id="overlayExito" style="display:none;">
+        <div class="modal modal-exito">
+            <i class="fas fa-check-circle exito-icon"></i>
+            <h3>Pago realizado correctamente</h3>
+            <p>Tu cita quedó registrada como pagada. Redirigiendo a tu confirmación...</p>
+        </div>
+    </div>
+
+<script>
+var CITA_ID = "{{ cita.id }}";
+
+function mostrarOverlayExito() {
+    document.getElementById('overlayExito').style.display = 'flex';
+    setTimeout(function(){ window.location.href = '/retorno?cita_id=' + CITA_ID; }, 1800);
+}
+function abrirModal(id) { document.getElementById(id).style.display = 'flex'; }
+function cerrarModal(id) { document.getElementById(id).style.display = 'none'; }
+
+document.querySelectorAll('.modal-close').forEach(function(b){
+    b.addEventListener('click', function(){ b.closest('.modal-overlay').style.display = 'none'; });
+});
+
+/* ---------- YAPE ---------- */
+var yapeCobroId = null;
+var btnYape = document.getElementById('btnAbrirYape');
+if (btnYape) {
+    btnYape.addEventListener('click', function(){
+        abrirModal('modalYape');
+        document.getElementById('qrYape').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cargando código QR...';
+        document.getElementById('msgYape').textContent = '';
+        fetch('/api/pagos/yape/iniciar', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({cita_id: CITA_ID})
+        })
+        .then(function(r){ return r.json(); })
+        .then(function(res){
+            if (res.ok) {
+                yapeCobroId = res.cobro_id;
+                document.getElementById('qrYape').innerHTML = '<img src="' + res.qr + '" alt="Código QR Yape">';
+            } else {
+                document.getElementById('qrYape').innerHTML = '<p class="pago-error">' + res.error + '</p>';
+            }
+        })
+        .catch(function(){
+            document.getElementById('qrYape').innerHTML = '<p class="pago-error">Error de conexión. Intenta de nuevo.</p>';
+        });
+    });
+}
+function verificarYape() {
+    var btn = document.getElementById('btnVerificarYape');
+    btn.disabled = true;
+    document.getElementById('msgYape').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Consultando estado del pago...';
+        fetch('/api/pagos/yape/estado', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({cita_id: CITA_ID, cobro_id: yapeCobroId})
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(res){
+        if (res.pagado) {
+            cerrarModal('modalYape');
+            mostrarOverlayExito();
+        } else {
+            document.getElementById('msgYape').innerHTML = res.mensaje || res.error || 'El pago aún no se registra en Yape. Intenta de nuevo.';
+            btn.disabled = false;
+        }
+    })
+    .catch(function(){
+        document.getElementById('msgYape').innerHTML = 'Error de conexión. Intenta de nuevo.';
+        btn.disabled = false;
+    });
+}
+
+/* ---------- PLIN ---------- */
+var plinCobroId = null;
+var btnPlin = document.getElementById('btnAbrirPlin');
+if (btnPlin) {
+    btnPlin.addEventListener('click', function(){
+        abrirModal('modalPlin');
+        document.getElementById('qrPlin').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cargando código QR...';
+        document.getElementById('msgPlin').textContent = '';
+        fetch('/api/pagos/plin/iniciar', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({cita_id: CITA_ID})
+        })
+        .then(function(r){ return r.json(); })
+        .then(function(res){
+            if (res.ok) {
+                plinCobroId = res.cobro_id;
+                document.getElementById('qrPlin').innerHTML = '<img src="' + res.qr + '" alt="Código QR Plin">';
+            } else {
+                document.getElementById('qrPlin').innerHTML = '<p class="pago-error">' + res.error + '</p>';
+            }
+        })
+        .catch(function(){
+            document.getElementById('qrPlin').innerHTML = '<p class="pago-error">Error de conexión. Intenta de nuevo.</p>';
+        });
+    });
+}
+function verificarPlin() {
+    var btn = document.getElementById('btnVerificarPlin');
+    btn.disabled = true;
+    document.getElementById('msgPlin').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Consultando estado del pago...';
+        fetch('/api/pagos/plin/estado', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({cita_id: CITA_ID, cobro_id: plinCobroId})
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(res){
+        if (res.pagado) {
+            cerrarModal('modalPlin');
+            mostrarOverlayExito();
+        } else {
+            document.getElementById('msgPlin').innerHTML = res.mensaje || res.error || 'El pago aún no se registra en Plin. Intenta de nuevo.';
+            btn.disabled = false;
+        }
+    })
+    .catch(function(){
+        document.getElementById('msgPlin').innerHTML = 'Error de conexión. Intenta de nuevo.';
+        btn.disabled = false;
+    });
+}
+
+/* ---------- TARJETA ---------- */
+function soloDigitos(v, max) { return v.replace(/\D/g, '').slice(0, max); }
+
+var inputNum = document.getElementById('cardNumero');
+if (inputNum) {
+    inputNum.addEventListener('input', function(){
+        var d = soloDigitos(this.value, 16);
+        var g = d.match(/.{1,4}/g);
+        this.value = g ? g.join(' ') : '';
+        document.getElementById('cardPreviewNum').textContent = this.value || '•••• •••• •••• ••••';
+    });
+    document.getElementById('cardTitular').addEventListener('input', function(){
+        document.getElementById('cardPreviewTitular').textContent = this.value.toUpperCase() || 'NOMBRE DEL TITULAR';
+    });
+    var inputExp = document.getElementById('cardExp');
+    inputExp.addEventListener('input', function(){
+        var d = soloDigitos(this.value, 4);
+        if (d.length >= 3) { this.value = d.slice(0,2) + '/' + d.slice(2); }
+        else if (d.length === 2) { this.value = d; }
+        else { this.value = d; }
+        document.getElementById('cardPreviewExp').textContent = this.value || 'MM/AA';
+    });
+}
+
+var formTarjeta = document.getElementById('formTarjeta');
+if (formTarjeta) {
+    formTarjeta.addEventListener('submit', function(e){
+        e.preventDefault();
+        var numero = soloDigitos(document.getElementById('cardNumero').value, 16);
+        var titular = document.getElementById('cardTitular').value.trim();
+        var exp = document.getElementById('cardExp').value.trim();
+        var cvv = document.getElementById('cardCvv').value.trim();
+        var msg = document.getElementById('msgTarjeta');
+        var btn = document.getElementById('btnPagarTarjeta');
+
+        if (numero.length < 15) { msg.textContent = 'Ingresa un número de tarjeta válido.'; return; }
+        if (!titular) { msg.textContent = 'Ingresa el titular de la tarjeta.'; return; }
+        var m = exp.match(/^(\d{2})\/(\d{2})$/);
+        if (!m) { msg.textContent = 'Ingresa la fecha de vencimiento (MM/AA).'; return; }
+        var mes = parseInt(m[1], 10);
+        if (mes < 1 || mes > 12) { msg.textContent = 'Mes de vencimiento inválido.'; return; }
+        if (cvv.length < 3) { msg.textContent = 'Ingresa el CVV de tu tarjeta.'; return; }
+
+        btn.disabled = true;
+        msg.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando pago...';
+
+        fetch('/api/pagos/tarjeta/iniciar', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({cita_id: CITA_ID})
+        })
+        .then(function(r){ return r.json(); })
+        .then(function(ini){
+            if (!ini.ok) { throw new Error(ini.error || 'No se pudo iniciar el pago.'); }
+            if (!window.Nbv3Tk) { throw new Error('El SDK de pago seguro no está cargado. Contacta con administración.'); }
+            return new Promise(function(resolve, reject){
+                window.Nbv3Tk.encrypt({
+                    sessionKey: ini.sessionKey,
+                    merchantId: ini.merchantId,
+                    channel: 'web',
+                    language: 'es',
+                    form: {
+                        cardHolderName: titular.toUpperCase(),
+                        cardNumber: numero,
+                        cardExpirationMonth: m[1],
+                        cardExpirationYear: '20' + m[2],
+                        securityNumber: cvv
+                    }
+                }, function(resp){
+                    if (resp && resp.cardToken) { resolve(resp.cardToken); }
+                    else { reject(new Error('No se pudo cifrar tu tarjeta de forma segura.')); }
+                });
+            });
+        })
+        .then(function(cardToken){
+            return fetch('/api/pagos/tarjeta/cobrar', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    cita_id: CITA_ID,
+                    cardToken: cardToken,
+                    cvv: cvv,
+                    purchaseNumber: CITA_ID
+                })
+            }).then(function(r){ return r.json(); });
+        })
+        .then(function(res){
+            if (res.ok && res.pagado) { mostrarOverlayExito(); }
+            else { throw new Error(res.error || 'El pago fue rechazado.'); }
+        })
+        .catch(function(err){
+            msg.innerHTML = err.message || 'Error al procesar el pago. Intenta de nuevo.';
+            btn.disabled = false;
+        });
+    });
+}
+
+/* ---------- TRANSFERENCIA (sin integración contratada) ---------- */
+var btnTrans = document.getElementById('btnTransferencia');
+if (btnTrans) {
+    btnTrans.addEventListener('click', function(){
+        document.getElementById('msgTransferencia').textContent = 'Este método requiere una cuenta bancaria configurada. Contacta con administración.';
+    });
+}
+
+/* ---------- DROPDOWN ---------- */
+document.querySelectorAll('.dropdown-wrap').forEach(function(wrap) {
+    var toggle = wrap.querySelector('.dropdown-toggle');
+    toggle.addEventListener('click', function(e) {
+        e.stopPropagation();
+        wrap.classList.toggle('open');
+    });
+});
+document.addEventListener('click', function() {
+    document.querySelectorAll('.dropdown-wrap.open').forEach(function(w) { w.classList.remove('open'); });
+});
+</script>
+</body>
+</html>
