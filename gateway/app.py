@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from shared.config import REDES_SOCIALES, SERVICE_URLS
 from shared.service_client import auth_client, pacientes_client, citas_client, pagos_client, notas_client
 from shared.db import db_connection
+from shared.audit import log_accion
 
 bcrypt = Bcrypt()
 
@@ -106,6 +107,13 @@ def create_app():
                 (descripcion, historial_id),
             )
             conn.commit()
+            log_accion(
+                usuario_id=session.get("usuario_id"),
+                accion="completar_cita",
+                tabla_afectada="historial_citas",
+                registro_id=historial_id,
+                detalle="Cita marcada como completada",
+            )
         return redirect(url_for("interfaz", fecha=fecha))
 
     @app.route("/citas", methods=["GET", "POST"])
@@ -297,6 +305,13 @@ def create_app():
                                 cur2.execute("INSERT INTO terapeutas (usuario_id, especialidad_id, precio) VALUES (%s,%s,%s)",
                                              (usuario_id, esp_id, precio_num))
                                 conn2.commit()
+                                log_accion(
+                                    usuario_id=session.get("usuario_id"),
+                                    accion="crear_usuario",
+                                    tabla_afectada="usuarios",
+                                    registro_id=usuario_id,
+                                    detalle=f"Terapeuta creado: nombre={nombre}, correo={correo}",
+                                )
                                 flash("exito:Terapeuta registrado correctamente.")
                     else:
                         flash("Completa todos los campos.")
@@ -322,6 +337,13 @@ def create_app():
                             if terapeuta.get("usuario_id"):
                                 cursor.execute("UPDATE usuarios SET activo=0 WHERE id=%s", (terapeuta["usuario_id"],))
                             conn.commit()
+                            log_accion(
+                                usuario_id=session.get("usuario_id"),
+                                accion="desactivar_usuario",
+                                tabla_afectada="usuarios",
+                                registro_id=terapeuta.get("usuario_id"),
+                                detalle=f"Terapeuta id={mid} desactivado",
+                            )
                             flash("exito:Terapeuta desactivado.")
 
                 elif accion == "reactivar":
