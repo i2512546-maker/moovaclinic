@@ -14,6 +14,8 @@ SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 SET time_zone = "+00:00";
 SET FOREIGN_KEY_CHECKS = 0;
 
+USE `moovacloud_db`;
+
 -- ============================================================
 -- PASO 1: Crear tabla roles (si no existe)
 -- ============================================================
