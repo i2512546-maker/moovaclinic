@@ -48,8 +48,6 @@ def create_app():
                 session["usuario_nombre"] = u["nombre"]
                 session["rol"] = u["rol"]
                 session["correo"] = u["correo"]
-                if u.get("terapeuta_id"):
-                    session["terapeuta_id"] = u["terapeuta_id"]
                 if u["rol"] == "admin":
                     return redirect(url_for("panel_admin"))
                 return redirect(url_for("interfaz"))
@@ -81,11 +79,8 @@ def create_app():
         fecha_display = fecha_obj.strftime("%d/%m/%Y")
         es_hoy = fecha_str == datetime.today().strftime("%Y-%m-%d")
         es_admin = session.get("rol") == "admin"
-        terapeuta_id = session.get("terapeuta_id")
 
         params = f"?fecha={fecha_str}&estado=programada"
-        if not es_admin and terapeuta_id:
-            params += f"&medico_id={terapeuta_id}"
         data, _ = citas_client.get(f"/api/citas{params}")
         pacientes = data.get("citas", [])
 
@@ -289,12 +284,11 @@ def create_app():
                                 cur2.execute("INSERT INTO terapeutas (Nombre, Especialidad, precio) VALUES (%s,%s,%s)",
                                              (nombre, especialidad, precio_num))
                                 conn2.commit()
-                                tid = cur2.lastrowid
                                 clave_hash = bcrypt.generate_password_hash(clave).decode("utf-8")
                                 cur2.execute("SELECT id FROM roles WHERE nombre='terapeuta'")
                                 rol = cur2.fetchone()
-                                cur2.execute("INSERT INTO usuarios (nombre, correo, clave, rol_id, terapeuta_id) VALUES (%s,%s,%s,%s,%s)",
-                                             (nombre, correo, clave_hash, rol["id"] if rol else 2, tid))
+                                cur2.execute("INSERT INTO usuarios (nombre, correo, clave, rol_id) VALUES (%s,%s,%s,%s)",
+                                             (nombre, correo, clave_hash, rol["id"] if rol else 2))
                                 conn2.commit()
                                 flash("exito:Terapeuta registrado correctamente.")
                     else:
@@ -314,27 +308,36 @@ def create_app():
                 elif accion == "eliminar":
                     mid = request.form.get("medico_id")
                     if mid:
-                        cursor.execute("UPDATE terapeutas SET activo=0 WHERE ID=%s", (mid,))
-                        cursor.execute("UPDATE usuarios SET activo=0 WHERE terapeuta_id=%s", (mid,))
-                        conn.commit()
-                        flash("exito:Terapeuta desactivado.")
+                        cursor.execute("SELECT Nombre FROM terapeutas WHERE ID=%s", (mid,))
+                        medico = cursor.fetchone()
+                        if medico:
+                            cursor.execute("UPDATE terapeutas SET activo=0 WHERE ID=%s", (mid,))
+                            cursor.execute("UPDATE usuarios SET activo=0 WHERE nombre=%s AND rol_id=(SELECT id FROM roles WHERE nombre='terapeuta')", (medico["Nombre"],))
+                            conn.commit()
+                            flash("exito:Terapeuta desactivado.")
 
                 elif accion == "reactivar":
                     mid = request.form.get("medico_id")
                     if mid:
-                        cursor.execute("UPDATE terapeutas SET activo=1 WHERE ID=%s", (mid,))
-                        cursor.execute("UPDATE usuarios SET activo=1 WHERE terapeuta_id=%s", (mid,))
-                        conn.commit()
-                        flash("exito:Terapeuta reactivado.")
+                        cursor.execute("SELECT Nombre FROM terapeutas WHERE ID=%s", (mid,))
+                        medico = cursor.fetchone()
+                        if medico:
+                            cursor.execute("UPDATE terapeutas SET activo=1 WHERE ID=%s", (mid,))
+                            cursor.execute("UPDATE usuarios SET activo=1 WHERE nombre=%s AND rol_id=(SELECT id FROM roles WHERE nombre='terapeuta')", (medico["Nombre"],))
+                            conn.commit()
+                            flash("exito:Terapeuta reactivado.")
 
                 elif accion == "cambiar_clave":
                     mid = request.form.get("medico_id")
                     nc = request.form.get("nueva_clave", "").strip()
                     if mid and nc:
-                        h = bcrypt.generate_password_hash(nc).decode("utf-8")
-                        cursor.execute("UPDATE usuarios SET clave=%s WHERE terapeuta_id=%s", (h, mid))
-                        conn.commit()
-                        flash("exito:Contrasena actualizada.")
+                        cursor.execute("SELECT Nombre FROM terapeutas WHERE ID=%s", (mid,))
+                        medico = cursor.fetchone()
+                        if medico:
+                            h = bcrypt.generate_password_hash(nc).decode("utf-8")
+                            cursor.execute("UPDATE usuarios SET clave=%s WHERE nombre=%s AND rol_id=(SELECT id FROM roles WHERE nombre='terapeuta')", (h, medico["Nombre"]))
+                            conn.commit()
+                            flash("exito:Contrasena actualizada.")
 
                 return redirect(url_for("panel_admin"))
 
@@ -369,11 +372,11 @@ def create_app():
         data, _ = pacientes_client.get("/api/pacientes")
         return render_template("pacientes.html", pacientes=data.get("pacientes", []))
 
-    @app.route("/pacientes/<int:paciente_id>")
-    def detalle_paciente_page(paciente_id):
+    @app.route("/pacientes/<paciente_dni>")
+    def detalle_paciente_page(paciente_dni):
         if "usuario_id" not in session or session.get("rol") != "admin":
             return redirect(url_for("login"))
-        data, _ = pacientes_client.get(f"/api/pacientes/{paciente_id}")
+        data, _ = pacientes_client.get(f"/api/pacientes/{paciente_dni}")
         return render_template("detalle_paciente.html", paciente=data.get("paciente", {}),
                                historial=data.get("historial", []))
 
@@ -390,7 +393,7 @@ def create_app():
             diagnostico = request.form.get("diagnostico", "").strip()
             notas_client.post(f"/api/notas/{cita_id}", {
                 "nota": nota, "diagnostico": diagnostico,
-                "terapeuta_id": session.get("terapeuta_id"),
+                "terapeuta_id": None,
                 "paciente_id": cita.get("persona_id"),
             })
             flash("exito:Nota clinica guardada.")

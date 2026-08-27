@@ -11,19 +11,19 @@ def listar_pacientes():
         cursor = conn.cursor(dictionary=True)
         cursor.execute(
             """SELECT p.*,
-                      (SELECT COUNT(*) FROM historial_citas WHERE persona_id = p.id) AS total_citas,
-                      (SELECT MAX(fecha_cita) FROM historial_citas WHERE persona_id = p.id) AS ultima_cita
+                      (SELECT COUNT(*) FROM historial_citas WHERE persona_id = p.dni) AS total_citas,
+                      (SELECT MAX(fecha_cita) FROM historial_citas WHERE persona_id = p.dni) AS ultima_cita
                FROM personas p ORDER BY p.apellido ASC"""
         )
         pacientes = cursor.fetchall()
     return jsonify({"success": True, "pacientes": pacientes})
 
 
-@pacientes_bp.route("/api/pacientes/<int:paciente_id>", methods=["GET"])
-def detalle_paciente(paciente_id):
+@pacientes_bp.route("/api/pacientes/<dni>", methods=["GET"])
+def detalle_paciente(dni):
     with db_connection() as conn:
         cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM personas WHERE id = %s", (paciente_id,))
+        cursor.execute("SELECT * FROM personas WHERE dni = %s", (dni,))
         paciente = cursor.fetchone()
         if not paciente:
             return jsonify({"error": "Paciente no encontrado"}), 404
@@ -35,7 +35,7 @@ def detalle_paciente(paciente_id):
                JOIN terapeutas t ON h.terapeuta_id = t.ID
                LEFT JOIN pagos pg ON pg.cita_id = h.id
                WHERE h.persona_id = %s ORDER BY h.fecha_cita DESC""",
-            (paciente_id,),
+            (dni,),
         )
         historial = cursor.fetchall()
 
@@ -55,35 +55,37 @@ def crear_paciente():
 
     with db_connection() as conn:
         cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT id FROM personas WHERE dni = %s", (dni,))
+        cursor.execute("SELECT dni FROM personas WHERE dni = %s", (dni,))
         existente = cursor.fetchone()
         if existente:
-            return jsonify({"error": "Ya existe un paciente con ese DNI.", "paciente_id": existente["id"]}), 409
+            return jsonify({"error": "Ya existe un paciente con ese DNI.", "dni": existente["dni"]}), 409
 
         cursor.execute(
             "INSERT INTO personas (nombre, apellido, dni, telefono, email) VALUES (%s,%s,%s,%s,%s)",
             (nombre, apellido, dni, telefono, data.get("email")),
         )
         conn.commit()
-        paciente_id = cursor.lastrowid
 
-    return jsonify({"success": True, "paciente_id": paciente_id}), 201
+    return jsonify({"success": True, "dni": dni}), 201
 
 
-@pacientes_bp.route("/api/pacientes/<int:paciente_id>", methods=["PUT"])
-def actualizar_paciente(paciente_id):
+@pacientes_bp.route("/api/pacientes/<dni>", methods=["PUT"])
+def actualizar_paciente(dni):
     data = request.get_json() or {}
     with db_connection() as conn:
         cursor = conn.cursor()
         updates, params = [], []
-        for campo in ["nombre", "apellido", "dni", "telefono", "email", "estado"]:
+        for campo in ["nombre", "apellido", "telefono", "email", "estado"]:
             if campo in data:
                 updates.append(f"{campo} = %s")
                 params.append(data[campo])
+        if "dni" in data and data["dni"] != dni:
+            updates.append("dni = %s")
+            params.append(data["dni"])
         if not updates:
             return jsonify({"error": "Nada que actualizar."}), 400
-        params.append(paciente_id)
-        cursor.execute(f"UPDATE personas SET {', '.join(updates)} WHERE id = %s", params)
+        params.append(dni)
+        cursor.execute(f"UPDATE personas SET {', '.join(updates)} WHERE dni = %s", params)
         conn.commit()
     return jsonify({"success": True})
 

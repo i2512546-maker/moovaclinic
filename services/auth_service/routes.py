@@ -42,7 +42,6 @@ def login():
             "nombre": usuario["nombre"],
             "correo": usuario["correo"],
             "rol": usuario["rol_nombre"],
-            "terapeuta_id": usuario.get("terapeuta_id"),
         },
     })
 
@@ -68,7 +67,6 @@ def crear_usuario():
     correo = data.get("correo", "").strip()
     clave = data.get("clave", "").strip()
     rol_nombre = data.get("rol", "terapeuta").strip()
-    terapeuta_id = data.get("terapeuta_id")
 
     if not nombre or not correo or not clave:
         return jsonify({"error": "Nombre, correo y clave son requeridos."}), 400
@@ -87,8 +85,8 @@ def crear_usuario():
             return jsonify({"error": "Ya existe un usuario con ese correo."}), 409
 
         cursor.execute(
-            "INSERT INTO usuarios (nombre, correo, clave, rol_id, terapeuta_id) VALUES (%s,%s,%s,%s,%s)",
-            (nombre, correo, clave_hash, rol["id"], terapeuta_id),
+            "INSERT INTO usuarios (nombre, correo, clave, rol_id) VALUES (%s,%s,%s,%s)",
+            (nombre, correo, clave_hash, rol["id"]),
         )
         conn.commit()
         usuario_id = cursor.lastrowid
