@@ -51,6 +51,22 @@
                     <label>Estado</label>
                     <span>{{ paciente.estado|capitalize }}</span>
                 </div>
+                <div class="info-item">
+                    <label>Fecha de Nacimiento</label>
+                    <span>{{ paciente.fecha_nacimiento or 'No registrado' }}</span>
+                </div>
+                <div class="info-item">
+                    <label>Sexo</label>
+                    <span>{% if paciente.sexo == 'M' %}Masculino{% elif paciente.sexo == 'F' %}Femenino{% elif paciente.sexo %}Otro{% else %}No registrado{% endif %}</span>
+                </div>
+                <div class="info-item">
+                    <label>Direccion</label>
+                    <span>{{ paciente.direccion or 'No registrado' }}</span>
+                </div>
+                <div class="info-item">
+                    <label>Seguro</label>
+                    <span>{{ paciente.seguro or 'No registrado' }}</span>
+                </div>
             </div>
         </div>
 
