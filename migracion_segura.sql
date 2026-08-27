@@ -152,13 +152,17 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 SET @admins_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
   WHERE TABLE_SCHEMA = 'moovacloud_db' AND TABLE_NAME = 'admins');
-SELECT @admins_exists AS admins_tabla_existe;
 
-INSERT IGNORE INTO `usuarios` (`nombre`, `correo`, `clave`, `rol_id`, `activo`)
-SELECT `nombre`, `correo`, `clave`, 1, 1 FROM `admins`
-WHERE @admins_exists > 0;
+-- Solo intentar migrar si la tabla existe
+SET @sql = IF(@admins_exists > 0,
+  'INSERT IGNORE INTO `usuarios` (`nombre`, `correo`, `clave`, `rol_id`, `activo`) SELECT `nombre`, `correo`, `clave`, 1, 1 FROM `admins`',
+  'SELECT "tabla admins no existe, skip"');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-DROP TABLE IF EXISTS `admins`;
+SET @sql = IF(@admins_exists > 0,
+  'DROP TABLE IF EXISTS `admins`',
+  'SELECT "tabla admins ya no existe"');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- ============================================================
 -- PASO 5: Insertar terapeutas en usuarios (sin terapeuta_id)
