@@ -64,11 +64,11 @@ def listar_terapeutas():
     with db_connection() as conn:
         cursor = conn.cursor(dictionary=True)
         cursor.execute(
-            """SELECT t.ID, t.Nombre, t.precio,
-                      e.nombre AS Especialidad
+            """SELECT t.id AS ID, t.precio, u.nombre AS Nombre, e.nombre AS Especialidad
                FROM terapeutas t
+               JOIN usuarios u ON t.usuario_id = u.id
                LEFT JOIN especialidades e ON t.especialidad_id = e.id
-               WHERE t.activo = 1 ORDER BY t.Nombre"""
+               WHERE t.activo = 1 ORDER BY u.nombre"""
         )
         terapeutas = cursor.fetchall()
     return jsonify({"success": True, "terapeutas": terapeutas})
@@ -86,10 +86,11 @@ def listar_citas():
         query = """
             SELECT h.id, h.fecha_cita, h.estado, h.descripcion, h.hora_cita,
                    p.nombre, p.apellido, p.dni, p.telefono,
-                   t.Nombre AS terapeuta, e.nombre AS Especialidad, h.terapeuta_id
+                   u.nombre AS terapeuta, e.nombre AS Especialidad, h.terapeuta_id
             FROM historial_citas h
-            JOIN personas p ON h.persona_id = p.id
-            JOIN terapeutas t ON h.terapeuta_id = t.ID
+            JOIN pacientes p ON h.paciente_id = p.id
+            JOIN terapeutas t ON h.terapeuta_id = t.id
+            JOIN usuarios u ON t.usuario_id = u.id
             LEFT JOIN especialidades e ON t.especialidad_id = e.id
             WHERE h.estado = %s
         """
@@ -119,10 +120,11 @@ def detalle_cita(cita_id):
         cursor = conn.cursor(dictionary=True)
         cursor.execute(
             """SELECT h.*, p.nombre, p.apellido, p.dni, p.telefono,
-                      t.Nombre AS terapeuta, e.nombre AS Especialidad
+                      u.nombre AS terapeuta, e.nombre AS Especialidad
                FROM historial_citas h
-               JOIN personas p ON h.persona_id = p.id
-               JOIN terapeutas t ON h.terapeuta_id = t.ID
+               JOIN pacientes p ON h.paciente_id = p.id
+               JOIN terapeutas t ON h.terapeuta_id = t.id
+               JOIN usuarios u ON t.usuario_id = u.id
                LEFT JOIN especialidades e ON t.especialidad_id = e.id
                WHERE h.id = %s""", (cita_id,),
         )
@@ -154,7 +156,8 @@ def crear_cita():
     with db_connection() as conn:
         cursor = conn.cursor(dictionary=True)
         cursor.execute(
-            "SELECT Nombre, Telefono, precio FROM terapeutas WHERE ID = %s AND activo = 1",
+            """SELECT t.precio FROM terapeutas t
+               WHERE t.id = %s AND t.activo = 1""",
             (data["medico_id"],),
         )
         medico = cursor.fetchone()
@@ -164,21 +167,21 @@ def crear_cita():
         costo = float(medico["precio"]) if medico.get("precio") else 0.0
         anticipo = round(costo / 2, 2)
 
-        cursor.execute("SELECT id FROM personas WHERE dni = %s", (data["dni"],))
+        cursor.execute("SELECT id FROM pacientes WHERE dni = %s", (data["dni"],))
         persona = cursor.fetchone()
         if not persona:
             cursor.execute(
-                "INSERT INTO personas (nombre, apellido, dni, telefono) VALUES (%s,%s,%s,%s)",
+                "INSERT INTO pacientes (nombre, apellido, dni, telefono) VALUES (%s,%s,%s,%s)",
                 (data["nombre"], data["apellido"], data["dni"], data["telefono"]),
             )
             conn.commit()
-            persona_id = cursor.lastrowid
+            paciente_id = cursor.lastrowid
         else:
-            persona_id = persona["id"]
+            paciente_id = persona["id"]
 
         cursor.execute(
-            "INSERT INTO historial_citas (persona_id, terapeuta_id, fecha_cita, estado) VALUES (%s,%s,%s,'programada')",
-            (persona_id, data["medico_id"], data["fecha_cita"]),
+            "INSERT INTO historial_citas (paciente_id, terapeuta_id, fecha_cita, estado) VALUES (%s,%s,%s,'programada')",
+            (paciente_id, data["medico_id"], data["fecha_cita"]),
         )
         conn.commit()
         cita_id = cursor.lastrowid
@@ -186,8 +189,8 @@ def crear_cita():
         metodo_pago = data.get("metodo_pago", "").strip()
         if metodo_pago and anticipo > 0:
             cursor.execute(
-                "INSERT INTO pagos (cita_id, persona_id, monto, metodo_pago, estado_pago, notas) VALUES (%s,%s,%s,%s,'pendiente','Anticipo 50%%')",
-                (cita_id, persona_id, anticipo, metodo_pago),
+                "INSERT INTO pagos (cita_id, paciente_id, monto, metodo_pago, estado_pago, notas) VALUES (%s,%s,%s,%s,'pendiente','Anticipo 50%%')",
+                (cita_id, paciente_id, anticipo, metodo_pago),
             )
             conn.commit()
 
@@ -249,8 +252,8 @@ def solicitar_otp():
     with db_connection() as conn:
         cursor = conn.cursor(dictionary=True)
         cursor.execute(
-            """SELECT p.telefono FROM personas p
-               JOIN historial_citas h ON h.persona_id = p.id
+            """SELECT p.telefono FROM pacientes p
+               JOIN historial_citas h ON h.paciente_id = p.id
                WHERE p.dni = %s AND h.estado = 'programada' LIMIT 1""",
             (dni,),
         )
@@ -329,7 +332,7 @@ def estadisticas():
         with db_connection() as conn:
             cursor = conn.cursor(dictionary=True)
             try:
-                cursor.execute("SELECT COUNT(DISTINCT persona_id) AS total FROM historial_citas WHERE estado='completada'")
+                cursor.execute("SELECT COUNT(DISTINCT paciente_id) AS total FROM historial_citas WHERE estado='completada'")
                 recuperados = cursor.fetchone()["total"]
             except Exception:
                 pass
