@@ -273,7 +273,7 @@ def create_app():
                     if nombre and especialidad and correo and clave:
                         with db_connection() as conn2:
                             cur2 = conn2.cursor(dictionary=True)
-                            cur2.execute("SELECT ID FROM terapeutas WHERE Nombre=%s", (nombre,))
+                            cur2.execute("SELECT u.id FROM usuarios u WHERE u.nombre=%s", (nombre,))
                             if cur2.fetchone():
                                 flash("Ya existe un terapeuta con ese nombre.")
                             else:
@@ -281,17 +281,21 @@ def create_app():
                                     precio_num = float(precio) if precio else None
                                 except ValueError:
                                     precio_num = None
-                                cur2.execute("SELECT id FROM especialidades WHERE nombre=%s", (especialidad,))
-                                esp = cur2.fetchone()
-                                esp_id = esp["id"] if esp else None
-                                cur2.execute("INSERT INTO terapeutas (Nombre, especialidad_id, precio) VALUES (%s,%s,%s)",
-                                             (nombre, esp_id, precio_num))
-                                conn2.commit()
+                                telefono = request.form.get("telefono", "").strip()
                                 clave_hash = bcrypt.generate_password_hash(clave).decode("utf-8")
                                 cur2.execute("SELECT id FROM roles WHERE nombre='terapeuta'")
                                 rol = cur2.fetchone()
-                                cur2.execute("INSERT INTO usuarios (nombre, correo, clave, rol_id) VALUES (%s,%s,%s,%s)",
-                                             (nombre, correo, clave_hash, rol["id"] if rol else 2))
+                                cur2.execute(
+                                    "INSERT INTO usuarios (nombre, correo, telefono, clave, rol_id) VALUES (%s,%s,%s,%s,%s)",
+                                    (nombre, correo, telefono or None, clave_hash, rol["id"] if rol else 2),
+                                )
+                                conn2.commit()
+                                usuario_id = cur2.lastrowid
+                                cur2.execute("SELECT id FROM especialidades WHERE nombre=%s", (especialidad,))
+                                esp = cur2.fetchone()
+                                esp_id = esp["id"] if esp else None
+                                cur2.execute("INSERT INTO terapeutas (usuario_id, especialidad_id, precio) VALUES (%s,%s,%s)",
+                                             (usuario_id, esp_id, precio_num))
                                 conn2.commit()
                                 flash("exito:Terapeuta registrado correctamente.")
                     else:
@@ -302,7 +306,7 @@ def create_app():
                     precio = request.form.get("precio", "").strip()
                     if mid and precio:
                         try:
-                            cursor.execute("UPDATE terapeutas SET precio=%s WHERE ID=%s", (float(precio), mid))
+                            cursor.execute("UPDATE terapeutas SET precio=%s WHERE id=%s", (float(precio), mid))
                             conn.commit()
                             flash("exito:Precio actualizado.")
                         except ValueError:
@@ -311,22 +315,24 @@ def create_app():
                 elif accion == "eliminar":
                     mid = request.form.get("medico_id")
                     if mid:
-                        cursor.execute("SELECT Nombre FROM terapeutas WHERE ID=%s", (mid,))
-                        medico = cursor.fetchone()
-                        if medico:
-                            cursor.execute("UPDATE terapeutas SET activo=0 WHERE ID=%s", (mid,))
-                            cursor.execute("UPDATE usuarios SET activo=0 WHERE nombre=%s AND rol_id=(SELECT id FROM roles WHERE nombre='terapeuta')", (medico["Nombre"],))
+                        cursor.execute("SELECT usuario_id FROM terapeutas WHERE id=%s", (mid,))
+                        terapeuta = cursor.fetchone()
+                        if terapeuta:
+                            cursor.execute("UPDATE terapeutas SET activo=0 WHERE id=%s", (mid,))
+                            if terapeuta.get("usuario_id"):
+                                cursor.execute("UPDATE usuarios SET activo=0 WHERE id=%s", (terapeuta["usuario_id"],))
                             conn.commit()
                             flash("exito:Terapeuta desactivado.")
 
                 elif accion == "reactivar":
                     mid = request.form.get("medico_id")
                     if mid:
-                        cursor.execute("SELECT Nombre FROM terapeutas WHERE ID=%s", (mid,))
-                        medico = cursor.fetchone()
-                        if medico:
-                            cursor.execute("UPDATE terapeutas SET activo=1 WHERE ID=%s", (mid,))
-                            cursor.execute("UPDATE usuarios SET activo=1 WHERE nombre=%s AND rol_id=(SELECT id FROM roles WHERE nombre='terapeuta')", (medico["Nombre"],))
+                        cursor.execute("SELECT usuario_id FROM terapeutas WHERE id=%s", (mid,))
+                        terapeuta = cursor.fetchone()
+                        if terapeuta:
+                            cursor.execute("UPDATE terapeutas SET activo=1 WHERE id=%s", (mid,))
+                            if terapeuta.get("usuario_id"):
+                                cursor.execute("UPDATE usuarios SET activo=1 WHERE id=%s", (terapeuta["usuario_id"],))
                             conn.commit()
                             flash("exito:Terapeuta reactivado.")
 
@@ -334,22 +340,23 @@ def create_app():
                     mid = request.form.get("medico_id")
                     nc = request.form.get("nueva_clave", "").strip()
                     if mid and nc:
-                        cursor.execute("SELECT Nombre FROM terapeutas WHERE ID=%s", (mid,))
-                        medico = cursor.fetchone()
-                        if medico:
+                        cursor.execute("SELECT usuario_id FROM terapeutas WHERE id=%s", (mid,))
+                        terapeuta = cursor.fetchone()
+                        if terapeuta and terapeuta.get("usuario_id"):
                             h = bcrypt.generate_password_hash(nc).decode("utf-8")
-                            cursor.execute("UPDATE usuarios SET clave=%s WHERE nombre=%s AND rol_id=(SELECT id FROM roles WHERE nombre='terapeuta')", (h, medico["Nombre"]))
+                            cursor.execute("UPDATE usuarios SET clave=%s WHERE id=%s", (h, terapeuta["usuario_id"]))
                             conn.commit()
                             flash("exito:Contrasena actualizada.")
 
                 return redirect(url_for("panel_admin"))
 
             cursor.execute(
-                """SELECT t.ID, t.Nombre, t.Telefono, t.precio, t.activo,
+                """SELECT t.id AS ID, u.nombre AS Nombre, u.telefono AS Telefono, t.precio, t.activo,
                           e.nombre AS Especialidad
                    FROM terapeutas t
+                   JOIN usuarios u ON t.usuario_id = u.id
                    LEFT JOIN especialidades e ON t.especialidad_id = e.id
-                   ORDER BY t.Nombre""")
+                   ORDER BY u.nombre""")
             medicos = cursor.fetchall()
             cursor.execute("SELECT id, nombre FROM especialidades WHERE activa=1 ORDER BY nombre")
             especialidades = cursor.fetchall()
@@ -387,21 +394,20 @@ def create_app():
         data, _ = pacientes_client.get(f"/api/pacientes/{paciente_dni}")
         paciente = data.get("paciente", {})
         historial = data.get("historial", [])
-        persona_id = paciente.get("id")
+        paciente_id_val = paciente.get("id")
 
         paquetes, evaluaciones, consentimientos = [], [], []
-        if persona_id:
-            pdata, _ = pacientes_client.get(f"/api/pacientes/{persona_id}/paquetes")
+        if paciente_id_val:
+            pdata, _ = pacientes_client.get(f"/api/pacientes/{paciente_id_val}/paquetes")
             paquetes = pdata.get("paquetes", [])
-            edata, _ = pacientes_client.get(f"/api/pacientes/{persona_id}/evaluaciones")
+            edata, _ = pacientes_client.get(f"/api/pacientes/{paciente_id_val}/evaluaciones")
             evaluaciones = edata.get("evaluaciones", [])
-            cdata, _ = pacientes_client.get(f"/api/pacientes/{persona_id}/consentimientos")
+            cdata, _ = pacientes_client.get(f"/api/pacientes/{paciente_id_val}/consentimientos")
             consentimientos = cdata.get("consentimientos", [])
 
         return render_template("detalle_paciente.html", paciente=paciente,
                                historial=historial, paquetes=paquetes,
                                evaluaciones=evaluaciones, consentimientos=consentimientos)
-
     @app.route("/notas/<int:cita_id>", methods=["GET", "POST"])
     def notas_page(cita_id):
         if "usuario_id" not in session:
@@ -416,7 +422,7 @@ def create_app():
             notas_client.post(f"/api/notas/{cita_id}", {
                 "nota": nota, "diagnostico": diagnostico,
                 "terapeuta_id": None,
-                "paciente_id": cita.get("persona_id"),
+                "paciente_id": cita.get("paciente_id"),
             })
             flash("exito:Nota clinica guardada.")
             return redirect(url_for("notas_page", cita_id=cita_id))

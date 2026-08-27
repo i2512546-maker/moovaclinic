@@ -11,9 +11,9 @@ def listar_pacientes():
         cursor = conn.cursor(dictionary=True)
         cursor.execute(
             """SELECT p.*,
-                      (SELECT COUNT(*) FROM historial_citas WHERE persona_id = p.id) AS total_citas,
-                      (SELECT MAX(fecha_cita) FROM historial_citas WHERE persona_id = p.id) AS ultima_cita
-               FROM personas p ORDER BY p.apellido ASC"""
+                      (SELECT COUNT(*) FROM historial_citas WHERE paciente_id = p.id) AS total_citas,
+                      (SELECT MAX(fecha_cita) FROM historial_citas WHERE paciente_id = p.id) AS ultima_cita
+               FROM pacientes p ORDER BY p.apellido ASC"""
         )
         pacientes = cursor.fetchall()
     return jsonify({"success": True, "pacientes": pacientes})
@@ -23,19 +23,20 @@ def listar_pacientes():
 def detalle_paciente(dni):
     with db_connection() as conn:
         cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM personas WHERE dni = %s", (dni,))
+        cursor.execute("SELECT * FROM pacientes WHERE dni = %s", (dni,))
         paciente = cursor.fetchone()
         if not paciente:
             return jsonify({"error": "Paciente no encontrado"}), 404
 
         cursor.execute(
-            """SELECT h.*, t.Nombre AS terapeuta, e.nombre AS Especialidad,
+            """SELECT h.*, u.nombre AS terapeuta, e.nombre AS Especialidad,
                       pg.monto, pg.metodo_pago, pg.estado_pago
                FROM historial_citas h
-               JOIN terapeutas t ON h.terapeuta_id = t.ID
+               JOIN terapeutas t ON h.terapeuta_id = t.id
+               JOIN usuarios u ON t.usuario_id = u.id
                LEFT JOIN especialidades e ON t.especialidad_id = e.id
                LEFT JOIN pagos pg ON pg.cita_id = h.id
-               WHERE h.persona_id = %s ORDER BY h.fecha_cita DESC""",
+               WHERE h.paciente_id = %s ORDER BY h.fecha_cita DESC""",
             (paciente["id"],),
         )
         historial = cursor.fetchall()
@@ -56,13 +57,13 @@ def crear_paciente():
 
     with db_connection() as conn:
         cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT dni FROM personas WHERE dni = %s", (dni,))
+        cursor.execute("SELECT dni FROM pacientes WHERE dni = %s", (dni,))
         existente = cursor.fetchone()
         if existente:
             return jsonify({"error": "Ya existe un paciente con ese DNI.", "dni": existente["dni"]}), 409
 
         cursor.execute(
-            """INSERT INTO personas
+            """INSERT INTO pacientes
                (nombre, apellido, dni, telefono, email, fecha_nacimiento, sexo, direccion, seguro)
                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
             (
@@ -98,7 +99,7 @@ def actualizar_paciente(dni):
         if not updates:
             return jsonify({"error": "Nada que actualizar."}), 400
         params.append(dni)
-        cursor.execute(f"UPDATE personas SET {', '.join(updates)} WHERE dni = %s", params)
+        cursor.execute(f"UPDATE pacientes SET {', '.join(updates)} WHERE dni = %s", params)
         conn.commit()
     return jsonify({"success": True})
 
@@ -140,8 +141,8 @@ def listar_servicios():
 # Paquetes de sesiones
 # ============================================================
 
-@pacientes_bp.route("/api/pacientes/<int:persona_id>/paquetes", methods=["GET"])
-def listar_paquetes(persona_id):
+@pacientes_bp.route("/api/pacientes/<int:paciente_id>/paquetes", methods=["GET"])
+def listar_paquetes(paciente_id):
     with db_connection() as conn:
         cursor = conn.cursor(dictionary=True)
         cursor.execute(
@@ -149,14 +150,14 @@ def listar_paquetes(persona_id):
                FROM paquetes_sesiones ps
                JOIN servicios s ON ps.servicio_id = s.id
                WHERE ps.paciente_id = %s ORDER BY ps.fecha_compra DESC""",
-            (persona_id,),
+            (paciente_id,),
         )
         paquetes = cursor.fetchall()
     return jsonify({"success": True, "paquetes": paquetes})
 
 
-@pacientes_bp.route("/api/pacientes/<int:persona_id>/paquetes", methods=["POST"])
-def crear_paquete(persona_id):
+@pacientes_bp.route("/api/pacientes/<int:paciente_id>/paquetes", methods=["POST"])
+def crear_paquete(paciente_id):
     data = request.get_json() or {}
     servicio_id = data.get("servicio_id")
     total_sesiones = data.get("total_sesiones")
@@ -172,7 +173,7 @@ def crear_paquete(persona_id):
             """INSERT INTO paquetes_sesiones
                (paciente_id, servicio_id, total_sesiones, fecha_compra, fecha_vencimiento)
                VALUES (%s, %s, %s, %s, %s)""",
-            (persona_id, servicio_id, total_sesiones, fecha_compra, fecha_vencimiento),
+            (paciente_id, servicio_id, total_sesiones, fecha_compra, fecha_vencimiento),
         )
         conn.commit()
         paquete_id = cursor.lastrowid
@@ -184,23 +185,24 @@ def crear_paquete(persona_id):
 # Evaluaciones iniciales
 # ============================================================
 
-@pacientes_bp.route("/api/pacientes/<int:persona_id>/evaluaciones", methods=["GET"])
-def listar_evaluaciones(persona_id):
+@pacientes_bp.route("/api/pacientes/<int:paciente_id>/evaluaciones", methods=["GET"])
+def listar_evaluaciones(paciente_id):
     with db_connection() as conn:
         cursor = conn.cursor(dictionary=True)
         cursor.execute(
-            """SELECT ei.*, t.Nombre AS terapeuta_nombre
+            """SELECT ei.*, u.nombre AS terapeuta_nombre
                FROM evaluaciones_iniciales ei
-               JOIN terapeutas t ON ei.terapeuta_id = t.ID
+               JOIN terapeutas t ON ei.terapeuta_id = t.id
+               JOIN usuarios u ON t.usuario_id = u.id
                WHERE ei.paciente_id = %s ORDER BY ei.fecha_creacion DESC""",
-            (persona_id,),
+            (paciente_id,),
         )
         evaluaciones = cursor.fetchall()
     return jsonify({"success": True, "evaluaciones": evaluaciones})
 
 
-@pacientes_bp.route("/api/pacientes/<int:persona_id>/evaluaciones", methods=["POST"])
-def crear_evaluacion(persona_id):
+@pacientes_bp.route("/api/pacientes/<int:paciente_id>/evaluaciones", methods=["POST"])
+def crear_evaluacion(paciente_id):
     data = request.get_json() or {}
     terapeuta_id = data.get("terapeuta_id")
     motivo_consulta = data.get("motivo_consulta", "").strip()
@@ -216,7 +218,7 @@ def crear_evaluacion(persona_id):
                 rango_movimiento, objetivos_terapeuticos)
                VALUES (%s, %s, %s, %s, %s, %s)""",
             (
-                persona_id, terapeuta_id, motivo_consulta,
+                paciente_id, terapeuta_id, motivo_consulta,
                 data.get("escala_dolor_eva"),
                 data.get("rango_movimiento"),
                 data.get("objetivos_terapeuticos"),
@@ -232,20 +234,20 @@ def crear_evaluacion(persona_id):
 # Consentimientos
 # ============================================================
 
-@pacientes_bp.route("/api/pacientes/<int:persona_id>/consentimientos", methods=["GET"])
-def listar_consentimientos(persona_id):
+@pacientes_bp.route("/api/pacientes/<int:paciente_id>/consentimientos", methods=["GET"])
+def listar_consentimientos(paciente_id):
     with db_connection() as conn:
         cursor = conn.cursor(dictionary=True)
         cursor.execute(
             "SELECT * FROM consentimientos WHERE paciente_id = %s ORDER BY aceptado_en DESC",
-            (persona_id,),
+            (paciente_id,),
         )
         consentimientos = cursor.fetchall()
     return jsonify({"success": True, "consentimientos": consentimientos})
 
 
-@pacientes_bp.route("/api/pacientes/<int:persona_id>/consentimientos", methods=["POST"])
-def crear_consentimiento(persona_id):
+@pacientes_bp.route("/api/pacientes/<int:paciente_id>/consentimientos", methods=["POST"])
+def crear_consentimiento(paciente_id):
     data = request.get_json() or {}
     tipo = data.get("tipo", "").strip()
     texto_version = data.get("texto_version", "").strip()
@@ -259,7 +261,7 @@ def crear_consentimiento(persona_id):
             """INSERT INTO consentimientos
                (paciente_id, tipo, texto_version, ip_origen)
                VALUES (%s, %s, %s, %s)""",
-            (persona_id, tipo, texto_version, data.get("ip_origen")),
+            (paciente_id, tipo, texto_version, data.get("ip_origen")),
         )
         conn.commit()
         consent_id = cursor.lastrowid
