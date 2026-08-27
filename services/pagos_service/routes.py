@@ -14,11 +14,12 @@ def _obtener_pago_pendiente(cita_id):
         cursor = conn.cursor(dictionary=True)
         cursor.execute(
             """SELECT h.id, p.nombre, p.apellido,
-                      t.Nombre AS terapeuta, t.Especialidad,
+                      t.Nombre AS terapeuta, e.nombre AS Especialidad,
                       pg.monto, pg.metodo_pago, pg.estado_pago, pg.referencia
                FROM historial_citas h
-               JOIN personas p ON h.persona_id = p.dni
+               JOIN personas p ON h.persona_id = p.id
                JOIN terapeutas t ON h.terapeuta_id = t.ID
+               LEFT JOIN especialidades e ON t.especialidad_id = e.id
                LEFT JOIN pagos pg ON pg.cita_id = h.id
                WHERE h.id = %s""", (cita_id,),
         )
@@ -40,10 +41,11 @@ def confirmar_pago_servicio(cita_id, referencia=None, datos_respuesta=None):
         cursor = conn.cursor(dictionary=True)
         cursor.execute(
             """SELECT h.fecha_cita, p.nombre, p.apellido, p.telefono AS telefono_paciente,
-                      t.Nombre AS terapeuta, t.Especialidad, t.Telefono AS telefono_medico
+                      t.Nombre AS terapeuta, e.nombre AS Especialidad, t.Telefono AS telefono_medico
                FROM historial_citas h
-               JOIN personas p ON h.persona_id = p.dni
+               JOIN personas p ON h.persona_id = p.id
                JOIN terapeutas t ON h.terapeuta_id = t.ID
+               LEFT JOIN especialidades e ON t.especialidad_id = e.id
                WHERE h.id = %s""", (cita_id,),
         )
         cita = cursor.fetchone()
