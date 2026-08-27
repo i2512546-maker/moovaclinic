@@ -8,9 +8,10 @@ def listar_notas(cita_id):
     with db_connection() as conn:
         cursor = conn.cursor(dictionary=True)
         cursor.execute(
-            """SELECT nc.*, t.Nombre AS autor
+            """SELECT nc.*, u.nombre AS autor
                FROM notas_clinicas nc
-               LEFT JOIN terapeutas t ON nc.terapeuta_id = t.ID
+               LEFT JOIN terapeutas t ON nc.terapeuta_id = t.id
+               LEFT JOIN usuarios u ON t.usuario_id = u.id
                WHERE nc.cita_id = %s ORDER BY nc.fecha_creacion DESC""",
             (cita_id,),
         )
@@ -32,10 +33,10 @@ def crear_nota(cita_id):
     if not paciente_id:
         with db_connection() as conn:
             cursor = conn.cursor(dictionary=True)
-            cursor.execute("SELECT persona_id FROM historial_citas WHERE id=%s", (cita_id,))
+            cursor.execute("SELECT paciente_id FROM historial_citas WHERE id=%s", (cita_id,))
             cita = cursor.fetchone()
             if cita:
-                paciente_id = cita["persona_id"]
+                paciente_id = cita["paciente_id"]
 
     with db_connection() as conn:
         cursor = conn.cursor()
