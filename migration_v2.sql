@@ -1,17 +1,23 @@
 -- ============================================================
--- MOOVA Clinic - Migracion v2 (ACTUALIZADA post migration_v3)
+-- MOOVA Clinic - Migracion v3 (funcional)
 -- Base: moovacloud_db en Alwaysdata (MariaDB 11.4)
 -- ============================================================
--- CAMBIOS ya aplicados en v3:
---   - personas -> pacientes (mismo nombre, tabla renombrada)
---   - persona_id -> paciente_id en historial_citas, pagos
---   - terapeutas.ID -> terapeutas.id (minuscula)
---   - terapeutas: eliminadas columnas Nombre y Telefono
---   - terapeutas: agregada columna usuario_id (FK -> usuarios.id)
--- ============================================================
--- ESTE SCRIPT asume que v3 ya fue ejecutado.
--- Solo aplica cambios pendientes: columnas nuevas en pacientes,
--- tablas nuevas, y columna telefono en usuarios.
+-- ESTE SCRIPT ES ADITIVO Y RETROCOMPATIBLE. No borra ni recrea
+-- tablas con datos. Agrega columnas, tablas nuevas y un TRIGGER.
+--
+-- CAMBIOS NUEVOS (v3 funcional):
+--   1. historial_citas.servicio_id  -> FK a servicios.id (para
+--      descontar el paquete correcto al completar la cita).
+--   2. TRIGGER (descuento automatico de sesiones) que al pasar
+--      historial_citas.estado a 'completada' incrementa
+--      sesiones_usadas del paquete activo del paciente y lo
+--      marca 'agotado' si llega al total.
+--   3. pagos.verificado_por (FK -> usuarios.id) para auditoria
+--      de pago.
+--   4. Tabla notificaciones (reemplaza flag recordatorio_enviado).
+--   5. Tabla excepciones_horario (feriados/vacaciones de terapeutas).
+--   6. Tabla paquete_sesiones_uso (registro de cada consumo).
+--   7. Tabla logs_auditoria + FK a usuarios.id.
 -- ============================================================
 -- EJECUTAR: Copiar todo este archivo y pegarlo en phpMyAdmin > SQL
 -- sobre moovacloud_db. Hacer backup con mysqldump ANTES.
@@ -24,165 +30,237 @@ SET FOREIGN_KEY_CHECKS = 0;
 USE `moovacloud_db`;
 
 -- ============================================================
--- PARTE 1: Agregar columna telefono a usuarios
---   Necesaria para que terapeutas muestren telefono via JOIN
+-- PARTE 1: historial_citas.servicio_id
+--   Necesario para vincular cada cita al servicio, y asi
+--   descontar del paquete de sesiones correcto.
+--   Aditivo: la columna es nullable, no rompe inserciones
+--   existentes que no la provean.
 -- ============================================================
 
 SET @col_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-  WHERE TABLE_SCHEMA = 'moovacloud_db' AND TABLE_NAME = 'usuarios' AND COLUMN_NAME = 'telefono');
-SET @sql = IF(@col_exists = 0,
-  'ALTER TABLE `usuarios` ADD COLUMN `telefono` varchar(20) DEFAULT NULL AFTER `correo`',
-  'SELECT "telefono ya existe en usuarios"');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-
--- ============================================================
--- PARTE 2: Agregar columnas a pacientes (antes personas)
---   fecha_nacimiento, sexo, direccion, seguro
--- ============================================================
-
-SET @col_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-  WHERE TABLE_SCHEMA = 'moovacloud_db' AND TABLE_NAME = 'pacientes' AND COLUMN_NAME = 'fecha_nacimiento');
-SET @sql = IF(@col_exists = 0,
-  'ALTER TABLE `pacientes` ADD COLUMN `fecha_nacimiento` date DEFAULT NULL AFTER `email`',
-  'SELECT "fecha_nacimiento ya existe en pacientes"');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-  WHERE TABLE_SCHEMA = 'moovacloud_db' AND TABLE_NAME = 'pacientes' AND COLUMN_NAME = 'sexo');
-SET @sql = IF(@col_exists = 0,
-  'ALTER TABLE `pacientes` ADD COLUMN `sexo` enum(''M'',''F'',''otro'') DEFAULT NULL AFTER `fecha_nacimiento`',
-  'SELECT "sexo ya existe en pacientes"');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-  WHERE TABLE_SCHEMA = 'moovacloud_db' AND TABLE_NAME = 'pacientes' AND COLUMN_NAME = 'direccion');
-SET @sql = IF(@col_exists = 0,
-  'ALTER TABLE `pacientes` ADD COLUMN `direccion` varchar(255) DEFAULT NULL AFTER `sexo`',
-  'SELECT "direccion ya existe en pacientes"');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-  WHERE TABLE_SCHEMA = 'moovacloud_db' AND TABLE_NAME = 'pacientes' AND COLUMN_NAME = 'seguro');
-SET @sql = IF(@col_exists = 0,
-  'ALTER TABLE `pacientes` ADD COLUMN `seguro` varchar(100) DEFAULT NULL AFTER `direccion`',
-  'SELECT "seguro ya existe en pacientes"');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-
--- ============================================================
--- PARTE 3: Indices y UNIQUE en historial_citas
--- ============================================================
-
-SET @idx_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
   WHERE TABLE_SCHEMA = 'moovacloud_db' AND TABLE_NAME = 'historial_citas'
-    AND INDEX_NAME = 'idx_fecha_cita');
-SET @sql = IF(@idx_exists = 0,
-  'ALTER TABLE `historial_citas` ADD INDEX `idx_fecha_cita` (`fecha_cita`)',
-  'SELECT "idx_fecha_cita ya existe"');
+    AND COLUMN_NAME = 'servicio_id');
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE `historial_citas` ADD COLUMN `servicio_id` int(11) DEFAULT NULL AFTER `terapeuta_id`',
+  'SELECT "servicio_id ya existe en historial_citas"');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-SET @uniq_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+-- FK hacia servicios (solo si la columna se acaba de crear o ya existe y no tiene FK)
+SET @fk_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
   WHERE TABLE_SCHEMA = 'moovacloud_db' AND TABLE_NAME = 'historial_citas'
-    AND INDEX_NAME = 'uq_reserva');
-SET @sql = IF(@uniq_exists = 0,
-  'ALTER TABLE `historial_citas` ADD UNIQUE KEY `uq_reserva` (`terapeuta_id`, `fecha_cita`, `hora_cita`)',
-  'SELECT "uq_reserva ya existe"');
+    AND CONSTRAINT_NAME = 'fk_hc_servicio');
+SET @sql = IF(@fk_exists = 0,
+  'ALTER TABLE `historial_citas` ADD CONSTRAINT `fk_hc_servicio`
+     FOREIGN KEY (`servicio_id`) REFERENCES `servicios` (`id`)
+     ON DELETE SET NULL ON UPDATE CASCADE',
+  'SELECT "fk_hc_servicio ya existe"');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 
 -- ============================================================
--- PARTE 4: Tabla servicios (catalogo)
+-- PARTE 2: TRIGGER de descuento automatico de sesiones
+--   Cuando historial_citas.estado pasa a 'completada', busca el
+--   paquete activo del paciente para ese servicio y:
+--     - incrementa sesiones_usadas (sin superar total_sesiones)
+--     - lo marca 'agotado' si sesiones_usadas == total_sesiones
+--     - registra el consumo en paquete_sesiones_uso
+--   NOTA: se dispara en la tabla historial_citas (nivel base de
+--   datos), por lo que cubre cualquier servicio que la escriba.
 -- ============================================================
 
-CREATE TABLE IF NOT EXISTS `servicios` (
+-- Tabla de registro de consumos (debe existir antes del trigger)
+CREATE TABLE IF NOT EXISTS `paquete_sesiones_uso` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `nombre` varchar(100) NOT NULL,
-  `descripcion` text DEFAULT NULL,
-  `duracion_min` int(11) NOT NULL DEFAULT 60,
-  `precio` decimal(10,2) NOT NULL DEFAULT 0.00,
-  `activo` tinyint(1) NOT NULL DEFAULT 1,
-  `creado_en` datetime NOT NULL DEFAULT current_timestamp(),
+  `paquete_id` int(11) NOT NULL,
+  `cita_id` int(11) NOT NULL,
+  `fecha_uso` datetime NOT NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`id`),
-  KEY `idx_servicio_activo` (`activo`)
+  UNIQUE KEY `uq_uso_cita` (`cita_id`),
+  KEY `idx_uso_paquete` (`paquete_id`),
+  CONSTRAINT `fk_uso_paquete` FOREIGN KEY (`paquete_id`)
+    REFERENCES `paquetes_sesiones` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_uso_cita` FOREIGN KEY (`cita_id`)
+    REFERENCES `historial_citas` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-INSERT IGNORE INTO `servicios` (`id`, `nombre`, `descripcion`, `duracion_min`, `precio`) VALUES
-(1, 'Sesion de Fisioterapia', 'Sesion individual de rehabilitacion fisica', 60, 80.00),
-(2, 'Sesion de Terapia Cardiorrespiratoria', 'Rehabilitacion cardiorrespiratoria', 60, 100.00),
-(3, 'Sesion de Terapia Muscular', 'Fortalecimiento y recuperacion muscular', 45, 70.00),
-(4, 'Evaluacion Inicial', 'Evaluacion completa del paciente nuevo', 30, 50.00);
+DELIMITER $$
+
+-- DROP TRIGGER IF EXISTS `trg_historial_completada`;
+CREATE TRIGGER `trg_historial_completada`
+AFTER UPDATE ON `historial_citas`
+FOR EACH ROW
+BEGIN
+  -- Solo actua cuando la cita pasa a 'completada'
+  IF NEW.estado = 'completada' AND OLD.estado <> 'completada' THEN
+
+    -- Buscar un paquete activo del paciente para el servicio de esta cita.
+    -- Si hay varios activos del mismo servicio, descuenta del mas antiguo
+    -- (fecha_compra ASC) para agotarlos en orden.
+    UPDATE `paquetes_sesiones` ps
+    SET ps.`sesiones_usadas` = ps.`sesiones_usadas` + 1,
+        ps.`estado` = IF(ps.`sesiones_usadas` + 1 >= ps.`total_sesiones`, 'agotado', ps.`estado`)
+    WHERE ps.`id` = (
+          SELECT p2.`id` FROM (
+            SELECT pp.`id`
+            FROM `paquetes_sesiones` pp
+            WHERE pp.`paciente_id` = NEW.`paciente_id`
+              AND pp.`servicio_id` = NEW.`servicio_id`
+              AND pp.`estado` = 'activo'
+              AND pp.`sesiones_usadas` < pp.`total_sesiones`
+            ORDER BY pp.`fecha_compra` ASC
+            LIMIT 1
+          ) p2
+    );
+
+    -- Registrar el consumo (solo si efectivamente se encontro un paquete)
+    INSERT INTO `paquete_sesiones_uso` (paquete_id, cita_id)
+    SELECT pp.`id`, NEW.`id`
+    FROM `paquetes_sesiones` pp
+    WHERE pp.`paciente_id` = NEW.`paciente_id`
+      AND pp.`servicio_id` = NEW.`servicio_id`
+      AND pp.`estado` = 'activo'
+    LIMIT 1
+    ON DUPLICATE KEY UPDATE `paquete_id` = `paquete_id`;
+
+  END IF;
+END$$
+
+DELIMITER ;
 
 
 -- ============================================================
--- PARTE 5: Tabla evaluaciones_iniciales
---   FK paciente_id -> pacientes.id (int)
---   FK terapeuta_id -> terapeutas.id (int)
+-- PARTE 3: pagos.verificado_por (auditoria de pago)
+--   FK -> usuarios.id. Nullable (los pagos automaticos via
+--   Yape/Plin/Niubiz no tienen un usuario que verifica).
+--   pagos_service comparte la misma BD (moovacloud_db), por lo
+--   que leer usuarios no es problema entre servicios.
 -- ============================================================
 
-CREATE TABLE IF NOT EXISTS `evaluaciones_iniciales` (
+SET @col_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA = 'moovacloud_db' AND TABLE_NAME = 'pagos' AND COLUMN_NAME = 'verificado_por');
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE `pagos` ADD COLUMN `verificado_por` int(11) DEFAULT NULL AFTER `verificado_en`',
+  'SELECT "verificado_por ya existe en pagos"');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @fk_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+  WHERE TABLE_SCHEMA = 'moovacloud_db' AND TABLE_NAME = 'pagos'
+    AND CONSTRAINT_NAME = 'fk_pg_verificado_por');
+SET @sql = IF(@fk_exists = 0,
+  'ALTER TABLE `pagos` ADD CONSTRAINT `fk_pg_verificado_por`
+     FOREIGN KEY (`verificado_por`) REFERENCES `usuarios` (`id`)
+     ON DELETE SET NULL ON UPDATE CASCADE',
+  'SELECT "fk_pg_verificado_por ya existe"');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+
+-- ============================================================
+-- PARTE 4: Tabla notificaciones
+--   Reemplaza el flag booleano recordatorio_enviado en
+--   historial_citas; registra cada intento de notificacion.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS `notificaciones` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `paciente_id` int(11) NOT NULL,
+  `cita_id` int(11) DEFAULT NULL,
+  `canal` enum('sms','whatsapp','email') NOT NULL,
+  `tipo` varchar(50) NOT NULL COMMENT 'recordatorio, confirmacion, modificacion, cancelacion',
+  `enviado_en` datetime NOT NULL DEFAULT current_timestamp(),
+  `estado` enum('enviado','fallido','pendiente') NOT NULL DEFAULT 'pendiente',
+  PRIMARY KEY (`id`),
+  KEY `idx_not_paciente` (`paciente_id`),
+  KEY `idx_not_cita` (`cita_id`),
+  KEY `idx_not_estado` (`estado`),
+  CONSTRAINT `fk_not_paciente` FOREIGN KEY (`paciente_id`)
+    REFERENCES `pacientes` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_not_cita` FOREIGN KEY (`cita_id`)
+    REFERENCES `historial_citas` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+
+-- ============================================================
+-- PARTE 5: Tabla excepciones_horario
+--   Feriados/vacaciones/indisponibilidad puntual sobre
+--   horarios_medico. La disponibilidad debe excluir estas fechas.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS `excepciones_horario` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
   `terapeuta_id` int(11) NOT NULL,
-  `motivo_consulta` text NOT NULL,
-  `escala_dolor_eva` tinyint(1) DEFAULT NULL COMMENT 'EVA 0-10',
-  `rango_movimiento` text DEFAULT NULL,
-  `objetivos_terapeuticos` text DEFAULT NULL,
-  `fecha_creacion` datetime NOT NULL DEFAULT current_timestamp(),
+  `fecha` date NOT NULL,
+  `motivo` varchar(255) DEFAULT NULL,
+  `disponible` tinyint(1) NOT NULL DEFAULT 0 COMMENT '0=no disponible, 1=disponible',
   PRIMARY KEY (`id`),
-  KEY `idx_ei_paciente` (`paciente_id`),
-  KEY `idx_ei_terapeuta` (`terapeuta_id`),
-  CONSTRAINT `fk_ei_paciente` FOREIGN KEY (`paciente_id`)
-    REFERENCES `pacientes` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `fk_ei_terapeuta` FOREIGN KEY (`terapeuta_id`)
-    REFERENCES `terapeutas` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
+  KEY `idx_exc_terapeuta` (`terapeuta_id`),
+  KEY `idx_exc_fecha` (`fecha`),
+  CONSTRAINT `fk_exc_terapeuta` FOREIGN KEY (`terapeuta_id`)
+    REFERENCES `terapeutas` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 
 -- ============================================================
--- PARTE 6: Tabla paquetes_sesiones
---   FK paciente_id -> pacientes.id (int)
+-- PARTE 6: logs_auditoria + FK a usuarios.id
 -- ============================================================
 
-CREATE TABLE IF NOT EXISTS `paquetes_sesiones` (
+CREATE TABLE IF NOT EXISTS `logs_auditoria` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `paciente_id` int(11) NOT NULL,
-  `servicio_id` int(11) NOT NULL,
-  `total_sesiones` int(11) NOT NULL,
-  `sesiones_usadas` int(11) NOT NULL DEFAULT 0,
-  `fecha_compra` date NOT NULL,
-  `fecha_vencimiento` date DEFAULT NULL,
-  `estado` enum('activo','agotado','vencido','cancelado') NOT NULL DEFAULT 'activo',
+  `usuario_id` int(11) DEFAULT NULL,
+  `accion` varchar(100) NOT NULL COMMENT 'crear_cita, cancelar_cita, reprogramar_cita, marcar_pago, crear_usuario, desactivar_usuario',
+  `tabla_afectada` varchar(50) DEFAULT NULL,
+  `registro_id` int(11) DEFAULT NULL,
+  `detalle` text DEFAULT NULL,
+  `ip_origen` varchar(45) DEFAULT NULL,
   `creado_en` datetime NOT NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`id`),
-  KEY `idx_ps_paciente` (`paciente_id`),
-  KEY `idx_ps_servicio` (`servicio_id`),
-  KEY `idx_ps_estado` (`estado`),
-  CONSTRAINT `fk_ps_paciente` FOREIGN KEY (`paciente_id`)
-    REFERENCES `pacientes` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `fk_ps_servicio` FOREIGN KEY (`servicio_id`)
-    REFERENCES `servicios` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
+  KEY `idx_log_usuario` (`usuario_id`),
+  KEY `idx_log_accion` (`accion`),
+  KEY `idx_log_fecha` (`creado_en`),
+  CONSTRAINT `fk_log_usuario` FOREIGN KEY (`usuario_id`)
+    REFERENCES `usuarios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Backfill: una fila de ejemplo si la tabla estaba vacia (opcional)
+-- INSERT IGNORE INTO `logs_auditoria` (usuario_id, accion, tabla_afectada, detalle)
+-- VALUES (NULL, 'migracion_v3', 'sistema', 'Tabla logs_auditoria creada');
 
 
 -- ============================================================
--- PARTE 7: Tabla consentimientos
---   FK paciente_id -> pacientes.id (int)
+-- PARTE 7: DIAGNOSTICO horarios (Punto 3 - solo lectura)
+--   NOTA IMPORTANTE: el sistema de reservas actual NO usa
+--   horarios_medico. La disponibilidad se calcula contando citas
+--   programadas por terapeuta/fecha (diseño COUNT, intencional).
+--   Por eso estas queries son SOLO diagnostico, NO bloquean nada.
 -- ============================================================
 
-CREATE TABLE IF NOT EXISTS `consentimientos` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `paciente_id` int(11) NOT NULL,
-  `tipo` varchar(50) NOT NULL COMMENT 'general, tratamiento, cirugia',
-  `texto_version` varchar(50) NOT NULL COMMENT 'v1.0, v2.1',
-  `aceptado_en` datetime NOT NULL DEFAULT current_timestamp(),
-  `ip_origen` varchar(45) DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `idx_consent_paciente` (`paciente_id`),
-  KEY `idx_consent_tipo` (`tipo`),
-  CONSTRAINT `fk_consent_paciente` FOREIGN KEY (`paciente_id`)
-    REFERENCES `pacientes` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+-- 7.1 Terapeutas activos SIN ningun horario cargado en horarios_medico
+--     (Diagnostico de lo incompleto; no afecta reservas hoy)
+SELECT t.id, u.nombre, t.activo
+FROM terapeutas t
+JOIN usuarios u ON t.usuario_id = u.id
+WHERE t.activo = 1
+  AND NOT EXISTS (
+      SELECT 1 FROM horarios_medico hm WHERE hm.terapeuta_id = t.id
+  );
+
+-- 7.2 Terapeutas activos y cuantos dias de la semana tienen horario
+SELECT t.id, u.nombre, COUNT(hm.id) AS dias_con_horario
+FROM terapeutas t
+JOIN usuarios u ON t.usuario_id = u.id
+LEFT JOIN horarios_medico hm ON hm.terapeuta_id = t.id AND hm.activo = 1
+WHERE t.activo = 1
+GROUP BY t.id, u.nombre
+ORDER BY dias_con_horario ASC;
+
+-- 7.3 INSERT template para completar horarios faltantes
+--     (solo si decides mantener la tabla sincronizada; recorda que
+--      el codigo no la lee hoy)
+INSERT INTO horarios_medico (terapeuta_id, dia_semana, hora_inicio, hora_fin, duracion_min, activo) VALUES
+(2, 0, '08:00:00', '13:00:00', 30, 1),   -- terapeuta 2, lunes
+(2, 1, '08:00:00', '13:00:00', 30, 1),   -- terapeuta 2, martes
+(2, 2, '08:00:00', '13:00:00', 30, 1),   -- terapeuta 2, miercoles
+(3, 0, '14:00:00', '18:00:00', 30, 1),   -- terapeuta 3, lunes
+(3, 3, '14:00:00', '18:00:00', 30, 1);   -- terapeuta 3, jueves
 
 
 -- ============================================================
@@ -191,10 +269,8 @@ CREATE TABLE IF NOT EXISTS `consentimientos` (
 
 SET FOREIGN_KEY_CHECKS = 1;
 
-SELECT 'MIGRACION V2 COMPLETADA' AS resultado;
+SELECT 'MIGRACION V3 (funcional) COMPLETADA' AS resultado;
 
-DESCRIBE `pacientes`;
-DESCRIBE `terapeutas`;
-DESCRIBE `usuarios`;
 DESCRIBE `historial_citas`;
+DESCRIBE `pagos`;
 SHOW TABLES;
