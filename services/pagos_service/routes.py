@@ -7,6 +7,7 @@ from services.pagos_service.providers import (
     PaymentNotConfigured, PaymentProviderError, qr_url,
 )
 from shared.db import db_connection
+from shared.audit import log_accion
 
 
 def _obtener_pago_pendiente(cita_id):
@@ -37,7 +38,7 @@ def _guardar_referencia(cita_id, cobro_id):
         conn.commit()
 
 
-def confirmar_pago_servicio(cita_id, referencia=None, datos_respuesta=None):
+def confirmar_pago_servicio(cita_id, referencia=None, datos_respuesta=None, verificado_por=None):
     with db_connection() as conn:
         cursor = conn.cursor(dictionary=True)
         cursor.execute(
@@ -53,15 +54,38 @@ def confirmar_pago_servicio(cita_id, referencia=None, datos_respuesta=None):
         cita = cursor.fetchone()
 
         datos_json = json.dumps(datos_respuesta) if datos_respuesta else None
-        cursor.execute(
-            """UPDATE pagos SET estado_pago='pagado', fecha_pago=NOW(),
-               referencia=COALESCE(%s,referencia), transaccion_id=COALESCE(%s,transaccion_id),
-               datos_respuesta=COALESCE(%s,datos_respuesta), verificado_en=NOW()
-               WHERE cita_id=%s AND estado_pago='pendiente'""",
-            (referencia, referencia, datos_json, cita_id),
-        )
+        if verificado_por:
+            cursor.execute(
+                """UPDATE pagos SET estado_pago='pagado', fecha_pago=NOW(),
+                   referencia=COALESCE(%s,referencia), transaccion_id=COALESCE(%s,transaccion_id),
+                   datos_respuesta=COALESCE(%s,datos_respuesta), verificado_en=NOW(),
+                   verificado_por=%s
+                   WHERE cita_id=%s AND estado_pago='pendiente'""",
+                (referencia, referencia, datos_json, verificado_por, cita_id),
+            )
+        else:
+            cursor.execute(
+                """UPDATE pagos SET estado_pago='pagado', fecha_pago=NOW(),
+                   referencia=COALESCE(%s,referencia), transaccion_id=COALESCE(%s,transaccion_id),
+                   datos_respuesta=COALESCE(%s,datos_respuesta), verificado_en=NOW()
+                   WHERE cita_id=%s AND estado_pago='pendiente'""",
+                (referencia, referencia, datos_json, cita_id),
+            )
         conn.commit()
         pagado = cursor.rowcount > 0
+
+        if pagado:
+            try:
+                log_accion(
+                    usuario_id=verificado_por,
+                    accion="marcar_pago",
+                    tabla_afectada="pagos",
+                    registro_id=cita_id,
+                    detalle=f"Pago marcado como 'pagado' para cita_id={cita_id}, verificado_por={verificado_por}",
+                    ip_origen=request.remote_addr,
+                )
+            except Exception:
+                pass
 
         if pagado and cita:
             import requests as http_requests

@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from flask import request, jsonify
 from services.citas_service import citas_bp
 from shared.db import db_connection
+from shared.audit import log_accion
 from shared.config import (
     OTP_EXPIRA_MIN, OTP_MAX_INTENTOS,
     TEXTBEE_API_KEY, TEXTBEE_DEVICE_ID, TEXTBEE_URL,
@@ -179,12 +180,22 @@ def crear_cita():
         else:
             paciente_id = persona["id"]
 
+        servicio_id = data.get("servicio_id")
+
         cursor.execute(
-            "INSERT INTO historial_citas (paciente_id, terapeuta_id, fecha_cita, estado) VALUES (%s,%s,%s,'programada')",
-            (paciente_id, data["medico_id"], data["fecha_cita"]),
+            "INSERT INTO historial_citas (paciente_id, terapeuta_id, servicio_id, fecha_cita, estado) VALUES (%s,%s,%s,%s,'programada')",
+            (paciente_id, data["medico_id"], servicio_id, data["fecha_cita"]),
         )
         conn.commit()
         cita_id = cursor.lastrowid
+
+        log_accion(
+            accion="crear_cita",
+            tabla_afectada="historial_citas",
+            registro_id=cita_id,
+            detalle=f"Cita creada para paciente_id={paciente_id}, medico_id={data['medico_id']}, fecha={data['fecha_cita']}",
+            ip_origen=request.remote_addr,
+        )
 
         metodo_pago = data.get("metodo_pago", "").strip()
         if metodo_pago and anticipo > 0:
@@ -225,6 +236,13 @@ def modificar_cita(cita_id):
         conn.commit()
         if cursor.rowcount == 0:
             return jsonify({"error": "Cita no encontrada o ya no esta programada"}), 404
+        log_accion(
+            accion="reprogramar_cita",
+            tabla_afectada="historial_citas",
+            registro_id=cita_id,
+            detalle=f"Cita reprogramada a fecha={nueva_fecha}, medico_id={nuevo_medico}",
+            ip_origen=request.remote_addr,
+        )
     return jsonify({"success": True})
 
 
@@ -237,6 +255,12 @@ def cancelar_cita(cita_id):
         conn.commit()
         if cursor.rowcount == 0:
             return jsonify({"error": "Cita no encontrada"}), 404
+        log_accion(
+            accion="cancelar_cita",
+            tabla_afectada="historial_citas",
+            registro_id=cita_id,
+            ip_origen=request.remote_addr,
+        )
     return jsonify({"success": True})
 
 
