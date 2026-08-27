@@ -44,7 +44,7 @@
                 <div class="meta">Email: {{ p.email or 'No registrado' }}</div>
                 <div class="meta">Citas: {{ p.total_citas }} | Ultima: {{ p.ultima_cita or 'Ninguna' }}</div>
                 <span class="estado estado-{{ p.estado }}">{{ p.estado|capitalize }}</span>
-                <a href="{{ url_for('detalle_paciente_page', paciente_id=p.id) }}" class="btn-ver">Ver historial</a>
+                <a href="{{ url_for('detalle_paciente_page', paciente_dni=p.dni) }}" class="btn-ver">Ver historial</a>
             </div>
             {% endfor %}
         </div>
