@@ -385,8 +385,22 @@ def create_app():
         if "usuario_id" not in session or session.get("rol") != "admin":
             return redirect(url_for("login"))
         data, _ = pacientes_client.get(f"/api/pacientes/{paciente_dni}")
-        return render_template("detalle_paciente.html", paciente=data.get("paciente", {}),
-                               historial=data.get("historial", []))
+        paciente = data.get("paciente", {})
+        historial = data.get("historial", [])
+        persona_id = paciente.get("id")
+
+        paquetes, evaluaciones, consentimientos = [], [], []
+        if persona_id:
+            pdata, _ = pacientes_client.get(f"/api/pacientes/{persona_id}/paquetes")
+            paquetes = pdata.get("paquetes", [])
+            edata, _ = pacientes_client.get(f"/api/pacientes/{persona_id}/evaluaciones")
+            evaluaciones = edata.get("evaluaciones", [])
+            cdata, _ = pacientes_client.get(f"/api/pacientes/{persona_id}/consentimientos")
+            consentimientos = cdata.get("consentimientos", [])
+
+        return render_template("detalle_paciente.html", paciente=paciente,
+                               historial=historial, paquetes=paquetes,
+                               evaluaciones=evaluaciones, consentimientos=consentimientos)
 
     @app.route("/notas/<int:cita_id>", methods=["GET", "POST"])
     def notas_page(cita_id):

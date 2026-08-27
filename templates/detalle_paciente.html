@@ -101,6 +101,90 @@
                 {% endfor %}
             </tbody>
         </table>
+
+        {% if paquetes %}
+        <h2 style="color:#2d3748; margin:2rem 0 1rem;">Paquetes de Sesiones</h2>
+        <table class="historial-table">
+            <thead>
+                <tr>
+                    <th>Servicio</th>
+                    <th>Sesiones</th>
+                    <th>Usadas</th>
+                    <th>Restantes</th>
+                    <th>Compra</th>
+                    <th>Vencimiento</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ps in paquetes %}
+                <tr>
+                    <td>{{ ps.servicio_nombre }}</td>
+                    <td>{{ ps.total_sesiones }}</td>
+                    <td>{{ ps.sesiones_usadas }}</td>
+                    <td>{{ ps.total_sesiones - ps.sesiones_usadas }}</td>
+                    <td>{{ ps.fecha_compra }}</td>
+                    <td>{{ ps.fecha_vencimiento or 'Sin limite' }}</td>
+                    <td>
+                        <span class="badge badge-{{ ps.estado }}">{{ ps.estado|capitalize }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        {% if evaluaciones %}
+        <h2 style="color:#2d3748; margin:2rem 0 1rem;">Evaluaciones Iniciales</h2>
+        <table class="historial-table">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Terapeuta</th>
+                    <th>Motivo</th>
+                    <th>Dolor (EVA)</th>
+                    <th>Rango Movimiento</th>
+                    <th>Objetivos</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ev in evaluaciones %}
+                <tr>
+                    <td>{{ ev.fecha_creacion.strftime('%d/%m/%Y') if ev.fecha_creacion else '' }}</td>
+                    <td>{{ ev.terapeuta_nombre }}</td>
+                    <td>{{ ev.motivo_consulta }}</td>
+                    <td>{{ ev.escala_dolor_eva if ev.escala_dolor_eva is not none else '-' }}/10</td>
+                    <td>{{ ev.rango_movimiento or '-' }}</td>
+                    <td>{{ ev.objetivos_terapeuticos or '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        {% if consentimientos %}
+        <h2 style="color:#2d3748; margin:2rem 0 1rem;">Consentimientos Informados</h2>
+        <table class="historial-table">
+            <thead>
+                <tr>
+                    <th>Tipo</th>
+                    <th>Version</th>
+                    <th>Fecha</th>
+                    <th>IP</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cn in consentimientos %}
+                <tr>
+                    <td>{{ cn.tipo }}</td>
+                    <td>{{ cn.texto_version }}</td>
+                    <td>{{ cn.aceptado_en.strftime('%d/%m/%Y %H:%M') if cn.aceptado_en else '' }}</td>
+                    <td>{{ cn.ip_origen or '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
     </div>
 </body>
 </html>
