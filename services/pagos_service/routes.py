@@ -17,7 +17,7 @@ def _obtener_pago_pendiente(cita_id):
                       t.Nombre AS terapeuta, t.Especialidad,
                       pg.monto, pg.metodo_pago, pg.estado_pago, pg.referencia
                FROM historial_citas h
-               JOIN personas p ON h.persona_id = p.id
+               JOIN personas p ON h.persona_id = p.dni
                JOIN terapeutas t ON h.terapeuta_id = t.ID
                LEFT JOIN pagos pg ON pg.cita_id = h.id
                WHERE h.id = %s""", (cita_id,),
@@ -42,7 +42,7 @@ def confirmar_pago_servicio(cita_id, referencia=None, datos_respuesta=None):
             """SELECT h.fecha_cita, p.nombre, p.apellido, p.telefono AS telefono_paciente,
                       t.Nombre AS terapeuta, t.Especialidad, t.Telefono AS telefono_medico
                FROM historial_citas h
-               JOIN personas p ON h.persona_id = p.id
+               JOIN personas p ON h.persona_id = p.dni
                JOIN terapeutas t ON h.terapeuta_id = t.ID
                WHERE h.id = %s""", (cita_id,),
         )

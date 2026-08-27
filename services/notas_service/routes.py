@@ -8,9 +8,9 @@ def listar_notas(cita_id):
     with db_connection() as conn:
         cursor = conn.cursor(dictionary=True)
         cursor.execute(
-            """SELECT nc.*, u.nombre AS autor
+            """SELECT nc.*, t.Nombre AS autor
                FROM notas_clinicas nc
-               LEFT JOIN usuarios u ON nc.terapeuta_id = u.terapeuta_id
+               LEFT JOIN terapeutas t ON nc.terapeuta_id = t.ID
                WHERE nc.cita_id = %s ORDER BY nc.fecha_creacion DESC""",
             (cita_id,),
         )
