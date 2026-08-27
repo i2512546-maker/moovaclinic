@@ -281,8 +281,11 @@ def create_app():
                                     precio_num = float(precio) if precio else None
                                 except ValueError:
                                     precio_num = None
-                                cur2.execute("INSERT INTO terapeutas (Nombre, Especialidad, precio) VALUES (%s,%s,%s)",
-                                             (nombre, especialidad, precio_num))
+                                cur2.execute("SELECT id FROM especialidades WHERE nombre=%s", (especialidad,))
+                                esp = cur2.fetchone()
+                                esp_id = esp["id"] if esp else None
+                                cur2.execute("INSERT INTO terapeutas (Nombre, especialidad_id, precio) VALUES (%s,%s,%s)",
+                                             (nombre, esp_id, precio_num))
                                 conn2.commit()
                                 clave_hash = bcrypt.generate_password_hash(clave).decode("utf-8")
                                 cur2.execute("SELECT id FROM roles WHERE nombre='terapeuta'")
@@ -341,7 +344,12 @@ def create_app():
 
                 return redirect(url_for("panel_admin"))
 
-            cursor.execute("SELECT ID, Nombre, Especialidad, Telefono, precio, activo FROM terapeutas ORDER BY Nombre")
+            cursor.execute(
+                """SELECT t.ID, t.Nombre, t.Telefono, t.precio, t.activo,
+                          e.nombre AS Especialidad
+                   FROM terapeutas t
+                   LEFT JOIN especialidades e ON t.especialidad_id = e.id
+                   ORDER BY t.Nombre""")
             medicos = cursor.fetchall()
             cursor.execute("SELECT id, nombre FROM especialidades WHERE activa=1 ORDER BY nombre")
             especialidades = cursor.fetchall()
