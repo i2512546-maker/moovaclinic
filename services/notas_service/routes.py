@@ -1,21 +1,11 @@
 from flask import request, jsonify
 from services.notas_service import notas_bp
-from shared.db import db_connection
+from shared.proc import call_proc, call_proc_one, call_proc_execute
 
 
 @notas_bp.route("/api/notas/<int:cita_id>", methods=["GET"])
 def listar_notas(cita_id):
-    with db_connection() as conn:
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute(
-            """SELECT nc.*, u.nombre AS autor
-               FROM notas_clinicas nc
-               LEFT JOIN terapeutas t ON nc.terapeuta_id = t.id
-               LEFT JOIN usuarios u ON t.usuario_id = u.id
-               WHERE nc.cita_id = %s ORDER BY nc.fecha_creacion DESC""",
-            (cita_id,),
-        )
-        notas = cursor.fetchall()
+    notas = call_proc("sp_listar_notas", (cita_id,))
     return jsonify({"success": True, "notas": notas})
 
 
@@ -31,21 +21,12 @@ def crear_nota(cita_id):
         return jsonify({"error": "La nota no puede estar vacia."}), 400
 
     if not paciente_id:
-        with db_connection() as conn:
-            cursor = conn.cursor(dictionary=True)
-            cursor.execute("SELECT paciente_id FROM historial_citas WHERE id=%s", (cita_id,))
-            cita = cursor.fetchone()
-            if cita:
-                paciente_id = cita["paciente_id"]
+        cita = call_proc_one("sp_obtener_paciente_id_cita", (cita_id,))
+        if cita:
+            paciente_id = cita["paciente_id"]
 
-    with db_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            """INSERT INTO notas_clinicas (cita_id, paciente_id, terapeuta_id, nota, diagnostico)
-               VALUES (%s, %s, %s, %s, %s)""",
-            (cita_id, paciente_id, terapeuta_id, nota, diagnostico or None),
-        )
-        conn.commit()
-        nota_id = cursor.lastrowid
-
+    result = call_proc_one("sp_crear_nota", (
+        cita_id, paciente_id, terapeuta_id, nota, diagnostico or None,
+    ))
+    nota_id = result["id"] if result else None
     return jsonify({"success": True, "nota_id": nota_id}), 201
