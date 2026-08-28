@@ -16,9 +16,12 @@
 # La tabla logs_auditoria debe existir (ver migration_v2.sql
 # PARTE 6). La FK hacia usuarios.id es ON DELETE SET NULL, asi
 # que el log sobrevive aunque se borre el usuario.
+#
+# La insercion se delega al procedimiento sp_insertar_log_auditoria
+# (procedures.sql), por lo que este modulo no contiene SQL crudo.
 # ============================================================
 
-from shared.db import db_connection
+from shared.proc import call_proc_execute
 
 
 def log_accion(usuario_id=None, accion="", tabla_afectada=None,
@@ -29,15 +32,9 @@ def log_accion(usuario_id=None, accion="", tabla_afectada=None,
     para no interrumpir el flujo principal del negocio.
     """
     try:
-        with db_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                """INSERT INTO logs_auditoria
-                   (usuario_id, accion, tabla_afectada, registro_id, detalle, ip_origen)
-                   VALUES (%s, %s, %s, %s, %s, %s)""",
-                (usuario_id, accion, tabla_afectada, registro_id, detalle, ip_origen),
-            )
-            conn.commit()
+        call_proc_execute("sp_insertar_log_auditoria", (
+            usuario_id, accion, tabla_afectada, registro_id, detalle, ip_origen,
+        ))
     except Exception:
         # La auditoria jamas debe romper el flujo principal.
         pass
