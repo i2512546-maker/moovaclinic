@@ -16,7 +16,7 @@
 from shared.db import db_connection
 
 
-def _run(proc_name, params, dictionary, fetch, commit):
+def _run(proc_name, params, dictionary, fetch, commit, drain=False):
     params = list(params or ())
     with db_connection() as conn:
         cursor = conn.cursor(dictionary=dictionary)
@@ -29,6 +29,12 @@ def _run(proc_name, params, dictionary, fetch, commit):
             except Exception:
                 # Procedimientos que no devuelven result set
                 rows = []
+        elif drain:
+            try:
+                for result in cursor.stored_results():
+                    result.fetchall()
+            except Exception:
+                pass
         if commit:
             conn.commit()
     return rows
@@ -48,5 +54,8 @@ def call_proc_one(proc_name, params=(), dictionary=True):
 
 def call_proc_execute(proc_name, params=()):
     """Ejecuta un procedimiento de DML (INSERT/UPDATE/DELETE) que
-    no necesita devolver filas. Igual commit."""
-    return _run(proc_name, params, dictionary=False, fetch=False, commit=True)
+    no necesita devolver filas. Consume (y descarta) cualquier result
+    set que el procedimiento haya dejado para evitar "Unread result
+    found" en mysql-connector cuando el SP termina con un SELECT de
+    control (ej: LAST_INSERT_ID(), ROW_COUNT()). Igual commit."""
+    return _run(proc_name, params, dictionary=False, fetch=False, commit=True, drain=True)
