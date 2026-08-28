@@ -131,10 +131,12 @@ def create_app():
     def citas_page():
         data, _ = citas_client.get("/api/citas/terapeutas")
         terapeutas = data.get("terapeutas", [])
+        sdata, _ = pacientes_client.get("/api/servicios")
+        servicios = sdata.get("servicios", [])
 
         if request.method == "POST":
             form_data = {k: request.form.get(k, "").strip() for k in
-                         ["nombre", "apellido", "dni", "telefono", "medico_id", "fecha_cita", "metodo_pago"]}
+                         ["nombre", "apellido", "dni", "telefono", "medico_id", "fecha_cita", "metodo_pago", "servicio_id"]}
             if not all(form_data.values()):
                 flash("campos_vacios")
                 return redirect(url_for("citas_page"))
@@ -145,7 +147,7 @@ def create_app():
             else:
                 flash(result.get("error", "Error al crear cita"))
 
-        return render_template("citas.html", terapeutas=terapeutas)
+        return render_template("citas.html", terapeutas=terapeutas, servicios=servicios)
 
     @app.route("/citas/modificar", methods=["GET", "POST"])
     def modificar_cita_page():
