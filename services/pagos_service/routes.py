@@ -6,123 +6,76 @@ from services.pagos_service.providers import (
     NiubizClient, YapeClient, PlinClient,
     PaymentNotConfigured, PaymentProviderError, qr_url,
 )
-from shared.db import db_connection
 from shared.audit import log_accion
+from shared.proc import call_proc, call_proc_one, call_proc_execute
 
 
 def _obtener_pago_pendiente(cita_id):
-    with db_connection() as conn:
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute(
-            """SELECT h.id, p.nombre, p.apellido,
-                      u.nombre AS terapeuta, e.nombre AS Especialidad,
-                      pg.monto, pg.metodo_pago, pg.estado_pago, pg.referencia
-               FROM historial_citas h
-               JOIN pacientes p ON h.paciente_id = p.id
-               JOIN terapeutas t ON h.terapeuta_id = t.id
-               JOIN usuarios u ON t.usuario_id = u.id
-               LEFT JOIN especialidades e ON t.especialidad_id = e.id
-               LEFT JOIN pagos pg ON pg.cita_id = h.id
-               WHERE h.id = %s""", (cita_id,),
-        )
-        cita = cursor.fetchone()
-        if not cita or cita["estado_pago"] != "pendiente":
-            return None
+    cita = call_proc_one("sp_obtener_pago_pendiente", (cita_id,))
+    if not cita or cita["estado_pago"] != "pendiente":
+        return None
     return cita
 
 
 def _guardar_referencia(cita_id, cobro_id):
-    with db_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute("UPDATE pagos SET referencia=%s WHERE cita_id=%s", (cobro_id, cita_id))
-        conn.commit()
+    call_proc_execute("sp_guardar_referencia", (cita_id, cobro_id))
 
 
 def confirmar_pago_servicio(cita_id, referencia=None, datos_respuesta=None, verificado_por=None):
-    with db_connection() as conn:
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute(
-            """SELECT h.fecha_cita, p.nombre, p.apellido, p.telefono AS telefono_paciente,
-                      u.nombre AS terapeuta, e.nombre AS Especialidad, u.telefono AS telefono_medico
-               FROM historial_citas h
-               JOIN pacientes p ON h.paciente_id = p.id
-               JOIN terapeutas t ON h.terapeuta_id = t.id
-               JOIN usuarios u ON t.usuario_id = u.id
-               LEFT JOIN especialidades e ON t.especialidad_id = e.id
-               WHERE h.id = %s""", (cita_id,),
-        )
-        cita = cursor.fetchone()
+    cita = call_proc_one("sp_obtener_cita_para_confirmar", (cita_id,))
 
-        datos_json = json.dumps(datos_respuesta) if datos_respuesta else None
-        if verificado_por:
-            cursor.execute(
-                """UPDATE pagos SET estado_pago='pagado', fecha_pago=NOW(),
-                   referencia=COALESCE(%s,referencia), transaccion_id=COALESCE(%s,transaccion_id),
-                   datos_respuesta=COALESCE(%s,datos_respuesta), verificado_en=NOW(),
-                   verificado_por=%s
-                   WHERE cita_id=%s AND estado_pago='pendiente'""",
-                (referencia, referencia, datos_json, verificado_por, cita_id),
-            )
-        else:
-            cursor.execute(
-                """UPDATE pagos SET estado_pago='pagado', fecha_pago=NOW(),
-                   referencia=COALESCE(%s,referencia), transaccion_id=COALESCE(%s,transaccion_id),
-                   datos_respuesta=COALESCE(%s,datos_respuesta), verificado_en=NOW()
-                   WHERE cita_id=%s AND estado_pago='pendiente'""",
-                (referencia, referencia, datos_json, cita_id),
-            )
-        conn.commit()
-        pagado = cursor.rowcount > 0
+    datos_json = json.dumps(datos_respuesta) if datos_respuesta else None
+    res = call_proc_one("sp_confirmar_pago", (
+        cita_id, referencia, datos_json, verificado_por,
+    ))
+    pagado = bool(res and int(res.get("pagado") or 0) > 0)
 
-        if pagado:
+    if pagado:
+        try:
+            log_accion(
+                usuario_id=verificado_por,
+                accion="marcar_pago",
+                tabla_afectada="pagos",
+                registro_id=cita_id,
+                detalle=f"Pago marcado como 'pagado' para cita_id={cita_id}, verificado_por={verificado_por}",
+                ip_origen=request.remote_addr,
+            )
+        except Exception:
+            pass
+
+    if pagado and cita:
+        import requests as http_requests
+        from shared.config import TEXTBEE_API_KEY, TEXTBEE_DEVICE_ID, TEXTBEE_URL
+        try:
+            fecha_fmt = datetime.strptime(str(cita["fecha_cita"]), "%Y-%m-%d").strftime("%d/%m/%Y")
+        except Exception:
+            fecha_fmt = str(cita["fecha_cita"])
+
+        def _sms(tel, msg):
             try:
-                log_accion(
-                    usuario_id=verificado_por,
-                    accion="marcar_pago",
-                    tabla_afectada="pagos",
-                    registro_id=cita_id,
-                    detalle=f"Pago marcado como 'pagado' para cita_id={cita_id}, verificado_por={verificado_por}",
-                    ip_origen=request.remote_addr,
+                t = tel.strip().replace(" ", "")
+                if not t.startswith("+"):
+                    t = "+51" + t
+                http_requests.post(
+                    TEXTBEE_URL.format(device_id=TEXTBEE_DEVICE_ID),
+                    json={"recipients": [t], "message": msg},
+                    headers={"x-api-key": TEXTBEE_API_KEY}, timeout=10,
                 )
             except Exception:
                 pass
 
-        if pagado and cita:
-            import requests as http_requests
-            from shared.config import TEXTBEE_API_KEY, TEXTBEE_DEVICE_ID, TEXTBEE_URL
-            try:
-                fecha_fmt = datetime.strptime(str(cita["fecha_cita"]), "%Y-%m-%d").strftime("%d/%m/%Y")
-            except Exception:
-                fecha_fmt = str(cita["fecha_cita"])
-
-            def _sms(tel, msg):
-                try:
-                    t = tel.strip().replace(" ", "")
-                    if not t.startswith("+"):
-                        t = "+51" + t
-                    http_requests.post(
-                        TEXTBEE_URL.format(device_id=TEXTBEE_DEVICE_ID),
-                        json={"recipients": [t], "message": msg},
-                        headers={"x-api-key": TEXTBEE_API_KEY}, timeout=10,
-                    )
-                except Exception:
-                    pass
-
-            _sms(cita["telefono_paciente"],
-                 f"MOOVA Clinic: Hola {cita['nombre']}, tu cita fue confirmada. Medico: {cita['terapeuta']} ({cita['Especialidad']}). Fecha: {fecha_fmt}.")
-            if cita.get("telefono_medico"):
-                _sms(cita["telefono_medico"],
-                     f"MOOVA Clinic: Dr(a). {cita['terapeuta']}, se agendo cita con {cita['nombre']} {cita['apellido']}. Fecha: {fecha_fmt}.")
+        _sms(cita["telefono_paciente"],
+             f"MOOVA Clinic: Hola {cita['nombre']}, tu cita fue confirmada. Medico: {cita['terapeuta']} ({cita['Especialidad']}). Fecha: {fecha_fmt}.")
+        if cita.get("telefono_medico"):
+            _sms(cita["telefono_medico"],
+                 f"MOOVA Clinic: Dr(a). {cita['terapeuta']}, se agendo cita con {cita['nombre']} {cita['apellido']}. Fecha: {fecha_fmt}.")
 
     return pagado
 
 
 @pagos_bp.route("/api/pagos/<int:cita_id>", methods=["GET"])
 def estado_pago(cita_id):
-    with db_connection() as conn:
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM pagos WHERE cita_id=%s", (cita_id,))
-        pago = cursor.fetchone()
+    pago = call_proc_one("sp_obtener_pago", (cita_id,))
     if not pago:
         return jsonify({"error": "Pago no encontrado"}), 404
     return jsonify({"success": True, "pago": pago})

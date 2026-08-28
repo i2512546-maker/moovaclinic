@@ -1,0 +1,879 @@
+# ============================================================
+# MOOVA Clinic - Swagger / OpenAPI central
+# Expone la documentacion de TODOS los endpoints de los 5
+# microservicios + gateway en una sola UI, servida por el gateway
+# en /apidocs via flasgger.
+#
+# OJO: No incluye NINGUN dato de conexion ni credencial. Solo
+# rutas, metodos, parametros y ejemplos de respuesta.
+# ============================================================
+swagger: "2.0"
+info:
+  title: "MOOVA Clinic API"
+  description: |
+    API del sistema de clinica de rehabilitacion MOOVA CLINIC.
+    Backend distribuido: microservicios auth, pacientes, citas,
+    pagos y notas, mas el gateway central. Esta especificacion
+    documenta todos los endpoints accesibles.
+  version: "1.0.0"
+basePath: "/"
+schemes:
+  - http
+  - https
+produces:
+  - application/json
+consumes:
+  - application/json
+tags:
+  - name: auth
+    description: Autenticacion y gestion de usuarios/roles
+  - name: pacientes
+    description: Pacientes, servicios, paquetes, evaluaciones y consentimientos
+  - name: citas
+    description: Citas, disponibilidad, terapeutas, OTP y estadisticas
+  - name: pagos
+    description: Gestion de pagos (Yape, Plin, Niubiz, webhook)
+  - name: notas
+    description: Notas clinicas
+paths:
+  # ---------------- AUTH ----------------
+  /api/auth/login:
+    post:
+      tags: [auth]
+      summary: Inicio de sesion
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              correo: { type: string, example: "admin@moova.clinic" }
+              clave: { type: string, example: "123456" }
+      responses:
+        "200":
+          description: Login correcto
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              usuario:
+                type: object
+                properties:
+                  id: { type: integer }
+                  nombre: { type: string }
+                  correo: { type: string }
+                  rol: { type: string }
+        "400": { description: Campos incompletos }
+        "401": { description: Credenciales incorrectas }
+  /api/auth/usuarios:
+    get:
+      tags: [auth]
+      summary: Lista de usuarios
+      responses:
+        "200":
+          description: Lista de usuarios con rol
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              usuarios:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: integer }
+                    nombre: { type: string }
+                    correo: { type: string }
+                    rol: { type: string }
+                    activo: { type: integer }
+                    ultimo_acceso: { type: string, format: date-time }
+    post:
+      tags: [auth]
+      summary: Crear usuario
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              nombre: { type: string, example: "Nuevo" }
+              correo: { type: string, example: "nuevo@moova.clinic" }
+              clave: { type: string, example: "pass" }
+              rol: { type: string, example: "terapeuta" }
+      responses:
+        "201":
+          description: Usuario creado
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              usuario_id: { type: integer }
+        "400": { description: Roll no existe / campos incompletos }
+        "409": { description: Correo ya existe }
+  /api/auth/usuarios/{usuario_id}:
+    put:
+      tags: [auth]
+      summary: Actualizar usuario (nombre, correo, activo, clave, rol)
+      parameters:
+        - name: usuario_id
+          in: path
+          required: true
+          type: integer
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              nombre: { type: string }
+              correo: { type: string }
+              activo: { type: integer, example: 1 }
+              clave: { type: string }
+              rol: { type: string }
+      responses:
+        "200":
+          description: Usuario actualizado
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+        "400": { description: Nada que actualizar }
+  /api/auth/roles:
+    get:
+      tags: [auth]
+      summary: Lista de roles
+      responses:
+        "200":
+          description: Roles activos
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              roles:
+                type: array
+                items:
+                  type: object
+  /api/auth/verificar:
+    post:
+      tags: [auth]
+      summary: Verificar token/usuario por id y rol
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              usuario_id: { type: integer }
+              rol: { type: string }
+      responses:
+        "200":
+          description: Autenticado
+          schema:
+            type: object
+            properties:
+              autenticado: { type: boolean, example: true }
+              usuario:
+                type: object
+                properties:
+                  id: { type: integer }
+                  nombre: { type: string }
+                  rol: { type: string }
+        "401": { description: No autenticado }
+        "403": { description: Rol insuficiente }
+
+  # ---------------- PACIENTES ----------------
+  /api/pacientes:
+    get:
+      tags: [pacientes]
+      summary: Listar pacientes con total y ultima cita
+      responses:
+        "200":
+          description: Lista de pacientes
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              pacientes:
+                type: array
+                items:
+                  type: object
+    post:
+      tags: [pacientes]
+      summary: Crear paciente
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              nombre: { type: string, example: "Juan" }
+              apellido: { type: string, example: "Perez" }
+              dni: { type: string, example: "12345678" }
+              telefono: { type: string, example: "999888777" }
+              email: { type: string }
+              fecha_nacimiento: { type: string, format: date }
+              sexo: { type: string, enum: ["M", "F", "otro"] }
+              direccion: { type: string }
+              seguro: { type: string }
+      responses:
+        "201":
+          description: Paciente creado
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              dni: { type: string }
+        "400": { description: Campos requeridos }
+        "409": { description: DNI ya existe }
+  /api/pacientes/{dni}:
+    get:
+      tags: [pacientes]
+      summary: Detalle de paciente con historial
+      parameters:
+        - name: dni
+          in: path
+          required: true
+          type: string
+      responses:
+        "200":
+          description: Paciente y su historial
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              paciente: { type: object }
+              historial: { type: array }
+        "404": { description: Paciente no encontrado }
+    put:
+      tags: [pacientes]
+      summary: Actualizar paciente
+      parameters:
+        - name: dni
+          in: path
+          required: true
+          type: string
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              nombre: { type: string }
+              apellido: { type: string }
+              telefono: { type: string }
+              email: { type: string }
+              estado: { type: string }
+              fecha_nacimiento: { type: string, format: date }
+              sexo: { type: string }
+              direccion: { type: string }
+              seguro: { type: string }
+      responses:
+        "200":
+          description: Paciente actualizado
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+        "400": { description: Nada que actualizar }
+  /api/pacientes/buscar_dni:
+    post:
+      tags: [pacientes]
+      summary: Buscar datos de DNI en API externa (RENIEC proxy)
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              dni: { type: string, example: "12345678" }
+      responses:
+        "200":
+          description: Datos encontrados
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              data: { type: object }
+        "400": { description: DNI invalido }
+        "404": { description: DNI no encontrado }
+  /api/servicios:
+    get:
+      tags: [pacientes]
+      summary: Listar servicios del catalogo
+      responses:
+        "200":
+          description: Servicios activos
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              servicios: { type: array }
+  /api/pacientes/{paciente_id}/paquetes:
+    get:
+      tags: [pacientes]
+      summary: Listar paquetes de sesiones de un paciente
+      parameters:
+        - name: paciente_id
+          in: path
+          required: true
+          type: integer
+      responses:
+        "200":
+          description: Paquetes del paciente
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              paquetes: { type: array }
+    post:
+      tags: [pacientes]
+      summary: Crear paquete de sesiones
+      parameters:
+        - name: paciente_id
+          in: path
+          required: true
+          type: integer
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              servicio_id: { type: integer }
+              total_sesiones: { type: integer }
+              fecha_compra: { type: string, format: date }
+              fecha_vencimiento: { type: string, format: date }
+      responses:
+        "201":
+          description: Paquete creado
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              paquete_id: { type: integer }
+        "400": { description: Campos requeridos }
+  /api/pacientes/{paciente_id}/evaluaciones:
+    get:
+      tags: [pacientes]
+      summary: Listar evaluaciones iniciales de un paciente
+      parameters:
+        - name: paciente_id
+          in: path
+          required: true
+          type: integer
+      responses:
+        "200":
+          description: Evaluaciones
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              evaluaciones: { type: array }
+    post:
+      tags: [pacientes]
+      summary: Crear evaluacion inicial
+      parameters:
+        - name: paciente_id
+          in: path
+          required: true
+          type: integer
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              terapeuta_id: { type: integer }
+              motivo_consulta: { type: string }
+              escala_dolor_eva: { type: integer, minimum: 0, maximum: 10 }
+              rango_movimiento: { type: string }
+              objetivos_terapeuticos: { type: string }
+      responses:
+        "201":
+          description: Evaluacion creada
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              evaluacion_id: { type: integer }
+        "400": { description: Campos requeridos }
+  /api/pacientes/{paciente_id}/consentimientos:
+    get:
+      tags: [pacientes]
+      summary: Listar consentimientos de un paciente
+      parameters:
+        - name: paciente_id
+          in: path
+          required: true
+          type: integer
+      responses:
+        "200":
+          description: Consentimientos
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              consentimientos: { type: array }
+    post:
+      tags: [pacientes]
+      summary: Crear consentimiento
+      parameters:
+        - name: paciente_id
+          in: path
+          required: true
+          type: integer
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              tipo: { type: string, example: "tratamiento" }
+              texto_version: { type: string, example: "v1.0" }
+      responses:
+        "201":
+          description: Consentimiento creado
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              consentimiento_id: { type: integer }
+        "400": { description: Campos requeridos }
+
+  # ---------------- CITAS ----------------
+  /api/citas:
+    get:
+      tags: [citas]
+      summary: Listar citas con filtros opcionales
+      parameters:
+        - name: dni
+          in: query
+          type: string
+        - name: fecha
+          in: query
+          type: string
+          format: date
+        - name: estado
+          in: query
+          type: string
+          default: programada
+        - name: medico_id
+          in: query
+          type: integer
+      responses:
+        "200":
+          description: Lista de citas
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              total: { type: integer }
+              citas: { type: array }
+    post:
+      tags: [citas]
+      summary: Crear cita (y paciente si no existe, y anticipo)
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              nombre: { type: string }
+              apellido: { type: string }
+              dni: { type: string }
+              telefono: { type: string }
+              medico_id: { type: integer }
+              fecha_cita: { type: string, format: date }
+              servicio_id: { type: integer }
+              metodo_pago: { type: string, enum: ["yape", "plin", "tarjeta", "transferencia"] }
+      responses:
+        "201":
+          description: Cita creada con costo y anticipo
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              cita_id: { type: integer }
+              costo: { type: number }
+              anticipo: { type: number }
+        "400": { description: Campo requerido / fecha invalida }
+        "404": { description: Medico no encontrado }
+        "409": { description: Medico ya tiene cita ese dia }
+  /api/citas/terapeutas:
+    get:
+      tags: [citas]
+      summary: Listar terapeutas activos
+      responses:
+        "200":
+          description: Terapeutas
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              terapeutas: { type: array }
+  /api/citas/disponibilidad:
+    post:
+      tags: [citas]
+      summary: Verificar disponibilidad de un medico en una fecha
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              medico_id: { type: integer }
+              fecha_cita: { type: string, format: date }
+              excluir_cita_id: { type: integer }
+      responses:
+        "200":
+          description: Disponibilidad
+          schema:
+            type: object
+            properties:
+              disponible: { type: boolean, example: true }
+  /api/citas/{cita_id}:
+    get:
+      tags: [citas]
+      summary: Detalle de una cita
+      parameters:
+        - name: cita_id
+          in: path
+          required: true
+          type: integer
+      responses:
+        "200":
+          description: Detalle de cita
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              cita: { type: object }
+        "404": { description: Cita no encontrada }
+    put:
+      tags: [citas]
+      summary: Modificar fecha/medico de una cita (reprogramar)
+      parameters:
+        - name: cita_id
+          in: path
+          required: true
+          type: integer
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              fecha_cita: { type: string, format: date }
+              medico_id: { type: integer }
+      responses:
+        "200":
+          description: Cita modificada
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+        "400": { description: Datos invalidos }
+        "404": { description: Cita no encontrada }
+        "409": { description: Conflicto de disponibilidad }
+    delete:
+      tags: [citas]
+      summary: Cancelar cita (y pago pendiente)
+      parameters:
+        - name: cita_id
+          in: path
+          required: true
+          type: integer
+      responses:
+        "200":
+          description: Cita cancelada
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+        "404": { description: Cita no encontrada }
+  /api/citas/otp/solicitar:
+    post:
+      tags: [citas]
+      summary: Solicitar codigo OTP por SMS para modificar/cancelar
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              dni: { type: string, example: "12345678" }
+              accion: { type: string, enum: ["modificar", "cancelar"], default: "modificar" }
+      responses:
+        "200":
+          description: OTP enviado
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              tel_mask: { type: string, example: "999***8777" }
+        "404": { description: No hay citas programadas para ese DNI }
+        "500": { description: No se pudo enviar el SMS }
+  /api/citas/otp/verificar:
+    post:
+      tags: [citas]
+      summary: Verificar codigo OTP
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              dni: { type: string }
+              otp: { type: string }
+              accion: { type: string, enum: ["modificar", "cancelar"], default: "modificar" }
+      responses:
+        "200":
+          description: Resultado de verificacion
+          schema:
+            type: object
+            properties:
+              resultado: { type: string, enum: ["ok", "incorrecto", "expirado", "agotado", "no_existe"] }
+              restantes: { type: integer }
+  /api/citas/estadisticas:
+    get:
+      tags: [citas]
+      summary: Estadisticas generales de la clinica
+      responses:
+        "200":
+          description: Estadisticas
+          schema:
+            type: object
+            properties:
+              pacientes_recuperados: { type: integer }
+              especialistas: { type: integer }
+              anios_experiencia: { type: integer }
+              tasa_exito: { type: integer }
+
+  # ---------------- PAGOS ----------------
+  /api/pagos/{cita_id}:
+    get:
+      tags: [pagos]
+      summary: Estado de pago de una cita
+      parameters:
+        - name: cita_id
+          in: path
+          required: true
+          type: integer
+      responses:
+        "200":
+          description: Pago de la cita
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              pago: { type: object }
+        "404": { description: Pago no encontrado }
+  /api/pagos/yape/iniciar:
+    post:
+      tags: [pagos]
+      summary: Iniciar cobro Yape (QR)
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              cita_id: { type: integer }
+      responses:
+        "200":
+          description: Cobro iniciado
+          schema:
+            type: object
+            properties:
+              ok: { type: boolean, example: true }
+              qr: { type: string }
+              cobro_id: { type: string }
+              monto: { type: number }
+  /api/pagos/yape/estado:
+    post:
+      tags: [pagos]
+      summary: Consultar estado de cobro Yape
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              cita_id: { type: integer }
+              cobro_id: { type: string }
+      responses:
+        "200":
+          description: Estado del pago
+          schema:
+            type: object
+            properties:
+              ok: { type: boolean, example: true }
+              pagado: { type: boolean }
+  /api/pagos/plin/iniciar:
+    post:
+      tags: [pagos]
+      summary: Iniciar cobro Plin (QR)
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              cita_id: { type: integer }
+      responses:
+        "200":
+          description: Cobro iniciado
+          schema:
+            type: object
+            properties:
+              ok: { type: boolean, example: true }
+              qr: { type: string }
+              cobro_id: { type: string }
+              monto: { type: number }
+  /api/pagos/plin/estado:
+    post:
+      tags: [pagos]
+      summary: Consultar estado de cobro Plin
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              cita_id: { type: integer }
+              cobro_id: { type: string }
+      responses:
+        "200":
+          description: Estado del pago
+          schema:
+            type: object
+            properties:
+              ok: { type: boolean, example: true }
+              pagado: { type: boolean }
+  /api/pagos/tarjeta/iniciar:
+    post:
+      tags: [pagos]
+      summary: Iniciar sesion de cobro con tarjeta (Niubiz)
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              cita_id: { type: integer }
+      responses:
+        "200":
+          description: Sesion Niubiz
+          schema:
+            type: object
+            properties:
+              ok: { type: boolean, example: true }
+              sessionKey: { type: string }
+              merchantId: { type: string }
+              monto: { type: number }
+              purchaseNumber: { type: string }
+  /api/pagos/tarjeta/cobrar:
+    post:
+      tags: [pagos]
+      summary: Ejecutar cobro con tarjeta (Niubiz)
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              cita_id: { type: integer }
+              cardToken: { type: string }
+              cvv: { type: string }
+              purchaseNumber: { type: string }
+      responses:
+        "200":
+          description: Cobro ejecutado
+          schema:
+            type: object
+            properties:
+              ok: { type: boolean, example: true }
+              pagado: { type: boolean }
+              transaccion_id: { type: string }
+  /api/pagos/webhook:
+    post:
+      tags: [pagos]
+      summary: Webhook de confirmacion de pago de proveedor
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              cita_id: { type: integer }
+              estado: { type: string }
+              referencia: { type: string }
+      responses:
+        "200":
+          description: Confirmacion procesada
+          schema:
+            type: object
+            properties:
+              ok: { type: boolean, example: true }
+
+  # ---------------- NOTAS ----------------
+  /api/notas/{cita_id}:
+    get:
+      tags: [notas]
+      summary: Listar notas clinicas de una cita
+      parameters:
+        - name: cita_id
+          in: path
+          required: true
+          type: integer
+      responses:
+        "200":
+          description: Notas de la cita
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              notas: { type: array }
+    post:
+      tags: [notas]
+      summary: Crear nota clinica
+      parameters:
+        - name: cita_id
+          in: path
+          required: true
+          type: integer
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              nota: { type: string }
+              diagnostico: { type: string }
+              terapeuta_id: { type: integer }
+              paciente_id: { type: integer }
+      responses:
+        "201":
+          description: Nota creada
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              nota_id: { type: integer }
+        "400": { description: Nota vacia }

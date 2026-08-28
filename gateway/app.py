@@ -1,20 +1,37 @@
 import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
+import yaml
+from flasgger import Swagger
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_bcrypt import Bcrypt
 from datetime import datetime, timedelta
-from shared.config import REDES_SOCIALES, SERVICE_URLS
+from shared.config import REDES_SOCIALES
 from shared.service_client import auth_client, pacientes_client, citas_client, pagos_client, notas_client
-from shared.db import db_connection
 from shared.audit import log_accion
+from shared.proc import call_proc, call_proc_one, call_proc_execute
 
 bcrypt = Bcrypt()
+
+
+def _load_swagger():
+    path = os.path.join(os.path.dirname(__file__), "..", "swagger.yaml")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return yaml.safe_load(f)
+    except Exception:
+        return None
 
 
 def create_app():
     app = Flask(__name__, template_folder="../templates", static_folder="../static")
     app.secret_key = os.getenv("SECRET_KEY", os.urandom(32).hex())
     bcrypt.init_app(app)
+
+    specs = _load_swagger()
+    if specs:
+        Swagger(app, template=specs)
+    else:
+        Swagger(app)
 
     @app.context_processor
     def inject():
@@ -100,20 +117,14 @@ def create_app():
         descripcion = request.form.get("descripcion", "").strip()
         fecha = request.form.get("fecha", datetime.today().strftime("%Y-%m-%d"))
 
-        with db_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                "UPDATE historial_citas SET descripcion=%s, estado='completada' WHERE id=%s",
-                (descripcion, historial_id),
-            )
-            conn.commit()
-            log_accion(
-                usuario_id=session.get("usuario_id"),
-                accion="completar_cita",
-                tabla_afectada="historial_citas",
-                registro_id=historial_id,
-                detalle="Cita marcada como completada",
-            )
+        call_proc_execute("sp_completar_cita", (historial_id, descripcion))
+        log_accion(
+            usuario_id=session.get("usuario_id"),
+            accion="completar_cita",
+            tabla_afectada="historial_citas",
+            registro_id=historial_id,
+            detalle="Cita marcada como completada",
+        )
         return redirect(url_for("interfaz", fecha=fecha))
 
     @app.route("/citas", methods=["GET", "POST"])
@@ -266,126 +277,97 @@ def create_app():
         if "usuario_id" not in session or session.get("rol") != "admin":
             return redirect(url_for("login"))
 
-        with db_connection() as conn:
-            cursor = conn.cursor(dictionary=True)
+        if request.method == "POST":
+            accion = request.form.get("accion")
+            if accion == "registrar":
+                nombre = request.form.get("nombre", "").strip()
+                especialidad = request.form.get("especialidad", "").strip()
+                correo = request.form.get("correo", "").strip()
+                clave = request.form.get("clave", "").strip()
+                precio = request.form.get("precio", "").strip()
 
-            if request.method == "POST":
-                accion = request.form.get("accion")
-                if accion == "registrar":
-                    nombre = request.form.get("nombre", "").strip()
-                    especialidad = request.form.get("especialidad", "").strip()
-                    correo = request.form.get("correo", "").strip()
-                    clave = request.form.get("clave", "").strip()
-                    precio = request.form.get("precio", "").strip()
-
-                    if nombre and especialidad and correo and clave:
-                        with db_connection() as conn2:
-                            cur2 = conn2.cursor(dictionary=True)
-                            cur2.execute("SELECT u.id FROM usuarios u WHERE u.nombre=%s", (nombre,))
-                            if cur2.fetchone():
-                                flash("Ya existe un terapeuta con ese nombre.")
-                            else:
-                                try:
-                                    precio_num = float(precio) if precio else None
-                                except ValueError:
-                                    precio_num = None
-                                telefono = request.form.get("telefono", "").strip()
-                                clave_hash = bcrypt.generate_password_hash(clave).decode("utf-8")
-                                cur2.execute("SELECT id FROM roles WHERE nombre='terapeuta'")
-                                rol = cur2.fetchone()
-                                cur2.execute(
-                                    "INSERT INTO usuarios (nombre, correo, telefono, clave, rol_id) VALUES (%s,%s,%s,%s,%s)",
-                                    (nombre, correo, telefono or None, clave_hash, rol["id"] if rol else 2),
-                                )
-                                conn2.commit()
-                                usuario_id = cur2.lastrowid
-                                cur2.execute("SELECT id FROM especialidades WHERE nombre=%s", (especialidad,))
-                                esp = cur2.fetchone()
-                                esp_id = esp["id"] if esp else None
-                                cur2.execute("INSERT INTO terapeutas (usuario_id, especialidad_id, precio) VALUES (%s,%s,%s)",
-                                             (usuario_id, esp_id, precio_num))
-                                conn2.commit()
-                                log_accion(
-                                    usuario_id=session.get("usuario_id"),
-                                    accion="crear_usuario",
-                                    tabla_afectada="usuarios",
-                                    registro_id=usuario_id,
-                                    detalle=f"Terapeuta creado: nombre={nombre}, correo={correo}",
-                                )
-                                flash("exito:Terapeuta registrado correctamente.")
+                if nombre and especialidad and correo and clave:
+                    if call_proc_one("sp_obtener_usuario_por_nombre", (nombre,)):
+                        flash("Ya existe un terapeuta con ese nombre.")
                     else:
-                        flash("Completa todos los campos.")
-
-                elif accion == "actualizar_precio":
-                    mid = request.form.get("medico_id")
-                    precio = request.form.get("precio", "").strip()
-                    if mid and precio:
                         try:
-                            cursor.execute("UPDATE terapeutas SET precio=%s WHERE id=%s", (float(precio), mid))
-                            conn.commit()
-                            flash("exito:Precio actualizado.")
+                            precio_num = float(precio) if precio else None
                         except ValueError:
-                            flash("Precio invalido.")
+                            precio_num = None
+                        telefono = request.form.get("telefono", "").strip()
+                        clave_hash = bcrypt.generate_password_hash(clave).decode("utf-8")
+                        rol = call_proc_one("sp_obtener_rol_id_terapeuta")
+                        rol_id = rol["id"] if rol else 2
+                        creado = call_proc_one("sp_crear_usuario_admin", (
+                            nombre, correo, telefono or None, clave_hash, rol_id,
+                        ))
+                        usuario_id = creado["id"] if creado else None
+                        esp = call_proc_one("sp_obtener_especialidad_id", (especialidad,))
+                        esp_id = esp["id"] if esp else None
+                        call_proc_execute("sp_crear_terapeuta", (usuario_id, esp_id, precio_num))
+                        log_accion(
+                            usuario_id=session.get("usuario_id"),
+                            accion="crear_usuario",
+                            tabla_afectada="usuarios",
+                            registro_id=usuario_id,
+                            detalle=f"Terapeuta creado: nombre={nombre}, correo={correo}",
+                        )
+                        flash("exito:Terapeuta registrado correctamente.")
+                else:
+                    flash("Completa todos los campos.")
 
-                elif accion == "eliminar":
-                    mid = request.form.get("medico_id")
-                    if mid:
-                        cursor.execute("SELECT usuario_id FROM terapeutas WHERE id=%s", (mid,))
-                        terapeuta = cursor.fetchone()
-                        if terapeuta:
-                            cursor.execute("UPDATE terapeutas SET activo=0 WHERE id=%s", (mid,))
-                            if terapeuta.get("usuario_id"):
-                                cursor.execute("UPDATE usuarios SET activo=0 WHERE id=%s", (terapeuta["usuario_id"],))
-                            conn.commit()
-                            log_accion(
-                                usuario_id=session.get("usuario_id"),
-                                accion="desactivar_usuario",
-                                tabla_afectada="usuarios",
-                                registro_id=terapeuta.get("usuario_id"),
-                                detalle=f"Terapeuta id={mid} desactivado",
-                            )
-                            flash("exito:Terapeuta desactivado.")
+            elif accion == "actualizar_precio":
+                mid = request.form.get("medico_id")
+                precio = request.form.get("precio", "").strip()
+                if mid and precio:
+                    try:
+                        call_proc_execute("sp_actualizar_precio", (mid, float(precio)))
+                        flash("exito:Precio actualizado.")
+                    except ValueError:
+                        flash("Precio invalido.")
 
-                elif accion == "reactivar":
-                    mid = request.form.get("medico_id")
-                    if mid:
-                        cursor.execute("SELECT usuario_id FROM terapeutas WHERE id=%s", (mid,))
-                        terapeuta = cursor.fetchone()
-                        if terapeuta:
-                            cursor.execute("UPDATE terapeutas SET activo=1 WHERE id=%s", (mid,))
-                            if terapeuta.get("usuario_id"):
-                                cursor.execute("UPDATE usuarios SET activo=1 WHERE id=%s", (terapeuta["usuario_id"],))
-                            conn.commit()
-                            flash("exito:Terapeuta reactivado.")
+            elif accion == "eliminar":
+                mid = request.form.get("medico_id")
+                if mid:
+                    terapeuta = call_proc_one("sp_obtener_usuario_id_terapeuta", (mid,))
+                    if terapeuta:
+                        call_proc_execute("sp_set_terapeuta_activo", (mid, 0))
+                        if terapeuta.get("usuario_id"):
+                            call_proc_execute("sp_set_usuario_activo", (terapeuta["usuario_id"], 0))
+                        log_accion(
+                            usuario_id=session.get("usuario_id"),
+                            accion="desactivar_usuario",
+                            tabla_afectada="usuarios",
+                            registro_id=terapeuta.get("usuario_id"),
+                            detalle=f"Terapeuta id={mid} desactivado",
+                        )
+                        flash("exito:Terapeuta desactivado.")
 
-                elif accion == "cambiar_clave":
-                    mid = request.form.get("medico_id")
-                    nc = request.form.get("nueva_clave", "").strip()
-                    if mid and nc:
-                        cursor.execute("SELECT usuario_id FROM terapeutas WHERE id=%s", (mid,))
-                        terapeuta = cursor.fetchone()
-                        if terapeuta and terapeuta.get("usuario_id"):
-                            h = bcrypt.generate_password_hash(nc).decode("utf-8")
-                            cursor.execute("UPDATE usuarios SET clave=%s WHERE id=%s", (h, terapeuta["usuario_id"]))
-                            conn.commit()
-                            flash("exito:Contrasena actualizada.")
+            elif accion == "reactivar":
+                mid = request.form.get("medico_id")
+                if mid:
+                    terapeuta = call_proc_one("sp_obtener_usuario_id_terapeuta", (mid,))
+                    if terapeuta:
+                        call_proc_execute("sp_set_terapeuta_activo", (mid, 1))
+                        if terapeuta.get("usuario_id"):
+                            call_proc_execute("sp_set_usuario_activo", (terapeuta["usuario_id"], 1))
+                        flash("exito:Terapeuta reactivado.")
 
-                return redirect(url_for("panel_admin"))
+            elif accion == "cambiar_clave":
+                mid = request.form.get("medico_id")
+                nc = request.form.get("nueva_clave", "").strip()
+                if mid and nc:
+                    terapeuta = call_proc_one("sp_obtener_usuario_id_terapeuta", (mid,))
+                    if terapeuta and terapeuta.get("usuario_id"):
+                        h = bcrypt.generate_password_hash(nc).decode("utf-8")
+                        call_proc_execute("sp_cambiar_clave_usuario", (terapeuta["usuario_id"], h))
+                        flash("exito:Contrasena actualizada.")
 
-            cursor.execute(
-                """SELECT t.id AS ID, u.nombre AS Nombre, u.telefono AS Telefono, t.precio, t.activo,
-                          e.nombre AS Especialidad
-                   FROM terapeutas t
-                   JOIN usuarios u ON t.usuario_id = u.id
-                   LEFT JOIN especialidades e ON t.especialidad_id = e.id
-                   ORDER BY u.nombre""")
-            medicos = cursor.fetchall()
-            cursor.execute("SELECT id, nombre FROM especialidades WHERE activa=1 ORDER BY nombre")
-            especialidades = cursor.fetchall()
-            cursor.execute(
-                """SELECT u.id, u.nombre, u.correo, r.nombre AS rol, u.activo, u.ultimo_acceso
-                   FROM usuarios u JOIN roles r ON u.rol_id = r.id ORDER BY r.nombre, u.nombre""")
-            usuarios = cursor.fetchall()
+            return redirect(url_for("panel_admin"))
+
+        medicos = call_proc("sp_consultar_medicos_admin")
+        especialidades = call_proc("sp_listar_especialidades")
+        usuarios = call_proc("sp_listar_usuarios")
 
         params = "?fecha=" + datetime.today().strftime("%Y-%m-%d") + "&estado=programada"
         cdata, _ = citas_client.get(f"/api/citas{params}")
@@ -430,6 +412,7 @@ def create_app():
         return render_template("detalle_paciente.html", paciente=paciente,
                                historial=historial, paquetes=paquetes,
                                evaluaciones=evaluaciones, consentimientos=consentimientos)
+
     @app.route("/notas/<int:cita_id>", methods=["GET", "POST"])
     def notas_page(cita_id):
         if "usuario_id" not in session:
