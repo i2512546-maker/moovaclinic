@@ -264,9 +264,16 @@ CREATE PROCEDURE `sp_crear_pago_anticipo`(
     IN p_cita_id INT, IN p_paciente_id INT, IN p_monto DECIMAL(10,2), IN p_metodo_pago VARCHAR(20)
 )
 BEGIN
-    INSERT INTO pagos (cita_id, paciente_id, monto, metodo_pago, estado_pago, notas)
-    VALUES (p_cita_id, p_paciente_id, p_monto, p_metodo_pago, 'pendiente', 'Anticipo 50%');
-    SELECT LAST_INSERT_ID() AS id;
+    DECLARE v_id INT;
+    SELECT id INTO v_id FROM pagos
+    WHERE cita_id = p_cita_id AND estado_pago = 'pendiente'
+    LIMIT 1;
+    IF v_id IS NULL THEN
+        INSERT INTO pagos (cita_id, paciente_id, monto, metodo_pago, estado_pago, notas)
+        VALUES (p_cita_id, p_paciente_id, p_monto, p_metodo_pago, 'pendiente', 'Anticipo 50%');
+        SET v_id = LAST_INSERT_ID();
+    END IF;
+    SELECT v_id AS id;
 END$$
 
 DROP PROCEDURE IF EXISTS `sp_modificar_cita`$$
