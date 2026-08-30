@@ -4,187 +4,199 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Detalle Paciente - MOOVA Clinic</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='paneladmin.css') }}">
-    <style>
-        .paciente-info { background: #fff; border-radius: 12px; padding: 2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 1.5rem; }
-        .paciente-info h2 { margin: 0 0 1rem; color: #2d3748; }
-        .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; }
-        .info-item label { display: block; font-size: 0.8rem; color: #718096; text-transform: uppercase; }
-        .info-item span { font-size: 1rem; color: #2d3748; font-weight: 600; }
-        .historial-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .historial-table th { background: #4a5568; color: #fff; padding: 12px; text-align: left; }
-        .historial-table td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; }
-        .historial-table tr:hover { background: #f7fafc; }
-        .badge { padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 600; }
-        .badge-programada { background: #bee3f8; color: #2b6cb0; }
-        .badge-completada { background: #c6f6d5; color: #22543d; }
-        .badge-cancelada { background: #fed7d7; color: #9b2c2c; }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Nunito:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap-style.css') }}">
 </head>
 <body>
-    <div class="panel-container">
-        <div class="panel-header">
-            <h1>Historial del Paciente</h1>
-            <div>
-                <a href="{{ url_for('pacientes_page') }}">Volver a Pacientes</a>
-                <a href="{{ url_for('panel_admin') }}">Panel Admin</a>
-                <a href="{{ url_for('logout') }}">Cerrar sesion</a>
+    <div class="container-fluid py-4">
+        <div class="panel-header d-flex align-items-center justify-content-between rounded mb-4">
+            <h1 class="h4 mb-0">Historial del Paciente</h1>
+            <div class="d-flex align-items-center gap-2">
+                <a href="{{ url_for('ficha_clinica_pdf', paciente_id=paciente.id) }}" target="_blank"
+                    class="btn btn-moova d-inline-flex align-items-center gap-1">
+                    <i class="bi bi-file-earmark-pdf"></i> Descargar Ficha PDF
+                </a>
+                <a href="{{ url_for('pacientes_page') }}" class="btn btn-outline-secondary btn-sm">Volver a Pacientes</a>
+                <a href="{{ url_for('panel_admin') }}" class="btn btn-outline-secondary btn-sm">Panel Admin</a>
+                <a href="{{ url_for('logout') }}" class="btn btn-danger-moova btn-sm">Cerrar sesion</a>
             </div>
         </div>
 
-        <div class="paciente-info">
-            <h2>{{ paciente.nombre }} {{ paciente.apellido }}</h2>
-            <div class="info-grid">
-                <div class="info-item">
-                    <label>DNI</label>
-                    <span>{{ paciente.dni }}</span>
-                </div>
-                <div class="info-item">
-                    <label>Telefono</label>
-                    <span>{{ paciente.telefono }}</span>
-                </div>
-                <div class="info-item">
-                    <label>Email</label>
-                    <span>{{ paciente.email or 'No registrado' }}</span>
-                </div>
-                <div class="info-item">
-                    <label>Estado</label>
-                    <span>{{ paciente.estado|capitalize }}</span>
-                </div>
-                <div class="info-item">
-                    <label>Fecha de Nacimiento</label>
-                    <span>{{ paciente.fecha_nacimiento or 'No registrado' }}</span>
-                </div>
-                <div class="info-item">
-                    <label>Sexo</label>
-                    <span>{% if paciente.sexo == 'M' %}Masculino{% elif paciente.sexo == 'F' %}Femenino{% elif paciente.sexo %}Otro{% else %}No registrado{% endif %}</span>
-                </div>
-                <div class="info-item">
-                    <label>Direccion</label>
-                    <span>{{ paciente.direccion or 'No registrado' }}</span>
-                </div>
-                <div class="info-item">
-                    <label>Seguro</label>
-                    <span>{{ paciente.seguro or 'No registrado' }}</span>
+        <div class="card card-moova shadow-sm mb-4">
+            <div class="card-body">
+                <h2 class="h5 mb-3">{{ paciente.nombre }} {{ paciente.apellido }}</h2>
+                <div class="row g-3">
+                    <div class="col-6 col-md-3">
+                        <div class="small text-muted text-uppercase">DNI</div>
+                        <div class="fw-semibold">{{ paciente.dni }}</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="small text-muted text-uppercase">Telefono</div>
+                        <div class="fw-semibold">{{ paciente.telefono }}</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="small text-muted text-uppercase">Email</div>
+                        <div class="fw-semibold">{{ paciente.email or 'No registrado' }}</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="small text-muted text-uppercase">Estado</div>
+                        <div class="fw-semibold">{{ paciente.estado|capitalize }}</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="small text-muted text-uppercase">Fecha de Nacimiento</div>
+                        <div class="fw-semibold">{{ paciente.fecha_nacimiento or 'No registrado' }}</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="small text-muted text-uppercase">Sexo</div>
+                        <div class="fw-semibold">{% if paciente.sexo == 'M' %}Masculino{% elif paciente.sexo == 'F' %}Femenino{% elif paciente.sexo %}Otro{% else %}No registrado{% endif %}</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="small text-muted text-uppercase">Direccion</div>
+                        <div class="fw-semibold">{{ paciente.direccion or 'No registrado' }}</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="small text-muted text-uppercase">Seguro</div>
+                        <div class="fw-semibold">{{ paciente.seguro or 'No registrado' }}</div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <h2 style="color:#2d3748; margin-bottom:1rem;">Historial de Citas</h2>
-        <table class="historial-table">
-            <thead>
-                <tr>
-                    <th>Fecha</th>
-                    <th>Terapeuta</th>
-                    <th>Especialidad</th>
-                    <th>Estado</th>
-                    <th>Monto</th>
-                    <th>Pago</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for h in historial %}
-                <tr>
-                    <td>{{ h.fecha_cita }}</td>
-                    <td>{{ h.terapeuta }}</td>
-                    <td>{{ h.Especialidad }}</td>
-                    <td>
-                        <span class="badge badge-{{ h.estado }}">{{ h.estado|capitalize }}</span>
-                    </td>
-                    <td>S/. {{ '%.2f'|format(h.monto|default(0, true)) }}</td>
-                    <td>
-                        <span class="badge badge-{{ h.estado_pago|default('pendiente', true) }}">
-                            {{ h.estado_pago|default('N/A', true)|capitalize }}
-                        </span>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <h2 class="h5 mb-3">Historial de Citas</h2>
+        <div class="card card-moova shadow-sm mb-4">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Terapeuta</th>
+                            <th>Especialidad</th>
+                            <th>Estado</th>
+                            <th>Monto</th>
+                            <th>Pago</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for h in historial %}
+                        <tr>
+                            <td>{{ h.fecha_cita }}</td>
+                            <td>{{ h.terapeuta }}</td>
+                            <td>{{ h.Especialidad }}</td>
+                            <td>
+                                <span class="badge badge-{{ h.estado }}">{{ h.estado|capitalize }}</span>
+                            </td>
+                            <td>S/. {{ '%.2f'|format(h.monto|default(0, true)) }}</td>
+                            <td>
+                                <span class="badge badge-{{ h.estado_pago|default('pendiente', true) }}">
+                                    {{ h.estado_pago|default('N/A', true)|capitalize }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
         {% if paquetes %}
-        <h2 style="color:#2d3748; margin:2rem 0 1rem;">Paquetes de Sesiones</h2>
-        <table class="historial-table">
-            <thead>
-                <tr>
-                    <th>Servicio</th>
-                    <th>Sesiones</th>
-                    <th>Usadas</th>
-                    <th>Restantes</th>
-                    <th>Compra</th>
-                    <th>Vencimiento</th>
-                    <th>Estado</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for ps in paquetes %}
-                <tr>
-                    <td>{{ ps.servicio_nombre }}</td>
-                    <td>{{ ps.total_sesiones }}</td>
-                    <td>{{ ps.sesiones_usadas }}</td>
-                    <td>{{ ps.total_sesiones - ps.sesiones_usadas }}</td>
-                    <td>{{ ps.fecha_compra }}</td>
-                    <td>{{ ps.fecha_vencimiento or 'Sin limite' }}</td>
-                    <td>
-                        <span class="badge badge-{{ ps.estado }}">{{ ps.estado|capitalize }}</span>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <h2 class="h5 mb-3">Paquetes de Sesiones</h2>
+        <div class="card card-moova shadow-sm mb-4">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Servicio</th>
+                            <th>Sesiones</th>
+                            <th>Usadas</th>
+                            <th>Restantes</th>
+                            <th>Compra</th>
+                            <th>Vencimiento</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ps in paquetes %}
+                        <tr>
+                            <td>{{ ps.servicio_nombre }}</td>
+                            <td>{{ ps.total_sesiones }}</td>
+                            <td>{{ ps.sesiones_usadas }}</td>
+                            <td>{{ ps.total_sesiones - ps.sesiones_usadas }}</td>
+                            <td>{{ ps.fecha_compra }}</td>
+                            <td>{{ ps.fecha_vencimiento or 'Sin limite' }}</td>
+                            <td>
+                                <span class="badge badge-{{ ps.estado }}">{{ ps.estado|capitalize }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
         {% endif %}
 
         {% if evaluaciones %}
-        <h2 style="color:#2d3748; margin:2rem 0 1rem;">Evaluaciones Iniciales</h2>
-        <table class="historial-table">
-            <thead>
-                <tr>
-                    <th>Fecha</th>
-                    <th>Terapeuta</th>
-                    <th>Motivo</th>
-                    <th>Dolor (EVA)</th>
-                    <th>Rango Movimiento</th>
-                    <th>Objetivos</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for ev in evaluaciones %}
-                <tr>
-                    <td>{{ ev.fecha_creacion.strftime('%d/%m/%Y') if ev.fecha_creacion else '' }}</td>
-                    <td>{{ ev.terapeuta_nombre }}</td>
-                    <td>{{ ev.motivo_consulta }}</td>
-                    <td>{{ ev.escala_dolor_eva if ev.escala_dolor_eva is not none else '-' }}/10</td>
-                    <td>{{ ev.rango_movimiento or '-' }}</td>
-                    <td>{{ ev.objetivos_terapeuticos or '-' }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <h2 class="h5 mb-3">Evaluaciones Iniciales</h2>
+        <div class="card card-moova shadow-sm mb-4">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Terapeuta</th>
+                            <th>Motivo</th>
+                            <th>Dolor (EVA)</th>
+                            <th>Rango Movimiento</th>
+                            <th>Objetivos</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ev in evaluaciones %}
+                        <tr>
+                            <td>{{ ev.fecha_creacion.strftime('%d/%m/%Y') if ev.fecha_creacion else '' }}</td>
+                            <td>{{ ev.terapeuta_nombre }}</td>
+                            <td>{{ ev.motivo_consulta }}</td>
+                            <td>{{ ev.escala_dolor_eva if ev.escala_dolor_eva is not none else '-' }}/10</td>
+                            <td>{{ ev.rango_movimiento or '-' }}</td>
+                            <td>{{ ev.objetivos_terapeuticos or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
         {% endif %}
 
         {% if consentimientos %}
-        <h2 style="color:#2d3748; margin:2rem 0 1rem;">Consentimientos Informados</h2>
-        <table class="historial-table">
-            <thead>
-                <tr>
-                    <th>Tipo</th>
-                    <th>Version</th>
-                    <th>Fecha</th>
-                    <th>IP</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for cn in consentimientos %}
-                <tr>
-                    <td>{{ cn.tipo }}</td>
-                    <td>{{ cn.texto_version }}</td>
-                    <td>{{ cn.aceptado_en.strftime('%d/%m/%Y %H:%M') if cn.aceptado_en else '' }}</td>
-                    <td>{{ cn.ip_origen or '-' }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <h2 class="h5 mb-3">Consentimientos Informados</h2>
+        <div class="card card-moova shadow-sm mb-4">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Tipo</th>
+                            <th>Version</th>
+                            <th>Fecha</th>
+                            <th>IP</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cn in consentimientos %}
+                        <tr>
+                            <td>{{ cn.tipo }}</td>
+                            <td>{{ cn.texto_version }}</td>
+                            <td>{{ cn.aceptado_en.strftime('%d/%m/%Y %H:%M') if cn.aceptado_en else '' }}</td>
+                            <td>{{ cn.ip_origen or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
         {% endif %}
     </div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

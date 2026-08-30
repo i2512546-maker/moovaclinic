@@ -5,183 +5,278 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MOOVA Clinic - Centro de Rehabilitación</title>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Nunito:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap-style.css') }}">
+    <style>
+        /* Soporte minimo para clases que usa el JS del modal y detalles de marca.
+           No se reutiliza el CSS antiguo (styles.css). */
+        html { scroll-behavior: smooth; }
+        .stat-item i { font-size: 2rem; color: var(--moova-green); margin-bottom: 12px; display: block; }
+        .stat-item h3 { font-family: 'Fredoka', sans-serif; font-size: 2.4rem; font-weight: 600; color: var(--moova-navy); margin-bottom: 6px; }
+        .stat-item p { color: var(--moova-muted); font-size: 0.88rem; font-weight: 500; margin: 0; }
+        .galeria-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: var(--moova-sky); border: 2px dashed var(--moova-green-soft); border-radius: 20px; padding: 16px; text-align: center; cursor: pointer; transition: transform 0.2s ease; overflow: hidden; }
+        .galeria-item:hover { transform: scale(1.02); }
+        .galeria-item i { font-size: 2.5rem; color: var(--moova-green-soft); }
+        .galeria-item span { font-family: 'Fredoka', sans-serif; font-size: 0.95rem; color: var(--moova-muted); font-weight: 500; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(26, 58, 92, 0.55); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); z-index: 10000; justify-content: center; align-items: center; padding: 24px; }
+        .modal-overlay.activo { display: flex; }
+        .modal-content { background: #fff; border-radius: 24px; max-width: 680px; width: 100%; max-height: 88vh; overflow-y: auto; position: relative; box-shadow: 0 20px 60px rgba(26, 58, 92, 0.25); }
+        .modal-close { position: sticky; top: 16px; float: right; margin: 16px 16px 0 0; width: 40px; height: 40px; border-radius: 50%; border: 1px solid #dee2e6; background: #fff; color: var(--moova-muted); font-size: 1.5rem; line-height: 1; cursor: pointer; z-index: 10; }
+        .modal-close:hover { background: var(--moova-green); border-color: var(--moova-green); color: #fff; }
+        .modal-icon { width: 70px; height: 70px; border-radius: 20px; background: var(--moova-green); flex: 0 0 70px; display: flex; align-items: center; justify-content: center; }
+        .modal-icon i { font-size: 1.8rem; color: #fff; }
+        .modal-subtitle { display: inline-block; background: var(--moova-sky); color: var(--moova-green); font-family: 'Fredoka', sans-serif; font-size: 0.78rem; font-weight: 500; padding: 4px 14px; border-radius: 50px; border: 1px solid var(--moova-green-soft); }
+        .modal-section ul { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0; margin: 0; }
+        .modal-section ul li { color: var(--moova-muted); font-size: 0.88rem; display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--moova-sky); border: 1px solid #e2e8f0; border-radius: 10px; }
+        .modal-beneficios { background: linear-gradient(135deg, var(--moova-sky), #f0f9ff); border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; }
+        .beneficios-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .beneficio-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.85rem; color: #2d3748; font-weight: 500; }
+        @media (max-width: 600px) {
+            .modal-section ul, .beneficios-grid { grid-template-columns: 1fr; }
+        }
+    </style>
     <!-- Contentsquare - UX & Usability Testing -->
     <script src="https://t.contentsquare.com/uxa/6897c7b83eb5.js"></script>
 </head>
 <body>
 
-    <nav class="nav-centrado">
-        <ul>
-            <li><a href="#">Inicio</a></li>
-            <li><a href="#especialidades">Especialidades</a></li>
-            <li><a href="#galeria">Galería</a></li>
-            <li><a href="#nosotros">Nosotros</a></li>
-            <li><a href="#contacto">Contacto</a></li>
-            <li class="dropdown-wrap">
-                <button class="btn-cita dropdown-toggle" type="button">
-                    <i class="fas fa-calendar-check"></i> Citas <i class="fas fa-chevron-down dropdown-arrow"></i>
-                </button>
-                <div class="dropdown-menu">
-                    <a href="{{ url_for('citas_page') }}" class="dropdown-item">
-                        <i class="fas fa-calendar-plus"></i>
-                        <span>Agendar cita</span>
-                    </a>
-                    <a href="{{ url_for('modificar_cita_page') }}" class="dropdown-item">
-                        <i class="fas fa-edit"></i>
-                        <span>Modificar cita</span>
-                    </a>
-                    <a href="{{ url_for('cancelar_cita_page') }}" class="dropdown-item">
-                        <i class="fas fa-times-circle"></i>
-                        <span>Cancelar cita</span>
-                    </a>
-                </div>
-            </li>
-        </ul>
+    <!-- NAVBAR RESPONSIVE -->
+    <nav class="navbar navbar-expand-lg fixed-top bg-white shadow-sm py-2">
+        <div class="container">
+            <a class="navbar-brand logo mb-0" href="#">MOOVA <span>Clinic</span></a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMoova" aria-controls="navbarMoova" aria-expanded="false" aria-label="Alternar navegación">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarMoova">
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-lg-center gap-lg-2 pt-2 pt-lg-0">
+                    <li class="nav-item"><a class="nav-link px-3" href="#">Inicio</a></li>
+                    <li class="nav-item"><a class="nav-link px-3" href="#especialidades">Especialidades</a></li>
+                    <li class="nav-item"><a class="nav-link px-3" href="#galeria">Galería</a></li>
+                    <li class="nav-item"><a class="nav-link px-3" href="#nosotros">Nosotros</a></li>
+                    <li class="nav-item"><a class="nav-link px-3" href="#contacto">Contacto</a></li>
+                    <li class="nav-item dropdown dropdown-center">
+                        <button class="btn btn-moova rounded-pill dropdown-toggle px-4 py-2" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-calendar-check me-2"></i> Citas
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow border mt-2 rounded-3 p-2">
+                            <li>
+                                <a href="{{ url_for('citas_page') }}" class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2">
+                                    <i class="bi bi-calendar-plus text-success"></i> <span>Agendar cita</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{{ url_for('modificar_cita_page') }}" class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2">
+                                    <i class="bi bi-pencil-square text-success"></i> <span>Modificar cita</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{{ url_for('cancelar_cita_page') }}" class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2">
+                                    <i class="bi bi-x-circle text-success"></i> <span>Cancelar cita</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
     </nav>
 
-    <section class="hero">
-        <div class="hero-content">
-            <h1>Centro de Rehabilitación</h1>
-            <p>Recupera tu calidad de vida con nuestros programas especializados de rehabilitación física, neurológica y deportiva</p>
-            <a href="#especialidades" class="btn-hero">
-                <i class="fas fa-arrow-down"></i> Conoce nuestros servicios
+    <!-- HERO -->
+    <section class="hero d-flex align-items-center justify-content-center text-center position-relative overflow-hidden"
+             style="min-height:100vh; padding:110px 24px 70px; background: linear-gradient(135deg, rgba(230,244,251,0.75) 0%, rgba(248,251,255,0.70) 50%, rgba(224,238,250,0.75) 100%);">
+        <div class="hero-content" style="max-width:780px; position:relative; z-index:1;">
+            <h1 class="display-3 fw-semibold mb-4" style="font-family:'Fredoka',sans-serif; color:var(--moova-navy);">Centro de Rehabilitación</h1>
+            <p class="fs-5 mx-auto mb-5" style="max-width:580px; color:var(--moova-muted);">Recupera tu calidad de vida con nuestros programas especializados de rehabilitación física, neurológica y deportiva</p>
+            <a href="#especialidades" class="btn btn-moova btn-lg rounded-pill px-4 shadow">
+                <i class="fas fa-arrow-down me-2"></i> Conoce nuestros servicios
             </a>
         </div>
     </section>
 
-    <section class="stats">
-        <div class="stats-container">
-            <div class="stat-item">
-                <i class="fas fa-users"></i>
-                <h3 id="stat-recuperados">---</h3>
-                <p>Pacientes Recuperados</p>
-            </div>
-            <div class="stat-item">
-                <i class="fas fa-user-md"></i>
-                <h3 id="stat-especialistas">---</h3>
-                <p>Especialistas</p>
-            </div>
-            <div class="stat-item">
-                <i class="fas fa-award"></i>
-                <h3 id="stat-anios">---</h3>
-                <p>Años de Experiencia</p>
-            </div>
-            <div class="stat-item">
-                <i class="fas fa-clinic-medical"></i>
-                <h3 id="stat-exito">---</h3>
-                <p>Tasa de Éxito</p>
+    <!-- STATS -->
+    <section class="stats py-5 bg-white">
+        <div class="container" style="max-width:1100px;">
+            <div class="row g-4">
+                <div class="col-6 col-md-3">
+                    <div class="stat-item text-center h-100 p-4 rounded-4 border" style="background:var(--moova-sky); border-color:#e2e8f0;">
+                        <i class="fas fa-users"></i>
+                        <h3 id="stat-recuperados">---</h3>
+                        <p>Pacientes Recuperados</p>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-item text-center h-100 p-4 rounded-4 border" style="background:var(--moova-sky); border-color:#e2e8f0;">
+                        <i class="fas fa-user-md"></i>
+                        <h3 id="stat-especialistas">---</h3>
+                        <p>Especialistas</p>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-item text-center h-100 p-4 rounded-4 border" style="background:var(--moova-sky); border-color:#e2e8f0;">
+                        <i class="fas fa-award"></i>
+                        <h3 id="stat-anios">---</h3>
+                        <p>Años de Experiencia</p>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-item text-center h-100 p-4 rounded-4 border" style="background:var(--moova-sky); border-color:#e2e8f0;">
+                        <i class="fas fa-clinic-medical"></i>
+                        <h3 id="stat-exito">---</h3>
+                        <p>Tasa de Éxito</p>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
 
-    <section id="especialidades" class="especialidades">
-        <div class="section-title">
-            <span class="subtitle">Nuestros Servicios</span>
-            <h2>Especialidades en Rehabilitación</h2>
-            <p>Ofrecemos programas integrales adaptados a las necesidades de cada paciente</p>
-        </div>
-        <div class="grid">
-            <div class="card">
-                <div class="card-icon"><i class="fas fa-hands"></i></div>
-                <h3>Fisioterapia</h3>
-                <p>Tratamientos manuales y técnicas especializadas para restaurar el movimiento y la función física.</p>
-                <ul class="card-features">
-                    <li><i class="fas fa-check"></i> Terapia manual</li>
-                    <li><i class="fas fa-check"></i> Electroterapia</li>
-                    <li><i class="fas fa-check"></i> Ultrasonido terapéutico</li>
-                </ul>
-                <a href="#" class="btn btn-mas-info" data-especialidad="fisioterapia">Más información</a>
+    <!-- ESPECIALIDADES -->
+    <section id="especialidades" class="especialidades py-5">
+        <div class="container" style="max-width:1300px;">
+            <div class="section-title text-center mb-5">
+                <span class="subtitle badge rounded-pill text-uppercase mb-3" style="background:var(--moova-sky); color:var(--moova-green); border:1px solid var(--moova-green-soft); letter-spacing:1.5px; font-weight:600; font-size:0.85rem; padding:0.5rem 1rem;">Nuestros Servicios</span>
+                <h2 class="display-6 fw-semibold" style="font-family:'Fredoka',sans-serif; color:var(--moova-navy);">Especialidades en Rehabilitación</h2>
+                <p class="text-muted mx-auto" style="max-width:540px;">Ofrecemos programas integrales adaptados a las necesidades de cada paciente</p>
             </div>
-            <div class="card featured">
-                <div class="card-badge">Popular</div>
-                <div class="card-icon"><i class="fas fa-brain"></i></div>
-                <h3>Rehabilitación Neurológica</h3>
-                <p>Programas especializados para pacientes con lesiones cerebrales, ACV, esclerosis múltiple y Parkinson.</p>
-                <ul class="card-features">
-                    <li><i class="fas fa-check"></i> Neuroplasticidad</li>
-                    <li><i class="fas fa-check"></i> Estimulación cognitiva</li>
-                    <li><i class="fas fa-check"></i> Coordinación motora</li>
-                </ul>
-                <a href="#" class="btn btn-mas-info" data-especialidad="neurologica">Más información</a>
-            </div>
-            <div class="card">
-                <div class="card-icon"><i class="fas fa-running"></i></div>
-                <h3>Rehabilitación Deportiva</h3>
-                <p>Recuperación de lesiones deportivas con técnicas avanzadas y equipamiento especializado.</p>
-                <ul class="card-features">
-                    <li><i class="fas fa-check"></i> Lesiones musculares</li>
-                    <li><i class="fas fa-check"></i> Rehabilitación de ligamentos</li>
-                    <li><i class="fas fa-check"></i> Readaptación deportiva</li>
-                </ul>
-                <a href="#" class="btn btn-mas-info" data-especialidad="deportiva">Más información</a>
-            </div>
-            <div class="card">
-                <div class="card-icon"><i class="fas fa-hand-holding-heart"></i></div>
-                <h3>Terapia Ocupacional</h3>
-                <p>Recuperación de la independencia en actividades cotidianas y mejora de la calidad de vida.</p>
-                <ul class="card-features">
-                    <li><i class="fas fa-check"></i> Actividades de la vida diaria</li>
-                    <li><i class="fas fa-check"></i> Adaptación del hogar</li>
-                    <li><i class="fas fa-check"></i> Reintegración laboral</li>
-                </ul>
-                <a href="#" class="btn btn-mas-info" data-especialidad="ocupacional">Más información</a>
-            </div>
-            <div class="card">
-                <div class="card-icon"><i class="fas fa-heartbeat"></i></div>
-                <h3>Rehabilitación Cardiopulmonar</h3>
-                <p>Ejercicio supervisado y educación para pacientes con enfermedades cardíacas y respiratorias.</p>
-                <ul class="card-features">
-                    <li><i class="fas fa-check"></i> Post-infarto</li>
-                    <li><i class="fas fa-check"></i> EPOC</li>
-                    <li><i class="fas fa-check"></i> Capacidad aeróbica</li>
-                </ul>
-                <a href="#" class="btn btn-mas-info" data-especialidad="cardiaca">Más información</a>
-            </div>
-            <div class="card">
-                <div class="card-icon"><i class="fas fa-water"></i></div>
-                <h3>Hidroterapia</h3>
-                <p>Terapia acuática en piscina climatizada, ideal para artritis y lesiones articulares.</p>
-                <ul class="card-features">
-                    <li><i class="fas fa-check"></i> Piscina terapéutica</li>
-                    <li><i class="fas fa-check"></i> Ejercicios acuáticos</li>
-                    <li><i class="fas fa-check"></i> Relajación muscular</li>
-                </ul>
-                <a href="#" class="btn btn-mas-info" data-especialidad="hidroterapia">Más información</a>
-            </div>
-            <div class="card">
-                <div class="card-icon"><i class="fas fa-user-nurse"></i></div>
-                <h3>Rehabilitación Geriátrica</h3>
-                <p>Atención especializada para adultos mayores enfocada en movilidad, equilibrio y prevención de caídas.</p>
-                <ul class="card-features">
-                    <li><i class="fas fa-check"></i> Equilibrio y marcha</li>
-                    <li><i class="fas fa-check"></i> Fortalecimiento</li>
-                    <li><i class="fas fa-check"></i> Prevención de caídas</li>
-                </ul>
-                <a href="#" class="btn btn-mas-info" data-especialidad="geriatrica">Más información</a>
-            </div>
-            <div class="card">
-                <div class="card-icon"><i class="fas fa-comments"></i></div>
-                <h3>Terapia del Habla</h3>
-                <p>Rehabilitación de trastornos del lenguaje, habla y deglución causados por lesiones.</p>
-                <ul class="card-features">
-                    <li><i class="fas fa-check"></i> Afasia</li>
-                    <li><i class="fas fa-check"></i> Disfagia</li>
-                    <li><i class="fas fa-check"></i> Disartria</li>
-                </ul>
-                <a href="#" class="btn btn-mas-info" data-especialidad="habla">Más información</a>
-            </div>
-            <div class="card">
-                <div class="card-icon"><i class="fas fa-child"></i></div>
-                <h3>Rehabilitación Pediátrica</h3>
-                <p>Terapias para niños con retrasos en el desarrollo, parálisis cerebral y condiciones pediátricas.</p>
-                <ul class="card-features">
-                    <li><i class="fas fa-check"></i> Desarrollo motor</li>
-                    <li><i class="fas fa-check"></i> Estimulación temprana</li>
-                    <li><i class="fas fa-check"></i> Terapia de juego</li>
-                </ul>
-                <a href="#" class="btn btn-mas-info" data-especialidad="pediatrica">Más información</a>
+
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                <div class="col">
+                    <div class="card h-100 rounded-4 shadow-sm position-relative overflow-hidden" style="border:1px solid #e2e8f0;">
+                        <div class="card-body d-flex flex-column p-4">
+                            <div class="card-icon d-flex align-items-center justify-content-center rounded-3 mb-3" style="width:58px; height:58px; background:var(--moova-sky); border:1px solid var(--moova-green-soft);"><i class="fas fa-hands"></i></div>
+                            <h3 class="h5 fw-semibold mb-2" style="font-family:'Fredoka',sans-serif;">Fisioterapia</h3>
+                            <p class="text-muted mb-3" style="font-size:0.95rem;">Tratamientos manuales y técnicas especializadas para restaurar el movimiento y la función física.</p>
+                            <ul class="card-features list-unstyled mb-4">
+                                <li class="d-flex align-items-center gap-2 mb-1"><i class="fas fa-check text-success"></i> <span class="text-muted">Terapia manual</span></li>
+                                <li class="d-flex align-items-center gap-2 mb-1"><i class="fas fa-check text-success"></i> <span class="text-muted">Electroterapia</span></li>
+                                <li class="d-flex align-items-center gap-2 mb-1"><i class="fas fa-check text-success"></i> <span class="text-muted">Ultrasonido terapéutico</span></li>
+                            </ul>
+                            <a href="#" class="btn btn-mas-info btn-moova-outline rounded-pill mt-auto align-self-start" data-especialidad="fisioterapia">Más información</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card h-100 rounded-4 shadow-sm position-relative overflow-hidden featured" style="border:1px solid var(--moova-green-soft);">
+                        <span class="badge position-absolute top-0 end-0 m-3 rounded-pill text-white" style="background:var(--moova-green);">Popular</span>
+                        <div class="card-body d-flex flex-column p-4">
+                            <div class="card-icon d-flex align-items-center justify-content-center rounded-3 mb-3" style="width:58px; height:58px; background:var(--moova-sky); border:1px solid var(--moova-green-soft);"><i class="fas fa-brain"></i></div>
+                            <h3 class="h5 fw-semibold mb-2" style="font-family:'Fredoka',sans-serif;">Rehabilitación Neurológica</h3>
+                            <p class="text-muted mb-3" style="font-size:0.95rem;">Programas especializados para pacientes con lesiones cerebrales, ACV, esclerosis múltiple y Parkinson.</p>
+                            <ul class="card-features list-unstyled mb-4">
+                                <li class="d-flex align-items-center gap-2 mb-1"><i class="fas fa-check text-success"></i> <span class="text-muted">Neuroplasticidad</span></li>
+                                <li class="d-flex align-items-center gap-2 mb-1"><i class="fas fa-check text-success"></i> <span class="text-muted">Estimulación cognitiva</span></li>
+                                <li class="d-flex align-items-center gap-2 mb-1"><i class="fas fa-check text-success"></i> <span class="text-muted">Coordinación motora</span></li>
+                            </ul>
+                            <a href="#" class="btn btn-mas-info btn-moova-outline rounded-pill mt-auto align-self-start" data-especialidad="neurologica">Más información</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card h-100 rounded-4 shadow-sm position-relative overflow-hidden" style="border:1px solid #e2e8f0;">
+                        <div class="card-body d-flex flex-column p-4">
+                            <div class="card-icon d-flex align-items-center justify-content-center rounded-3 mb-3" style="width:58px; height:58px; background:var(--moova-sky); border:1px solid var(--moova-green-soft);"><i class="fas fa-running"></i></div>
+                            <h3 class="h5 fw-semibold mb-2" style="font-family:'Fredoka',sans-serif;">Rehabilitación Deportiva</h3>
+                            <p class="text-muted mb-3" style="font-size:0.95rem;">Recuperación de lesiones deportivas con técnicas avanzadas y equipamiento especializado.</p>
+                            <ul class="card-features list-unstyled mb-4">
+                                <li class="d-flex align-items-center gap-2 mb-1"><i class="fas fa-check text-success"></i> <span class="text-muted">Lesiones musculares</span></li>
+                                <li class="d-flex align-items-center gap-2 mb-1"><i class="fas fa-check text-success"></i> <span class="text-muted">Rehabilitación de ligamentos</span></li>
+                                <li class="d-flex align-items-center gap-2 mb-1"><i class="fas fa-check text-success"></i> <span class="text-muted">Readaptación deportiva</span></li>
+                            </ul>
+                            <a href="#" class="btn btn-mas-info btn-moova-outline rounded-pill mt-auto align-self-start" data-especialidad="deportiva">Más información</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card h-100 rounded-4 shadow-sm position-relative overflow-hidden" style="border:1px solid #e2e8f0;">
+                        <div class="card-body d-flex flex-column p-4">
+                            <div class="card-icon d-flex align-items-center justify-content-center rounded-3 mb-3" style="width:58px; height:58px; background:var(--moova-sky); border:1px solid var(--moova-green-soft);"><i class="fas fa-hand-holding-heart"></i></div>
+                            <h3 class="h5 fw-semibold mb-2" style="font-family:'Fredoka',sans-serif;">Terapia Ocupacional</h3>
+                            <p class="text-muted mb-3" style="font-size:0.95rem;">Recuperación de la independencia en actividades cotidianas y mejora de la calidad de vida.</p>
+                            <ul class="card-features list-unstyled mb-4">
+                                <li class="d-flex align-items-center gap-2 mb-1"><i class="fas fa-check text-success"></i> <span class="text-muted">Actividades de la vida diaria</span></li>
+                                <li class="d-flex align-items-center gap-2 mb-1"><i class="fas fa-check text-success"></i> <span class="text-muted">Adaptación del hogar</span></li>
+                                <li class="d-flex align-items-center gap-2 mb-1"><i class="fas fa-check text-success"></i> <span class="text-muted">Reintegración laboral</span></li>
+                            </ul>
+                            <a href="#" class="btn btn-mas-info btn-moova-outline rounded-pill mt-auto align-self-start" data-especialidad="ocupacional">Más información</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card h-100 rounded-4 shadow-sm position-relative overflow-hidden" style="border:1px solid #e2e8f0;">
+                        <div class="card-body d-flex flex-column p-4">
+                            <div class="card-icon d-flex align-items-center justify-content-center rounded-3 mb-3" style="width:58px; height:58px; background:var(--moova-sky); border:1px solid var(--moova-green-soft);"><i class="fas fa-heartbeat"></i></div>
+                            <h3 class="h5 fw-semibold mb-2" style="font-family:'Fredoka',sans-serif;">Rehabilitación Cardiopulmonar</h3>
+                            <p class="text-muted mb-3" style="font-size:0.95rem;">Ejercicio supervisado y educación para pacientes con enfermedades cardíacas y respiratorias.</p>
+                            <ul class="card-features list-unstyled mb-4">
+                                <li class="d-flex align-items-center gap-2 mb-1"><i class="fas fa-check text-success"></i> <span class="text-muted">Post-infarto</span></li>
+                                <li class="d-flex align-items-center gap-2 mb-1"><i class="fas fa-check text-success"></i> <span class="text-muted">EPOC</span></li>
+                                <li class="d-flex align-items-center gap-2 mb-1"><i class="fas fa-check text-success"></i> <span class="text-muted">Capacidad aeróbica</span></li>
+                            </ul>
+                            <a href="#" class="btn btn-mas-info btn-moova-outline rounded-pill mt-auto align-self-start" data-especialidad="cardiaca">Más información</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card h-100 rounded-4 shadow-sm position-relative overflow-hidden" style="border:1px solid #e2e8f0;">
+                        <div class="card-body d-flex flex-column p-4">
+                            <div class="card-icon d-flex align-items-center justify-content-center rounded-3 mb-3" style="width:58px; height:58px; background:var(--moova-sky); border:1px solid var(--moova-green-soft);"><i class="fas fa-water"></i></div>
+                            <h3 class="h5 fw-semibold mb-2" style="font-family:'Fredoka',sans-serif;">Hidroterapia</h3>
+                            <p class="text-muted mb-3" style="font-size:0.95rem;">Terapia acuática en piscina climatizada, ideal para artritis y lesiones articulares.</p>
+                            <ul class="card-features list-unstyled mb-4">
+                                <li class="d-flex align-items-center gap-2 mb-1"><i class="fas fa-check text-success"></i> <span class="text-muted">Piscina terapéutica</span></li>
+                                <li class="d-flex align-items-center gap-2 mb-1"><i class="fas fa-check text-success"></i> <span class="text-muted">Ejercicios acuáticos</span></li>
+                                <li class="d-flex align-items-center gap-2 mb-1"><i class="fas fa-check text-success"></i> <span class="text-muted">Relajación muscular</span></li>
+                            </ul>
+                            <a href="#" class="btn btn-mas-info btn-moova-outline rounded-pill mt-auto align-self-start" data-especialidad="hidroterapia">Más información</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card h-100 rounded-4 shadow-sm position-relative overflow-hidden" style="border:1px solid #e2e8f0;">
+                        <div class="card-body d-flex flex-column p-4">
+                            <div class="card-icon d-flex align-items-center justify-content-center rounded-3 mb-3" style="width:58px; height:58px; background:var(--moova-sky); border:1px solid var(--moova-green-soft);"><i class="fas fa-user-nurse"></i></div>
+                            <h3 class="h5 fw-semibold mb-2" style="font-family:'Fredoka',sans-serif;">Rehabilitación Geriátrica</h3>
+                            <p class="text-muted mb-3" style="font-size:0.95rem;">Atención especializada para adultos mayores enfocada en movilidad, equilibrio y prevención de caídas.</p>
+                            <ul class="card-features list-unstyled mb-4">
+                                <li class="d-flex align-items-center gap-2 mb-1"><i class="fas fa-check text-success"></i> <span class="text-muted">Equilibrio y marcha</span></li>
+                                <li class="d-flex align-items-center gap-2 mb-1"><i class="fas fa-check text-success"></i> <span class="text-muted">Fortalecimiento</span></li>
+                                <li class="d-flex align-items-center gap-2 mb-1"><i class="fas fa-check text-success"></i> <span class="text-muted">Prevención de caídas</span></li>
+                            </ul>
+                            <a href="#" class="btn btn-mas-info btn-moova-outline rounded-pill mt-auto align-self-start" data-especialidad="geriatrica">Más información</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card h-100 rounded-4 shadow-sm position-relative overflow-hidden" style="border:1px solid #e2e8f0;">
+                        <div class="card-body d-flex flex-column p-4">
+                            <div class="card-icon d-flex align-items-center justify-content-center rounded-3 mb-3" style="width:58px; height:58px; background:var(--moova-sky); border:1px solid var(--moova-green-soft);"><i class="fas fa-comments"></i></div>
+                            <h3 class="h5 fw-semibold mb-2" style="font-family:'Fredoka',sans-serif;">Terapia del Habla</h3>
+                            <p class="text-muted mb-3" style="font-size:0.95rem;">Rehabilitación de trastornos del lenguaje, habla y deglución causados por lesiones.</p>
+                            <ul class="card-features list-unstyled mb-4">
+                                <li class="d-flex align-items-center gap-2 mb-1"><i class="fas fa-check text-success"></i> <span class="text-muted">Afasia</span></li>
+                                <li class="d-flex align-items-center gap-2 mb-1"><i class="fas fa-check text-success"></i> <span class="text-muted">Disfagia</span></li>
+                                <li class="d-flex align-items-center gap-2 mb-1"><i class="fas fa-check text-success"></i> <span class="text-muted">Disartria</span></li>
+                            </ul>
+                            <a href="#" class="btn btn-mas-info btn-moova-outline rounded-pill mt-auto align-self-start" data-especialidad="habla">Más información</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card h-100 rounded-4 shadow-sm position-relative overflow-hidden" style="border:1px solid #e2e8f0;">
+                        <div class="card-body d-flex flex-column p-4">
+                            <div class="card-icon d-flex align-items-center justify-content-center rounded-3 mb-3" style="width:58px; height:58px; background:var(--moova-sky); border:1px solid var(--moova-green-soft);"><i class="fas fa-child"></i></div>
+                            <h3 class="h5 fw-semibold mb-2" style="font-family:'Fredoka',sans-serif;">Rehabilitación Pediátrica</h3>
+                            <p class="text-muted mb-3" style="font-size:0.95rem;">Terapias para niños con retrasos en el desarrollo, parálisis cerebral y condiciones pediátricas.</p>
+                            <ul class="card-features list-unstyled mb-4">
+                                <li class="d-flex align-items-center gap-2 mb-1"><i class="fas fa-check text-success"></i> <span class="text-muted">Desarrollo motor</span></li>
+                                <li class="d-flex align-items-center gap-2 mb-1"><i class="fas fa-check text-success"></i> <span class="text-muted">Estimulación temprana</span></li>
+                                <li class="d-flex align-items-center gap-2 mb-1"><i class="fas fa-check text-success"></i> <span class="text-muted">Terapia de juego</span></li>
+                            </ul>
+                            <a href="#" class="btn btn-mas-info btn-moova-outline rounded-pill mt-auto align-self-start" data-especialidad="pediatrica">Más información</a>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -190,169 +285,192 @@
     <div id="modal-especialidad" class="modal-overlay">
         <div class="modal-content">
             <button class="modal-close" id="modal-close-btn">&times;</button>
-            <div class="modal-header">
+            <div class="modal-header d-flex align-items-center gap-3 px-4 pt-4 pb-2">
                 <div class="modal-icon" id="modal-icon"></div>
                 <div>
-                    <h2 id="modal-titulo"></h2>
+                    <h2 id="modal-titulo" class="h3 fw-semibold mb-1" style="font-family:'Fredoka',sans-serif;"></h2>
                     <span class="modal-subtitle" id="modal-subtitulo"></span>
                 </div>
             </div>
-            <div class="modal-body">
-                <div class="modal-section">
-                    <h3><i class="fas fa-info-circle"></i> Descripción</h3>
-                    <p id="modal-descripcion"></p>
+            <div class="modal-body px-4 pt-3 pb-4">
+                <div class="modal-section mb-4">
+                    <h3 class="h5 fw-semibold d-flex align-items-center gap-2 mb-2" style="font-family:'Fredoka',sans-serif;"><i class="fas fa-info-circle text-success"></i> Descripción</h3>
+                    <p id="modal-descripcion" class="text-muted mb-0"></p>
                 </div>
-                <div class="modal-section">
-                    <h3><i class="fas fa-stethoscope"></i> ¿Qué trata?</h3>
+                <div class="modal-section mb-4">
+                    <h3 class="h5 fw-semibold d-flex align-items-center gap-2 mb-2" style="font-family:'Fredoka',sans-serif;"><i class="fas fa-stethoscope text-success"></i> ¿Qué trata?</h3>
                     <ul id="modal-trata"></ul>
                 </div>
-                <div class="modal-section">
-                    <h3><i class="fas fa-tools"></i> Técnicas y Equipos</h3>
+                <div class="modal-section mb-4">
+                    <h3 class="h5 fw-semibold d-flex align-items-center gap-2 mb-2" style="font-family:'Fredoka',sans-serif;"><i class="fas fa-tools text-success"></i> Técnicas y Equipos</h3>
                     <ul id="modal-tecnicas"></ul>
                 </div>
-                <div class="modal-section">
-                    <h3><i class="fas fa-clock"></i> Duración y Frecuencia</h3>
-                    <p id="modal-duracion"></p>
+                <div class="modal-section mb-4">
+                    <h3 class="h5 fw-semibold d-flex align-items-center gap-2 mb-2" style="font-family:'Fredoka',sans-serif;"><i class="fas fa-clock text-success"></i> Duración y Frecuencia</h3>
+                    <p id="modal-duracion" class="text-muted mb-0"></p>
                 </div>
                 <div class="modal-section modal-beneficios">
-                    <h3><i class="fas fa-star"></i> Beneficios</h3>
+                    <h3 class="h5 fw-semibold d-flex align-items-center gap-2 mb-3" style="font-family:'Fredoka',sans-serif;"><i class="fas fa-star text-success"></i> Beneficios</h3>
                     <div id="modal-beneficios-grid" class="beneficios-grid"></div>
                 </div>
-                <div class="modal-cta">
-                    <a href="{{ url_for('citas_page') }}" class="btn-hero"><i class="fas fa-calendar-plus"></i> Agendar Cita</a>
+                <div class="modal-cta text-center mt-4 pt-3" style="border-top:2px solid #e2e8f0;">
+                    <a href="{{ url_for('citas_page') }}" class="btn btn-moova btn-lg rounded-pill px-4"><i class="fas fa-calendar-plus me-2"></i> Agendar Cita</a>
                 </div>
             </div>
         </div>
     </div>
 
-   <section id="galeria" class="galeria">
-    <div class="galeria-inner">
-        <div class="section-title">
-            <span class="subtitle">Instalaciones</span>
-            <h2>Conoce Nuestro Centro</h2>
-            <p>Espacios modernos y equipados para tu recuperación</p>
-        </div>
-
-        <div class="galeria-grid">
-
-            <!-- VIDEO -->
-            <div class="galeria-item">
-                <video controls width="100%">
-                    <source src="{{ url_for('static', filename='video.mp4') }}" type="video/mp4">
-                    Tu navegador no soporta video.
-                </video>
-                <span>Video principal</span>
+    <!-- GALERIA -->
+    <section id="galeria" class="galeria py-5 bg-white border-top border-bottom">
+        <div class="container" style="max-width:1200px;">
+            <div class="section-title text-center mb-5">
+                <span class="subtitle badge rounded-pill text-uppercase mb-3" style="background:var(--moova-sky); color:var(--moova-green); border:1px solid var(--moova-green-soft); letter-spacing:1.5px; font-weight:600; font-size:0.85rem; padding:0.5rem 1rem;">Instalaciones</span>
+                <h2 class="display-6 fw-semibold" style="font-family:'Fredoka',sans-serif; color:var(--moova-navy);">Conoce Nuestro Centro</h2>
+                <p class="text-muted mx-auto" style="max-width:540px;">Espacios modernos y equipados para tu recuperación</p>
             </div>
 
-            <!-- IMAGEN -->
-            <div class="galeria-item">
-                <img src="{{ url_for('static', filename='cccc.png') }}" 
-                     alt="Sala de fisioterapia"
-                     style="width:100%; border-radius:10px;">
+            <div class="row g-4">
+                <!-- VIDEO -->
+                <div class="col-12 col-lg-6 galeria-item">
+                    <video controls class="w-100 rounded-3">
+                        <source src="{{ url_for('static', filename='video.mp4') }}" type="video/mp4">
+                        Tu navegador no soporta video.
+                    </video>
+                    <span>Video principal</span>
+                </div>
 
-                <span>Sala de fisioterapia</span>
-            </div>
+                <!-- IMAGEN -->
+                <div class="col-12 col-md-6 col-lg-3 galeria-item">
+                    <img src="{{ url_for('static', filename='cccc.png') }}"
+                         alt="Sala de fisioterapia"
+                         class="img-fluid rounded-3">
+                    <span>Sala de fisioterapia</span>
+                </div>
 
-            <div class="galeria-item">
-                <img src="{{ url_for('static', filename='pp.png') }}" 
-                     alt="Sala de fisioterapia"
-                     style="width:100%; border-radius:10px;">
-                <span>Área de hidroterapia</span>
-            </div>
+                <div class="col-12 col-md-6 col-lg-3 galeria-item">
+                    <img src="{{ url_for('static', filename='pp.png') }}"
+                         alt="Sala de fisioterapia"
+                         class="img-fluid rounded-3">
+                    <span>Área de hidroterapia</span>
+                </div>
 
-            <div class="galeria-item">
-                <i class="fas fa-image"></i>
-                <span>Equipos especializados</span>
-            </div>
+                <div class="col-12 col-md-6 col-lg-3 galeria-item">
+                    <i class="fas fa-image"></i>
+                    <span>Equipos especializados</span>
+                </div>
 
-            <div class="galeria-item">
-                <i class="fas fa-play"></i>
-                <span>Testimonios de pacientes</span>
-            </div>
-
-        </div>
-    </div>
-</section>
-
-    <section class="proceso">
-        <div class="section-title">
-            <span class="subtitle">¿Cómo trabajamos?</span>
-            <h2>Nuestro Proceso de Rehabilitación</h2>
-        </div>
-        <div class="proceso-container">
-            <div class="proceso-step">
-                <div class="step-number">1</div>
-                <h3>Evaluación Inicial</h3>
-                <p>Diagnóstico completo de tu condición física y objetivos de recuperación.</p>
-            </div>
-            <div class="proceso-step">
-                <div class="step-number">2</div>
-                <h3>Plan Personalizado</h3>
-                <p>Diseñamos un programa de rehabilitación adaptado a tus necesidades específicas.</p>
-            </div>
-            <div class="proceso-step">
-                <div class="step-number">3</div>
-                <h3>Tratamiento Activo</h3>
-                <p>Sesiones de terapia con seguimiento continuo y ajustes según tu progreso.</p>
-            </div>
-            <div class="proceso-step">
-                <div class="step-number">4</div>
-                <h3>Alta y Seguimiento</h3>
-                <p>Programa de mantenimiento y recomendaciones para prevenir recaídas.</p>
+                <div class="col-12 col-md-6 col-lg-3 galeria-item">
+                    <i class="fas fa-play"></i>
+                    <span>Testimonios de pacientes</span>
+                </div>
             </div>
         </div>
     </section>
 
-    <footer id="contacto">
-        <div class="footer-container">
-            <div class="footer-section">
-                <div class="logo">MOOVA <span>Clinic</span></div>
-                <p>Centro de Rehabilitación especializado en devolver la calidad de vida a nuestros pacientes.</p>
-                <div class="social-links">
-                    <a href="{{ REDES.facebook }}" target="_blank" rel="noopener noreferrer" aria-label="Facebook"><i class="fab fa-facebook"></i></a>
-                    <a href="{{ REDES.instagram }}" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
-                    <a href="{{ REDES.twitter }}" target="_blank" rel="noopener noreferrer" aria-label="X"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="width:0.95rem;height:0.95rem;display:block;"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></a>
-                    <a href="{{ REDES.youtube }}" target="_blank" rel="noopener noreferrer" aria-label="YouTube"><i class="fab fa-youtube"></i></a>
-                    <a href="{{ REDES.whatsapp }}" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp"><i class="fab fa-whatsapp"></i></a>
-                    <a href="{{ REDES.tiktok }}" target="_blank" rel="noopener noreferrer" aria-label="TikTok"><i class="fab fa-tiktok"></i></a>
+    <!-- PROCESO / NOSOTROS -->
+    <section id="nosotros" class="proceso py-5">
+        <div class="section-title text-center mb-5 px-3">
+            <span class="subtitle badge rounded-pill text-uppercase mb-3" style="background:var(--moova-sky); color:var(--moova-green); border:1px solid var(--moova-green-soft); letter-spacing:1.5px; font-weight:600; font-size:0.85rem; padding:0.5rem 1rem;">¿Cómo trabajamos?</span>
+            <h2 class="display-6 fw-semibold" style="font-family:'Fredoka',sans-serif; color:var(--moova-navy);">Nuestro Proceso de Rehabilitación</h2>
+        </div>
+        <div class="container" style="max-width:1100px;">
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4">
+                <div class="col">
+                    <div class="proceso-step text-center h-100 p-3">
+                        <div class="step-number rounded-circle d-flex align-items-center justify-content-center mx-auto mb-4 border border-white"
+                             style="width:78px; height:78px; background:linear-gradient(135deg, var(--moova-green), var(--moova-navy)); color:#fff; font-family:'Fredoka',sans-serif; font-size:2rem; font-weight:600; box-shadow:0 8px 24px rgba(39,103,73,0.3);">1</div>
+                        <h3 class="h5 fw-semibold" style="font-family:'Fredoka',sans-serif;">Evaluación Inicial</h3>
+                        <p class="text-muted mb-0">Diagnóstico completo de tu condición física y objetivos de recuperación.</p>
+                    </div>
                 </div>
-            </div>
-            <div class="footer-section">
-                <h3>Especialidades</h3>
-                <ul>
-                    <li><a href="#especialidades">Fisioterapia</a></li>
-                    <li><a href="#especialidades">Rehabilitación Neurológica</a></li>
-                    <li><a href="#especialidades">Rehabilitación Deportiva</a></li>
-                    <li><a href="#especialidades">Terapia Ocupacional</a></li>
-                    <li><a href="#especialidades">Hidroterapia</a></li>
-                </ul>
-            </div>
-            <div class="footer-section">
-                <h3>Enlaces Rápidos</h3>
-                <ul>
-                    <li><a href="#">Sobre Nosotros</a></li>
-                    <li><a href="#">Nuestro Equipo</a></li>
-                    <li><a href="#">Instalaciones</a></li>
-                    <li><a href="#">Blog de Salud</a></li>
-                    <li><a href="#">Trabaja con Nosotros</a></li>
-                </ul>
-            </div>
-            <div class="footer-section">
-                <h3>Contacto</h3>
-                <div class="contact-info">
-                    <p><i class="fas fa-map-marker-alt"></i> Jr. Federico Gálvez Duran #235., Ciudad</p>
-                    <p><i class="fas fa-phone"></i> +----------</p>
-                    <p><i class="fas fa-envelope"></i> info@moovaclinic.com</p>
-                    <p><i class="fas fa-clock"></i> Lun - Vie: 9:00 - 5:00</p>
-                    <p><i class="fas fa-clock"></i> Sáb: 9:30 - 14:00</p>
-                    <p><i class="fas fa-file-alt"></i> RUC: 10738665835</p>
+                <div class="col">
+                    <div class="proceso-step text-center h-100 p-3">
+                        <div class="step-number rounded-circle d-flex align-items-center justify-content-center mx-auto mb-4 border border-white"
+                             style="width:78px; height:78px; background:linear-gradient(135deg, var(--moova-green), var(--moova-navy)); color:#fff; font-family:'Fredoka',sans-serif; font-size:2rem; font-weight:600; box-shadow:0 8px 24px rgba(39,103,73,0.3);">2</div>
+                        <h3 class="h5 fw-semibold" style="font-family:'Fredoka',sans-serif;">Plan Personalizado</h3>
+                        <p class="text-muted mb-0">Diseñamos un programa de rehabilitación adaptado a tus necesidades específicas.</p>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="proceso-step text-center h-100 p-3">
+                        <div class="step-number rounded-circle d-flex align-items-center justify-content-center mx-auto mb-4 border border-white"
+                             style="width:78px; height:78px; background:linear-gradient(135deg, var(--moova-green), var(--moova-navy)); color:#fff; font-family:'Fredoka',sans-serif; font-size:2rem; font-weight:600; box-shadow:0 8px 24px rgba(39,103,73,0.3);">3</div>
+                        <h3 class="h5 fw-semibold" style="font-family:'Fredoka',sans-serif;">Tratamiento Activo</h3>
+                        <p class="text-muted mb-0">Sesiones de terapia con seguimiento continuo y ajustes según tu progreso.</p>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="proceso-step text-center h-100 p-3">
+                        <div class="step-number rounded-circle d-flex align-items-center justify-content-center mx-auto mb-4 border border-white"
+                             style="width:78px; height:78px; background:linear-gradient(135deg, var(--moova-green), var(--moova-navy)); color:#fff; font-family:'Fredoka',sans-serif; font-size:2rem; font-weight:600; box-shadow:0 8px 24px rgba(39,103,73,0.3);">4</div>
+                        <h3 class="h5 fw-semibold" style="font-family:'Fredoka',sans-serif;">Alta y Seguimiento</h3>
+                        <p class="text-muted mb-0">Programa de mantenimiento y recomendaciones para prevenir recaídas.</p>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="footer-bottom">
-            <p>© 2025 MOOVA Clinic - Centro de Rehabilitación. Todos los derechos reservados.</p>
+    </section>
+
+    <!-- FOOTER / CONTACTO -->
+    <footer id="contacto" class="pt-5" style="background: var(--moova-navy);">
+        <div class="container">
+            <div class="row g-5 pb-5">
+                <div class="col-lg-4">
+                    <div class="logo mb-3" style="font-size:1.6rem;">MOOVA <span style="color:var(--moova-green-soft);">Clinic</span></div>
+                    <p class="mb-4" style="color:#8fb3cc; font-size:0.88rem; line-height:1.8;">Centro de Rehabilitación especializado en devolver la calidad de vida a nuestros pacientes.</p>
+                    <div class="social-links d-flex gap-2 flex-wrap">
+                        <a href="{{ REDES.facebook }}" target="_blank" rel="noopener noreferrer" aria-label="Facebook" class="d-inline-flex align-items-center justify-content-center bg-body-tertiary rounded-3 text-decoration-none text-white-50"
+                           style="width:40px; height:40px; background:rgba(90,172,223,0.12) !important; border:1px solid rgba(90,172,223,0.25);"><i class="fab fa-facebook"></i></a>
+                        <a href="{{ REDES.instagram }}" target="_blank" rel="noopener noreferrer" aria-label="Instagram" class="d-inline-flex align-items-center justify-content-center bg-body-tertiary rounded-3 text-decoration-none text-white-50"
+                           style="width:40px; height:40px; background:rgba(90,172,223,0.12) !important; border:1px solid rgba(90,172,223,0.25);"><i class="fab fa-instagram"></i></a>
+                        <a href="{{ REDES.twitter }}" target="_blank" rel="noopener noreferrer" aria-label="X" class="d-inline-flex align-items-center justify-content-center bg-body-tertiary rounded-3 text-decoration-none text-white-50"
+                           style="width:40px; height:40px; background:rgba(90,172,223,0.12) !important; border:1px solid rgba(90,172,223,0.25);"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="width:0.95rem;height:0.95rem;display:block;"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></a>
+                        <a href="{{ REDES.youtube }}" target="_blank" rel="noopener noreferrer" aria-label="YouTube" class="d-inline-flex align-items-center justify-content-center bg-body-tertiary rounded-3 text-decoration-none text-white-50"
+                           style="width:40px; height:40px; background:rgba(90,172,223,0.12) !important; border:1px solid rgba(90,172,223,0.25);"><i class="fab fa-youtube"></i></a>
+                        <a href="{{ REDES.whatsapp }}" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp" class="d-inline-flex align-items-center justify-content-center bg-body-tertiary rounded-3 text-decoration-none text-white-50"
+                           style="width:40px; height:40px; background:rgba(90,172,223,0.12) !important; border:1px solid rgba(90,172,223,0.25);"><i class="fab fa-whatsapp"></i></a>
+                        <a href="{{ REDES.tiktok }}" target="_blank" rel="noopener noreferrer" aria-label="TikTok" class="d-inline-flex align-items-center justify-content-center bg-body-tertiary rounded-3 text-decoration-none text-white-50"
+                           style="width:40px; height:40px; background:rgba(90,172,223,0.12) !important; border:1px solid rgba(90,172,223,0.25);"><i class="fab fa-tiktok"></i></a>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-2">
+                    <h3 class="text-white fw-semibold mb-3" style="font-family:'Fredoka',sans-serif; font-size:1rem;">Especialidades</h3>
+                    <ul class="list-unstyled">
+                        <li class="mb-2"><a href="#especialidades" class="text-decoration-none" style="color:#8fb3cc; font-size:0.88rem;">Fisioterapia</a></li>
+                        <li class="mb-2"><a href="#especialidades" class="text-decoration-none" style="color:#8fb3cc; font-size:0.88rem;">Rehabilitación Neurológica</a></li>
+                        <li class="mb-2"><a href="#especialidades" class="text-decoration-none" style="color:#8fb3cc; font-size:0.88rem;">Rehabilitación Deportiva</a></li>
+                        <li class="mb-2"><a href="#especialidades" class="text-decoration-none" style="color:#8fb3cc; font-size:0.88rem;">Terapia Ocupacional</a></li>
+                        <li class="mb-2"><a href="#especialidades" class="text-decoration-none" style="color:#8fb3cc; font-size:0.88rem;">Hidroterapia</a></li>
+                    </ul>
+                </div>
+                <div class="col-6 col-lg-2">
+                    <h3 class="text-white fw-semibold mb-3" style="font-family:'Fredoka',sans-serif; font-size:1rem;">Enlaces Rápidos</h3>
+                    <ul class="list-unstyled">
+                        <li class="mb-2"><a href="#" class="text-decoration-none" style="color:#8fb3cc; font-size:0.88rem;">Sobre Nosotros</a></li>
+                        <li class="mb-2"><a href="#" class="text-decoration-none" style="color:#8fb3cc; font-size:0.88rem;">Nuestro Equipo</a></li>
+                        <li class="mb-2"><a href="#" class="text-decoration-none" style="color:#8fb3cc; font-size:0.88rem;">Instalaciones</a></li>
+                        <li class="mb-2"><a href="#" class="text-decoration-none" style="color:#8fb3cc; font-size:0.88rem;">Blog de Salud</a></li>
+                        <li class="mb-2"><a href="#" class="text-decoration-none" style="color:#8fb3cc; font-size:0.88rem;">Trabaja con Nosotros</a></li>
+                    </ul>
+                </div>
+                <div class="col-lg-4">
+                    <h3 class="text-white fw-semibold mb-3" style="font-family:'Fredoka',sans-serif; font-size:1rem;">Contacto</h3>
+                    <div class="contact-info">
+                        <p class="d-flex align-items-start gap-2 mb-2" style="color:#8fb3cc; font-size:0.85rem;"><i class="fas fa-map-marker-alt mt-1" style="color:var(--moova-green-soft);"></i> Jr. Federico Gálvez Duran #235., Ciudad</p>
+                        <p class="d-flex align-items-start gap-2 mb-2" style="color:#8fb3cc; font-size:0.85rem;"><i class="fas fa-phone mt-1" style="color:var(--moova-green-soft);"></i> +----------</p>
+                        <p class="d-flex align-items-start gap-2 mb-2" style="color:#8fb3cc; font-size:0.85rem;"><i class="fas fa-envelope mt-1" style="color:var(--moova-green-soft);"></i> info@moovaclinic.com</p>
+                        <p class="d-flex align-items-start gap-2 mb-2" style="color:#8fb3cc; font-size:0.85rem;"><i class="fas fa-clock mt-1" style="color:var(--moova-green-soft);"></i> Lun - Vie: 9:00 - 5:00</p>
+                        <p class="d-flex align-items-start gap-2 mb-2" style="color:#8fb3cc; font-size:0.85rem;"><i class="fas fa-clock mt-1" style="color:var(--moova-green-soft);"></i> Sáb: 9:30 - 14:00</p>
+                        <p class="d-flex align-items-start gap-2 mb-0" style="color:#8fb3cc; font-size:0.85rem;"><i class="fas fa-file-alt mt-1" style="color:var(--moova-green-soft);"></i> RUC: 10738665835</p>
+                    </div>
+                </div>
+            </div>
         </div>
-        <a href="{{ url_for('login') }}" class="btn-login-footer">🔑 Acceso médicos</a>
+        <div class="footer-bottom border-top text-center py-3" style="border-color:rgba(255,255,255,0.07) !important;">
+            <p class="mb-0" style="color:#5f84a8; font-size:0.83rem;">© 2025 MOOVA Clinic - Centro de Rehabilitación. Todos los derechos reservados.</p>
+        </div>
+        <a href="{{ url_for('login') }}" class="btn-login-footer btn btn-light shadow-sm rounded-pill"
+           style="position:fixed; bottom:28px; right:28px; z-index:999; color:var(--moova-green); font-family:'Fredoka',sans-serif; font-weight:500;">🔑 Acceso médicos</a>
     </footer>
 
 
@@ -379,18 +497,6 @@ fetch('/api/estadisticas')
         document.getElementById('stat-anios').textContent = '0';
         document.getElementById('stat-exito').textContent = '0%';
     });
-
-// Dropdown citas
-document.querySelectorAll('.dropdown-wrap').forEach(function(wrap) {
-    var toggle = wrap.querySelector('.dropdown-toggle');
-    toggle.addEventListener('click', function(e) {
-        e.stopPropagation();
-        wrap.classList.toggle('open');
-    });
-});
-document.addEventListener('click', function() {
-    document.querySelectorAll('.dropdown-wrap.open').forEach(function(w) { w.classList.remove('open'); });
-});
 
 // Datos de especialidades
 var especialidades = {
@@ -768,5 +874,6 @@ document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape' && modal.classList.contains('activo')) cerrarModal();
 });
 </script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
