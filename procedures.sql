@@ -644,6 +644,52 @@ BEGIN
     SELECT id, nombre FROM especialidades WHERE activa = 1 ORDER BY nombre;
 END$$
 
+-- ============================================================
+-- FICHA CLINICA  (services/pacientes_service/routes.py -> PDF)
+-- Devuelve 4 result sets en orden:
+--   1. Datos del paciente (0 o 1 fila)
+--   2. Historial de citas con notas clinicas y pago (0..n)
+--   3. Evaluaciones iniciales (0..n)
+--   4. Paquetes de sesiones (0..n)
+-- La app los lee con shared.proc.call_proc_results().
+-- ============================================================
+
+DROP PROCEDURE IF EXISTS `sp_obtener_ficha_clinica_completa`$$
+CREATE PROCEDURE `sp_obtener_ficha_clinica_completa`(IN p_paciente_id INT)
+BEGIN
+    -- Resultado 1: datos del paciente
+    SELECT * FROM pacientes WHERE id = p_paciente_id;
+
+    -- Resultado 2: citas + notas clinicas + pago
+    SELECT h.id AS cita_id, h.fecha_cita, h.hora_cita, h.estado, h.descripcion,
+           u.nombre AS terapeuta, e.nombre AS Especialidad,
+           pg.monto, pg.metodo_pago, pg.estado_pago,
+           nc.id AS nota_id, nc.nota, nc.diagnostico, nc.fecha_creacion AS nota_fecha
+    FROM historial_citas h
+    JOIN terapeutas t ON h.terapeuta_id = t.id
+    JOIN usuarios u ON t.usuario_id = u.id
+    LEFT JOIN especialidades e ON t.especialidad_id = e.id
+    LEFT JOIN pagos pg ON pg.cita_id = h.id
+    LEFT JOIN notas_clinicas nc ON nc.cita_id = h.id
+    WHERE h.paciente_id = p_paciente_id
+    ORDER BY h.fecha_cita DESC, h.hora_cita DESC;
+
+    -- Resultado 3: evaluaciones iniciales
+    SELECT ei.*, u.nombre AS terapeuta_nombre
+    FROM evaluaciones_iniciales ei
+    JOIN terapeutas t ON ei.terapeuta_id = t.id
+    JOIN usuarios u ON t.usuario_id = u.id
+    WHERE ei.paciente_id = p_paciente_id
+    ORDER BY ei.fecha_creacion DESC;
+
+    -- Resultado 4: paquetes de sesiones
+    SELECT ps.*, s.nombre AS servicio_nombre, s.duracion_min
+    FROM paquetes_sesiones ps
+    JOIN servicios s ON ps.servicio_id = s.id
+    WHERE ps.paciente_id = p_paciente_id
+    ORDER BY ps.fecha_compra DESC;
+END$$
+
 DELIMITER ;
 
 -- ============================================================
