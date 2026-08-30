@@ -5,87 +5,92 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cita Agendada - MOOVA Clinic</title>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Nunito:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='retorno.css') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap-style.css') }}">
 </head>
 <body>
 
-    <div class="wrap">
-        <div class="card">
+    <div class="container d-flex justify-content-center py-5">
+        <div class="card card-moova shadow-sm" style="max-width:560px;width:100%;">
 
-            <div class="icono-check">
-                <i class="fas fa-check"></i>
-            </div>
+            <div class="card-body text-center p-4 p-md-5">
 
-            <h1>¡Tu cita ha sido agendada!</h1>
-            <p class="subtitulo">Tu pago fue confirmado y tu cita quedó registrada correctamente.</p>
+                <div class="mx-auto mb-3 rounded-circle d-flex align-items-center justify-content-center text-white" style="width:80px;height:80px;background:var(--moova-green);">
+                    <i class="bi bi-check-lg fs-1"></i>
+                </div>
 
-            {% if cita %}
-            <div class="detalles">
-                <div class="detalle-row">
-                    <span class="detalle-label"><i class="fas fa-user"></i> Paciente</span>
-                    <span class="detalle-value">{{ cita.nombre }} {{ cita.apellido }}</span>
-                </div>
-                <div class="detalle-row">
-                    <span class="detalle-label"><i class="fas fa-user-md"></i> Especialista</span>
-                    <span class="detalle-value">{{ cita.terapeuta }}</span>
-                </div>
-                <div class="detalle-row">
-                    <span class="detalle-label"><i class="fas fa-stethoscope"></i> Especialidad</span>
-                    <span class="detalle-value">{{ cita.Especialidad }}</span>
-                </div>
-                <div class="detalle-row">
-                    <span class="detalle-label"><i class="fas fa-calendar-alt"></i> Fecha</span>
-                    <span class="detalle-value">{{ fecha_fmt }}</span>
-                </div>
-                <div class="detalle-row">
-                    <span class="detalle-label"><i class="fas fa-hand-holding-usd"></i> Anticipo pagado</span>
-                    <span class="detalle-value">S/ {{ '%.2f'|format(cita.monto) }}</span>
-                </div>
-                <div class="detalle-row">
-                    <span class="detalle-label"><i class="fas fa-money-check-alt"></i> Método de pago</span>
-                    <span class="detalle-value">{{ cita.metodo_pago|capitalize }}</span>
-                </div>
-                {% if cita.referencia %}
-                <div class="detalle-row">
-                    <span class="detalle-label"><i class="fas fa-receipt"></i> Operación</span>
-                    <span class="detalle-value">{{ cita.referencia }}</span>
+                <h1 class="h3 fw-bold">¡Tu cita ha sido agendada!</h1>
+                <p class="text-muted">Tu pago fue confirmado y tu cita quedó registrada correctamente.</p>
+
+                {% if cita %}
+                <div class="text-start mt-4">
+                    <div class="d-flex justify-content-between py-2 border-bottom">
+                        <span class="text-muted d-flex align-items-center gap-2"><i class="bi bi-person"></i> Paciente</span>
+                        <span class="fw-semibold">{{ cita.nombre }} {{ cita.apellido }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between py-2 border-bottom">
+                        <span class="text-muted d-flex align-items-center gap-2"><i class="bi bi-person-badge"></i> Especialista</span>
+                        <span class="fw-semibold">{{ cita.terapeuta }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between py-2 border-bottom">
+                        <span class="text-muted d-flex align-items-center gap-2"><i class="bi bi-activity"></i> Especialidad</span>
+                        <span class="fw-semibold">{{ cita.Especialidad }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between py-2 border-bottom">
+                        <span class="text-muted d-flex align-items-center gap-2"><i class="bi bi-calendar3"></i> Fecha</span>
+                        <span class="fw-semibold">{{ fecha_fmt }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between py-2 border-bottom">
+                        <span class="text-muted d-flex align-items-center gap-2"><i class="bi bi-cash-coin"></i> Anticipo pagado</span>
+                        <span class="fw-semibold">S/ {{ '%.2f'|format(cita.monto) }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between py-2 border-bottom">
+                        <span class="text-muted d-flex align-items-center gap-2"><i class="bi bi-credit-card"></i> Método de pago</span>
+                        <span class="fw-semibold">{{ cita.metodo_pago|capitalize }}</span>
+                    </div>
+                    {% if cita.referencia %}
+                    <div class="d-flex justify-content-between py-2 border-bottom">
+                        <span class="text-muted d-flex align-items-center gap-2"><i class="bi bi-receipt"></i> Operación</span>
+                        <span class="fw-semibold">{{ cita.referencia }}</span>
+                    </div>
+                    {% endif %}
                 </div>
                 {% endif %}
+
+                <a href="{{ url_for('index') }}" class="btn btn-moova mt-4 d-inline-flex align-items-center gap-2">
+                    <i class="bi bi-house"></i> Volver al inicio
+                </a>
+
+                <hr class="my-4">
+
+                <p class="text-muted mb-2">Puedes conocer más sobre nosotros aquí</p>
+                <a href="{{ url_for('index') }}#especialidades" class="btn btn-moova-outline d-inline-flex align-items-center gap-2">
+                    <i class="bi bi-activity"></i> Ver nuestros servicios
+                </a>
+
+                <hr class="my-4">
+
+                <p class="fw-semibold mb-3">Para más información contáctanos</p>
+                <div class="d-flex justify-content-center flex-wrap gap-2">
+                    <a href="{{ REDES.whatsapp }}" target="_blank" rel="noopener noreferrer" class="contacto-btn whatsapp">
+                        <i class="bi bi-whatsapp"></i>
+                        <span>WhatsApp</span>
+                    </a>
+                    <a href="{{ REDES.facebook }}" target="_blank" rel="noopener noreferrer" class="contacto-btn facebook">
+                        <i class="bi bi-facebook"></i>
+                        <span>Facebook</span>
+                    </a>
+                    <a href="{{ REDES.twitter }}" target="_blank" rel="noopener noreferrer" class="contacto-btn twitter">
+                        <i class="bi bi-twitter-x"></i>
+                        <span>X</span>
+                    </a>
+                </div>
+
             </div>
-            {% endif %}
-
-            <a href="{{ url_for('index') }}" class="btn-inicio">
-                <i class="fas fa-home"></i> Volver al inicio
-            </a>
-
-            <div class="divider"></div>
-
-            <p class="info-text">Puedes conocer más sobre nosotros aquí</p>
-            <a href="{{ url_for('index') }}#especialidades" class="btn-info">
-                <i class="fas fa-stethoscope"></i> Ver nuestros servicios
-            </a>
-
-            <div class="divider"></div>
-
-            <p class="contacto-title">Para más información contáctanos</p>
-            <div class="contacto-links">
-                <a href="{{ REDES.whatsapp }}" target="_blank" rel="noopener noreferrer" class="contacto-btn whatsapp">
-                    <i class="fab fa-whatsapp"></i>
-                    <span>WhatsApp</span>
-                </a>
-                <a href="{{ REDES.facebook }}" target="_blank" rel="noopener noreferrer" class="contacto-btn facebook">
-                    <i class="fab fa-facebook"></i>
-                    <span>Facebook</span>
-                </a>
-                <a href="{{ REDES.twitter }}" target="_blank" rel="noopener noreferrer" class="contacto-btn twitter">
-                    <i class="fab fa-x-twitter"></i>
-                    <span>X</span>
-                </a>
-            </div>
-
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

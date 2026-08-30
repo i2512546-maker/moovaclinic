@@ -1,0 +1,171 @@
+/* ============================================================
+   MOOVA Clinic - Tema Bootstrap (brand overrides)
+   Se usa junto a Bootstrap 5 CDN en todas las vistas.
+   Mantiene la identidad visual (verde/navy) sobre classes de
+   utilidad de Bootstrap. Pequeño CSS, escalable.
+   ============================================================ */
+
+:root {
+  --moova-green: #2f855a;
+  --moova-green-dark: #276749;
+  --moova-green-soft: #c6f6d5;
+  --moova-navy: #1a3a5c;
+  --moova-sky: #e6f4fb;
+  --moova-text: #2d3748;
+  --moova-muted: #718096;
+}
+
+body {
+  background-color: #f8fafc;
+  color: var(--moova-text);
+  font-family: 'Nunito', system-ui, -apple-system, sans-serif;
+}
+
+h1, h2, h3, h4, .logo, .display-heading {
+  font-family: 'Fredoka', 'Nunito', sans-serif;
+}
+
+/* Marca / logo */
+.logo {
+  font-family: 'Fredoka', sans-serif;
+  font-weight: 700;
+  color: var(--moova-green);
+  font-size: 1.3rem;
+}
+.logo span { color: var(--moova-navy); }
+
+/* Botones marca */
+.btn-moova { background-color: var(--moova-green); border-color: var(--moova-green); color: #fff; }
+.btn-moova:hover, .btn-moova:focus { background-color: var(--moova-green-dark); border-color: var(--moova-green-dark); color: #fff; }
+.btn-moova-outline { color: var(--moova-green); border-color: var(--moova-green); }
+.btn-moova-outline:hover { background-color: var(--moova-green); color: #fff; }
+.btn-danger-moova { background: linear-gradient(135deg,#ef4444,#b91c1c); border: none; color: #fff; }
+.btn-danger-moova:hover { filter: brightness(0.92); color: #fff; }
+
+/* Badges de estado */
+.badge-nuevo, .badge-activo, .badge-completada, .badge-programada,
+.badge-pendiente { background-color: var(--moova-green-soft); color: #22543d; }
+.badge-recurrente { background-color: var(--moova-sky); color: #2b6cb0; }
+.badge-cancelada, .badge-inactivo { background-color: #fed7d7; color: #9b2c2c; }
+
+/* Cabeceras de panel */
+.panel-header {
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0.9rem 1.25rem;
+}
+.panel-wrap { padding: 1.5rem 1.25rem; }
+
+/* Card con sombra suave */
+.card-moova, .nota-card, .card-cita, .form-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px rgba(26,58,92,0.08);
+}
+
+/* Login */
+.login-bg {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, var(--moova-green), var(--moova-navy));
+  padding: 1rem;
+}
+
+/* Tablas responsivas */
+.table > :not(caption) > * > * { vertical-align: middle; }
+.table thead th { background: var(--moova-navy); color: #fff; font-weight: 600; font-size: 0.85rem; }
+
+/* Icono del boton en celda (tabla admin) */
+.btn-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 8px; border: none;
+  background: #edf2f7; color: var(--moova-text); cursor: pointer;
+}
+.btn-icon:hover { background: #e2e8f0; }
+
+/* Pie de página social */
+.contacto-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 16px; border-radius: 50px; color: #fff; text-decoration: none;
+  font-weight: 600; font-size: 0.9rem;
+}
+.contacto-btn.whatsapp { background: #25d366; }
+.contacto-btn.facebook { background: #1877f2; }
+.contacto-btn.twitter { background: #111; }
+
+/* ==== Página de pago (pago.html) ==== */
+.pago-panel {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 4px 16px rgba(26,58,92,0.08);
+}
+.pago-method-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.pago-method-head h2 { font-family: 'Fredoka', sans-serif; font-size: 1.1rem; color: var(--moova-navy); margin: 0; }
+.pago-method-head p { font-size: 0.85rem; color: var(--moova-muted); margin: 2px 0 0; }
+.pago-method-icon {
+  width: 46px; height: 46px; border-radius: 12px; flex: 0 0 46px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--moova-green-soft); color: var(--moova-green); font-size: 1.3rem;
+}
+.pago-monto {
+  font-family: 'Fredoka', sans-serif; font-size: 1.8rem; font-weight: 700;
+  color: var(--moova-green); margin-bottom: 16px;
+}
+.pago-nota { font-size: 0.82rem; color: var(--moova-muted); margin-top: 14px; }
+.pago-error { color: #b91c1c; font-size: 0.85rem; margin-top: 8px; min-height: 1em; }
+
+.resumen-row {
+  display: flex; justify-content: space-between; gap: 12px;
+  padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.92rem;
+}
+.resumen-row:last-child { border-bottom: none; }
+.resumen-label { color: var(--moova-muted); }
+.resumen-value { font-weight: 600; color: var(--moova-text); text-align: right; }
+
+/* Primer de tarjeta */
+.card-preview {
+  height: 200px; border-radius: 16px; padding: 22px; margin-bottom: 20px;
+  background: linear-gradient(135deg, #1a3a5c, #2f855a); color: #fff;
+  display: flex; flex-direction: column; justify-content: space-between;
+  box-shadow: 0 8px 24px rgba(26,58,92,0.3);
+}
+.card-preview-chip { font-size: 1.5rem; }
+.card-preview-num {
+  font-family: 'Courier New', monospace; font-size: 1.35rem;
+  letter-spacing: 0.14em; text-align: center;
+}
+.card-preview-bottom { display: flex; justify-content: space-between; }
+.card-preview-label { display: block; font-size: 0.68rem; text-transform: uppercase; opacity: 0.8; }
+.card-preview-val { display: block; font-size: 0.9rem; font-weight: 600; }
+
+.card-input {
+  width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px;
+  font-family: inherit; font-size: 0.95rem; background: #fff;
+}
+.card-input:focus { outline: none; border-color: var(--moova-green); }
+
+/* Modales */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 1055; background: rgba(15,23,42,0.6);
+  display: none; align-items: center; justify-content: center; padding: 1rem;
+}
+.modal-overlay[style*="flex"] { display: flex !important; }
+.modal-overlay .modal {
+  background: #fff; border-radius: 18px; padding: 26px; width: 100%; max-width: 440px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.25); position: relative; max-height: 90vh; overflow-y: auto;
+}
+.modal-close {
+  position: absolute; top: 12px; right: 16px; border: none; background: none;
+  font-size: 1.6rem; line-height: 1; color: var(--moova-muted); cursor: pointer;
+}
+.modal-monto { font-family: 'Fredoka', sans-serif; font-size: 1.6rem; font-weight: 700; color: var(--moova-green); margin: 12px 0; }
+.qr-box { display: flex; justify-content: center; padding: 16px 0; }
+.qr-box img { width: 220px; height: 220px; border: 1px solid #e2e8f0; border-radius: 12px; }
+.modal-pasos li { margin-bottom: 6px; font-size: 0.9rem; color: var(--moova-text); }
+.exito-icon { font-size: 3.5rem; color: #16a34a; display: block; text-align: center; margin-bottom: 10px; }
+.modal-exito { text-align: center; }
+.modal-exito p { color: var(--moova-muted); font-size: 0.92rem; }
