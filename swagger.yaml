@@ -444,6 +444,30 @@ paths:
               success: { type: boolean, example: true }
               consentimiento_id: { type: integer }
         "400": { description: Campos requeridos }
+  /api/pacientes/{paciente_id}/pdf:
+    get:
+      tags: [pacientes]
+      summary: Descargar ficha clinica completa del paciente en PDF
+      description: |
+        Genera y descarga la historia clinica completa (datos personales,
+        citas con notas clinicas, evaluaciones iniciales y paquetes de
+        sesiones) con el logo de MOOVA Clinic.
+      produces:
+        - application/pdf
+      parameters:
+        - name: paciente_id
+          in: path
+          required: true
+          type: integer
+      responses:
+        "200":
+          description: PDF de la ficha clinica generado
+          schema:
+            type: file
+        "404":
+          description: Paciente no encontrado
+        "500":
+          description: Error al generar el PDF
 
   # ---------------- CITAS ----------------
   /api/citas:
