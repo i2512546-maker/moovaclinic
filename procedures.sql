@@ -1,26 +1,4 @@
--- ============================================================
--- MOOVA Clinic - Procedimientos almacenados
--- Base: moovacloud_db en Alwaysdata (MariaDB 11.4)
--- ============================================================
--- OBJETIVO (requisito de seguridad):
--- El backend Python NO debe conocer nombres de tablas ni columnas.
--- Todo el SQL crudo que antes vivia embebido en las rutas Flask
--- ahora reside en stored procedures. La aplicacion solo invoca
--- CALL sp_<accion>_<entidad>(...) via cursor.callproc().
---
--- EJECUTAR:
---   1. Copiar todo este archivo y pegarlo en phpMyAdmin > SQL
---      sobre moovacloud_db (o ejecutarlo desde la consola).
---   2. Hacer backup con mysqldump ANTES por seguridad.
---   3. Este archivo es RE-EJECUTABLE: cada CREATE PROCEDURE esta
---      precedido por DROP PROCEDURE IF EXISTS.
---
--- NOTA DE COMPATIBILIDAD:
---   Inspirado en mysql-connector-python 8.0.33. Los procedimientos
---   finalizan con un SELECT de control (LAST_INSERT_ID() o
---   ROW_COUNT()) para que la app lea el resultado con
---   cursor.stored_results(). No se usan parametros OUT.
--- ============================================================
+
 
 DELIMITER $$
 
