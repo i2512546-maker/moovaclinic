@@ -42,43 +42,47 @@
 </head>
 <body>
 
-    <!-- NAVBAR RESPONSIVE -->
-    <nav class="navbar navbar-expand-lg fixed-top bg-white shadow-sm py-2">
-        <div class="container">
-            <a class="navbar-brand logo mb-0" href="#">MOOVA <span>Clinic</span></a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMoova" aria-controls="navbarMoova" aria-expanded="false" aria-label="Alternar navegación">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarMoova">
-                <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-lg-center gap-lg-2 pt-2 pt-lg-0">
-                    <li class="nav-item"><a class="nav-link px-3" href="#">Inicio</a></li>
-                    <li class="nav-item"><a class="nav-link px-3" href="#especialidades">Especialidades</a></li>
-                    <li class="nav-item"><a class="nav-link px-3" href="#galeria">Galería</a></li>
-                    <li class="nav-item"><a class="nav-link px-3" href="#nosotros">Nosotros</a></li>
-                    <li class="nav-item"><a class="nav-link px-3" href="#contacto">Contacto</a></li>
-                    <li class="nav-item dropdown dropdown-center">
+    <!-- NAVBAR CENTRADO EN BURBUJA FLOTANTE -->
+    <nav class="navbar navbar-expand-lg fixed-top py-3">
+        <div class="container justify-content-center">
+            <div class="navbar-bubble bg-white shadow-lg rounded-pill px-4 py-2 d-flex align-items-center justify-content-between w-100" style="max-width: 900px; border: 1px solid rgba(2,132,199,0.15); backdrop-filter: blur(12px);">
+                <a class="navbar-brand logo mb-0" href="#">MOOVA <span>Clinic</span></a>
+                <button class="navbar-toggler border-0 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMoova" aria-controls="navbarMoova" aria-expanded="false" aria-label="Alternar navegación">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse justify-content-center flex-grow-0" id="navbarMoova">
+                    <ul class="navbar-nav mb-2 mb-lg-0 align-items-lg-center gap-lg-3 pt-2 pt-lg-0">
+                        <li class="nav-item"><a class="nav-link px-2 fw-semibold" href="#">Inicio</a></li>
+                        <li class="nav-item"><a class="nav-link px-2 fw-semibold" href="#especialidades">Especialidades</a></li>
+                        <li class="nav-item"><a class="nav-link px-2 fw-semibold" href="#galeria">Galería</a></li>
+                        <li class="nav-item"><a class="nav-link px-2 fw-semibold" href="#nosotros">Nosotros</a></li>
+                        <li class="nav-item"><a class="nav-link px-2 fw-semibold" href="#contacto">Contacto</a></li>
+                    </ul>
+                </div>
+                <div class="d-none d-lg-block">
+                    <div class="dropdown dropdown-center">
                         <button class="btn btn-moova rounded-pill dropdown-toggle px-4 py-2" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="bi bi-calendar-check me-2"></i> Citas
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end shadow border mt-2 rounded-3 p-2">
                             <li>
                                 <a href="{{ url_for('citas_page') }}" class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2">
-                                    <i class="bi bi-calendar-plus text-success"></i> <span>Agendar cita</span>
+                                    <i class="bi bi-calendar-plus text-primary"></i> <span>Agendar cita</span>
                                 </a>
                             </li>
                             <li>
                                 <a href="{{ url_for('modificar_cita_page') }}" class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2">
-                                    <i class="bi bi-pencil-square text-success"></i> <span>Modificar cita</span>
+                                    <i class="bi bi-pencil-square text-primary"></i> <span>Modificar cita</span>
                                 </a>
                             </li>
                             <li>
                                 <a href="{{ url_for('cancelar_cita_page') }}" class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2">
-                                    <i class="bi bi-x-circle text-success"></i> <span>Cancelar cita</span>
+                                    <i class="bi bi-x-circle text-danger"></i> <span>Cancelar cita</span>
                                 </a>
                             </li>
                         </ul>
-                    </li>
-                </ul>
+                    </div>
+                </div>
             </div>
         </div>
     </nav>
