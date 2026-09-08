@@ -1,7 +1,6 @@
 import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
 import yaml
-from flasgger import Swagger
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_bcrypt import Bcrypt
 from datetime import datetime, timedelta
@@ -28,6 +27,7 @@ def create_app():
     bcrypt.init_app(app)
 
     try:
+        from flasgger import Swagger
         specs = _load_swagger()
         if specs:
             Swagger(app, template=specs)
