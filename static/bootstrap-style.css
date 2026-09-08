@@ -93,21 +93,33 @@ h1, h2, h3, h4, h5, h6 {
   transform: translateY(-3px);
 }
 
-/* Secciones semiinteriores celeste y exteriores azules */
+/* Secciones exteriores azules y semiinteriores celeste en ambos lados */
 .stats {
-  background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%) !important;
-  border-top: 2px solid #bae6fd;
-  border-bottom: 2px solid #bae6fd;
+  background: linear-gradient(135deg, #0284c7 0%, #38bdf8 50%, #0284c7 100%) !important;
+  color: #fff;
+  border-top: 3px solid #0284c7;
+  border-bottom: 3px solid #0284c7;
+}
+.stats .stat-item {
+  background: #ffffff !important;
+  border: 2px solid #bae6fd !important;
+}
+.stats .stat-item h3 {
+  color: var(--moova-navy) !important;
 }
 
 .galeria {
-  background: linear-gradient(180deg, #f0f9ff 0%, #ffffff 100%) !important;
+  background: linear-gradient(180deg, #e0f2fe 0%, #f0f9ff 100%) !important;
 }
 
 .proceso {
-  background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 100%) !important;
-  border-top: 2px solid #bae6fd;
-  border-bottom: 2px solid #bae6fd;
+  background: linear-gradient(135deg, #0369a1 0%, #0284c7 50%, #38bdf8 100%) !important;
+  color: #fff;
+  border-top: 3px solid #0369a1;
+  border-bottom: 3px solid #0369a1;
+}
+.proceso .proceso-step h3, .proceso .proceso-step p {
+  color: #fff !important;
 }
 
 /* Login */
