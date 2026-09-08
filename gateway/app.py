@@ -27,11 +27,14 @@ def create_app():
     app.secret_key = os.getenv("SECRET_KEY", os.urandom(32).hex())
     bcrypt.init_app(app)
 
-    specs = _load_swagger()
-    if specs:
-        Swagger(app, template=specs)
-    else:
-        Swagger(app)
+    try:
+        specs = _load_swagger()
+        if specs:
+            Swagger(app, template=specs)
+        else:
+            Swagger(app)
+    except Exception:
+        pass
 
     @app.context_processor
     def inject():
