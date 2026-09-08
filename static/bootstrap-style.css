@@ -1,5 +1,5 @@
 /* ============================================================
-   MOOVA Clinic - Tipografía & Estilos Modernos
+   MOOVA Clinic - Estilo Paleta (Blanco, Celeste, Azul)
    ============================================================ */
 
 :root {
@@ -11,11 +11,11 @@
   --moova-sky: #f8fafc;
   --moova-text: #1e293b;
   --moova-muted: #64748b;
-  --moova-gradient: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  --moova-gradient: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);
 }
 
 body {
-  background-color: var(--moova-sky);
+  background: linear-gradient(180deg, #f0f9ff 0%, #ffffff 100%);
   color: var(--moova-text);
   font-family: 'Nunito', sans-serif;
   font-size: 0.95rem;
@@ -27,12 +27,12 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--moova-navy);
 }
 
-/* Navbar flotante y moderna */
+/* Navbar flotante y moderna con bordes azules/celestes */
 .navbar-bubble {
   background: rgba(255, 255, 255, 0.95) !important;
   backdrop-filter: blur(16px);
-  box-shadow: 0 10px 30px rgba(2, 132, 199, 0.12) !important;
-  border: 1px solid rgba(2, 132, 199, 0.2) !important;
+  box-shadow: 0 10px 30px rgba(2, 132, 199, 0.15) !important;
+  border: 1.5px solid #38bdf8 !important;
   transition: all 0.3s ease;
 }
 
@@ -79,24 +79,42 @@ h1, h2, h3, h4, h5, h6 {
   transform: translateY(-2px);
 }
 
-/* Cards y contenedores */
+/* Cards con exterior azul/celeste y fondo interior blanco */
 .card-moova, .nota-card, .card-cita, .form-card, .card {
-  background: #fff;
-  border: 1px solid rgba(2, 132, 199, 0.1) !important;
+  background: #ffffff !important;
+  border: 2px solid #bae6fd !important;
   border-radius: 1.25rem !important;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04) !important;
+  box-shadow: 0 12px 30px rgba(2, 132, 199, 0.08) !important;
   transition: all 0.3s ease;
 }
 .card:hover {
-  box-shadow: 0 15px 35px rgba(2, 132, 199, 0.08) !important;
-  transform: translateY(-2px);
+  border-color: #0284c7 !important;
+  box-shadow: 0 18px 40px rgba(2, 132, 199, 0.15) !important;
+  transform: translateY(-3px);
+}
+
+/* Secciones semiinteriores celeste y exteriores azules */
+.stats {
+  background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%) !important;
+  border-top: 2px solid #bae6fd;
+  border-bottom: 2px solid #bae6fd;
+}
+
+.galeria {
+  background: linear-gradient(180deg, #f0f9ff 0%, #ffffff 100%) !important;
+}
+
+.proceso {
+  background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 100%) !important;
+  border-top: 2px solid #bae6fd;
+  border-bottom: 2px solid #bae6fd;
 }
 
 /* Login */
 .login-bg {
   min-height: 100vh;
   display: flex; align-items: center; justify-content: center;
-  background: radial-gradient(circle at 50% 20%, #bae6fd 0%, #0284c7 60%, #0f172a 100%);
+  background: radial-gradient(circle at 50% 20%, #38bdf8 0%, #0284c7 60%, #0f172a 100%);
   padding: 1rem;
 }
 
