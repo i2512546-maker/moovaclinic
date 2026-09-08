@@ -1,10 +1,11 @@
 import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
 import yaml
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+import requests
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, Response
 from flask_bcrypt import Bcrypt
 from datetime import datetime, timedelta
-from shared.config import REDES_SOCIALES
+from shared.config import REDES_SOCIALES, SERVICE_URLS
 from shared.service_client import auth_client, pacientes_client, citas_client, pagos_client, notas_client
 from shared.audit import log_accion
 from shared.proc import call_proc, call_proc_one, call_proc_execute
@@ -400,23 +401,32 @@ def create_app():
     def detalle_paciente_page(paciente_dni):
         if "usuario_id" not in session or session.get("rol") != "admin":
             return redirect(url_for("login"))
-        data, _ = pacientes_client.get(f"/api/pacientes/{paciente_dni}")
-        paciente = data.get("paciente", {})
-        historial = data.get("historial", [])
-        paciente_id_val = paciente.get("id")
+        data, _ = pacientes_client.get(f"/api/pacientes/{paciente_dni}/historial")
+        return render_template("detalle_paciente.html",
+                               paciente=data.get("paciente", {}),
+                               historial=data.get("historial", []),
+                               paquetes=data.get("paquetes", []),
+                               evaluaciones=data.get("evaluaciones", []),
+                               consentimientos=data.get("consentimientos", []))
 
-        paquetes, evaluaciones, consentimientos = [], [], []
-        if paciente_id_val:
-            pdata, _ = pacientes_client.get(f"/api/pacientes/{paciente_id_val}/paquetes")
-            paquetes = pdata.get("paquetes", [])
-            edata, _ = pacientes_client.get(f"/api/pacientes/{paciente_id_val}/evaluaciones")
-            evaluaciones = edata.get("evaluaciones", [])
-            cdata, _ = pacientes_client.get(f"/api/pacientes/{paciente_id_val}/consentimientos")
-            consentimientos = cdata.get("consentimientos", [])
-
-        return render_template("detalle_paciente.html", paciente=paciente,
-                               historial=historial, paquetes=paquetes,
-                               evaluaciones=evaluaciones, consentimientos=consentimientos)
+    @app.route("/pacientes/<int:paciente_id>/pdf")
+    def ficha_clinica_pdf(paciente_id):
+        if "usuario_id" not in session or session.get("rol") != "admin":
+            return redirect(url_for("login"))
+        try:
+            resp = requests.get(
+                SERVICE_URLS["pacientes"] + "/api/pacientes/{}/pdf".format(paciente_id),
+                timeout=30,
+            )
+        except Exception:
+            flash("No se pudo generar la ficha PDF.")
+            return redirect(url_for("pacientes_page"))
+        if resp.status_code != 200:
+            flash("No se pudo generar la ficha PDF.")
+            return redirect(url_for("pacientes_page"))
+        cd = resp.headers.get("Content-Disposition", "attachment; filename=ficha_clinica.pdf")
+        return Response(resp.content, mimetype="application/pdf",
+                        headers={"Content-Disposition": cd})
 
     @app.route("/notas/<int:cita_id>", methods=["GET", "POST"])
     def notas_page(cita_id):

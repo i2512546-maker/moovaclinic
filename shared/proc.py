@@ -59,3 +59,21 @@ def call_proc_execute(proc_name, params=()):
     found" en mysql-connector cuando el SP termina con un SELECT de
     control (ej: LAST_INSERT_ID(), ROW_COUNT()). Igual commit."""
     return _run(proc_name, params, dictionary=False, fetch=False, commit=True, drain=True)
+
+
+def call_proc_results(proc_name, params=()):
+    """Ejecuta un procedimiento que devuelve VARIOS result sets
+    (ej: sp_obtener_ficha_clinica_completa) y retorna una lista de
+    listas de dicts, una por cada SELECT, en orden. Igual commit."""
+    params = list(params or ())
+    with db_connection() as conn:
+        cursor = conn.cursor(dictionary=True)
+        cursor.callproc(proc_name, params)
+        results = []
+        try:
+            for result in cursor.stored_results():
+                results.append(result.fetchall())
+        except Exception:
+            results = []
+        conn.commit()
+    return results
