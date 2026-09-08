@@ -1,268 +1,131 @@
 /* ============================================================
-   MOOVA Clinic - Tema Bootstrap (Azul / Celeste Fino & Moderno)
-   Degrades suaves, sombras elegantes, efectos glassmorphism.
+   MOOVA Clinic - Tema Bootstrap Ultra Moderno & Compacto
    ============================================================ */
 
 :root {
-  --moova-primary: #0ea5e9;
-  --moova-primary-dark: #0284c7;
+  --moova-primary: #0284c7;
+  --moova-primary-dark: #0369a1;
   --moova-primary-soft: #f0f9ff;
   --moova-navy: #0f172a;
-  --moova-navy-light: #1e293b;
   --moova-sky: #f8fafc;
-  --moova-text: #334155;
+  --moova-text: #1e293b;
   --moova-muted: #64748b;
-  --moova-gradient: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
-  --moova-gradient-hero: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #bae6fd 100%);
+  --moova-gradient: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
 }
 
 body {
-  background-color: #f8fafc;
+  background-color: var(--moova-sky);
   color: var(--moova-text);
-  font-family: 'Nunito', system-ui, -apple-system, sans-serif;
-  letter-spacing: -0.01em;
+  font-family: 'Nunito', sans-serif;
+  font-size: 0.93rem;
 }
 
-h1, h2, h3, h4, .logo, .display-heading {
-  font-family: 'Fredoka', 'Nunito', sans-serif;
+h1, h2, h3, h4, .logo {
+  font-family: 'Fredoka', sans-serif;
   letter-spacing: -0.02em;
 }
 
-/* Marca / logo */
+/* Marca / Logo en burbuja flotante moderna */
 .logo {
   font-family: 'Fredoka', sans-serif;
   font-weight: 700;
-  background: var(--moova-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  font-size: 1.4rem;
+  font-size: 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--moova-primary-soft);
+  color: var(--moova-primary);
+  padding: 8px 18px;
+  border-radius: 50px;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.08);
+  border: 1px solid rgba(2, 132, 199, 0.15);
 }
-.logo span { 
-  background: none;
-  -webkit-text-fill-color: var(--moova-navy);
+.logo span { color: var(--moova-navy); }
+
+/* Navbar ajustado y compacto */
+.navbar {
+  padding-top: 0.5rem !important;
+  padding-bottom: 0.5rem !important;
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.03) !important;
+}
+.navbar .nav-link {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--moova-text) !important;
+  transition: color 0.2s;
+}
+.navbar .nav-link:hover {
+  color: var(--moova-primary) !important;
 }
 
-/* Botones con degrades y sombras finas */
+/* Botones con estilo moderno */
 .btn-moova { 
   background: var(--moova-gradient); 
   border: none; 
   color: #fff; 
-  box-shadow: 0 8px 20px rgba(14, 165, 233, 0.3);
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.25);
   font-weight: 600;
   border-radius: 50px;
-  padding: 0.6rem 1.5rem;
-  transition: all 0.25s ease;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
 }
 .btn-moova:hover, .btn-moova:focus { 
-  transform: translateY(-2px);
-  box-shadow: 0 12px 25px rgba(14, 165, 233, 0.4);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(2, 132, 199, 0.35);
   color: #fff; 
 }
 .btn-moova-outline { 
-  color: var(--moova-primary-dark); 
+  color: var(--moova-primary); 
   border: 2px solid var(--moova-primary); 
   border-radius: 50px;
   font-weight: 600;
-  transition: all 0.25s ease;
+  padding: 0.4rem 1.2rem;
+  font-size: 0.88rem;
+  transition: all 0.2s ease;
 }
 .btn-moova-outline:hover { 
-  background: var(--moova-gradient);
-  border-color: transparent;
+  background: var(--moova-primary);
   color: #fff; 
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(14, 165, 233, 0.25);
-}
-.btn-danger-moova { 
-  background: linear-gradient(135deg,#f43f5e,#e11d48); 
-  border: none; 
-  color: #fff; 
-  box-shadow: 0 6px 16px rgba(244, 63, 94, 0.3);
-  border-radius: 50px;
-  font-weight: 600;
-}
-.btn-danger-moova:hover { 
   transform: translateY(-1px);
-  box-shadow: 0 10px 20px rgba(244, 63, 94, 0.4);
-  color: #fff; 
 }
 
-/* Badges modernos y suaves */
-.badge-nuevo, .badge-activo, .badge-completada, .badge-programada,
-.badge-pendiente { 
-  background-color: #e0f2fe; 
-  color: #0369a1; 
-  font-weight: 600;
-  padding: 0.4em 0.8em;
-  border-radius: 50px;
-}
-.badge-recurrente { 
-  background-color: #ede9fe; 
-  color: #6d28d9; 
-  font-weight: 600;
-  padding: 0.4em 0.8em;
-  border-radius: 50px;
-}
-.badge-cancelada, .badge-inactivo { 
-  background-color: #fee2e2; 
-  color: #b91c1c; 
-  font-weight: 600;
-  padding: 0.4em 0.8em;
-  border-radius: 50px;
-}
-
-/* Cabeceras de panel */
-.panel-header {
+/* Cards y contenedores compactos y modernos */
+.card-moova, .nota-card, .card-cita, .form-card, .card {
   background: #fff;
-  border-bottom: 1px solid #f1f5f9;
-  padding: 1.25rem 1.5rem;
-}
-.panel-wrap { padding: 2rem 1.5rem; }
-
-/* Cards con profundidad, bordes sutiles y hover flotante */
-.card-moova, .nota-card, .card-cita, .form-card {
-  background: #fff;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  border-radius: 1.25rem;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.card-moova:hover {
-  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
-  transform: translateY(-3px);
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+  border-radius: 1rem !important;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.03) !important;
 }
 
-/* Login moderno tipo Glassmorphism */
+/* Login moderno */
 .login-bg {
   min-height: 100vh;
   display: flex; align-items: center; justify-content: center;
-  background: radial-gradient(circle at 50% 0%, #38bdf8 0%, #0284c7 40%, #0f172a 100%);
+  background: radial-gradient(circle at 50% 20%, #e0f2fe 0%, #f8fafc 80%);
   padding: 1rem;
 }
 
-/* Tablas con diseño limpio */
-.table > :not(caption) > * > * { vertical-align: middle; padding: 1rem 0.75rem; }
+/* Tablas compactas */
+.table > :not(caption) > * > * { vertical-align: middle; padding: 0.75rem 0.5rem; font-size: 0.88rem; }
 .table thead th { 
-  background: #0f172a; 
+  background: var(--moova-navy); 
   color: #fff; 
   font-weight: 600; 
-  font-size: 0.85rem;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+  font-size: 0.8rem;
   border: none;
 }
 
-/* Botón de icono moderno */
-.btn-icon {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 36px; height: 36px; border-radius: 10px; border: none;
-  background: #f1f5f9; color: var(--moova-text); cursor: pointer;
-  transition: all 0.2s;
-}
-.btn-icon:hover { background: #e2e8f0; transform: scale(1.05); }
-
-/* Footer social */
-.contacto-btn {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 10px 20px; border-radius: 50px; color: #fff; text-decoration: none;
-  font-weight: 600; font-size: 0.9rem;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  transition: all 0.2s;
-}
-.contacto-btn:hover { transform: translateY(-2px); color: #fff; }
-.contacto-btn.whatsapp { background: #22c55e; }
-.contacto-btn.facebook { background: #2563eb; }
-.contacto-btn.twitter { background: #0f172a; }
-
-/* ==== Página de pago (pago.html) ==== */
-.pago-panel {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 1.25rem;
-  padding: 1.75rem;
-  margin-bottom: 1.5rem;
-  box-shadow: 0 10px 30px rgba(14, 165, 233, 0.08);
-}
-.pago-method-head { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
-.pago-method-head h2 { font-family: 'Fredoka', sans-serif; font-size: 1.15rem; color: var(--moova-navy); margin: 0; }
-.pago-method-head p { font-size: 0.85rem; color: var(--moova-muted); margin: 3px 0 0; }
-.pago-method-icon {
-  width: 52px; height: 52px; border-radius: 14px; flex: 0 0 52px;
-  display: flex; align-items: center; justify-content: center;
-  background: var(--moova-primary-soft); color: var(--moova-primary); font-size: 1.4rem;
-  box-shadow: inset 0 2px 4px rgba(14, 165, 233, 0.1);
-}
-.pago-monto {
-  font-family: 'Fredoka', sans-serif; font-size: 2rem; font-weight: 700;
-  background: var(--moova-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 16px;
-}
-.pago-nota { font-size: 0.82rem; color: var(--moova-muted); margin-top: 14px; }
-.pago-error { color: #e11d48; font-size: 0.85rem; margin-top: 8px; min-height: 1em; }
-
-.resumen-row {
-  display: flex; justify-content: space-between; gap: 12px;
-  padding: 10px 0; border-bottom: 1px solid #f8fafc; font-size: 0.92rem;
-}
-.resumen-row:last-child { border-bottom: none; }
-.resumen-label { color: var(--moova-muted); }
-.resumen-value { font-weight: 600; color: var(--moova-text); text-align: right; }
-
-/* Vista previa de tarjeta con degradé profundo y sombra */
-.card-preview {
-  height: 210px; border-radius: 1rem; padding: 24px; margin-bottom: 22px;
-  background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #0284c7 100%); color: #fff;
-  display: flex; flex-direction: column; justify-content: space-between;
-  box-shadow: 0 15px 35px rgba(15, 23, 42, 0.35);
-  position: relative; overflow: hidden;
-}
-.card-preview::after {
-  content: ''; position: absolute; top: -50px; right: -50px; width: 150px; height: 150px;
-  background: rgba(255, 255, 255, 0.05); border-radius: 50%; pointer-events: none;
-}
-.card-preview-chip { font-size: 1.6rem; opacity: 0.9; }
-.card-preview-num {
-  font-family: 'Courier New', monospace; font-size: 1.4rem;
-  letter-spacing: 0.16em; text-align: center; text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-}
-.card-preview-bottom { display: flex; justify-content: space-between; }
-.card-preview-label { display: block; font-size: 0.68rem; text-transform: uppercase; opacity: 0.75; letter-spacing: 0.05em; }
-.card-preview-val { display: block; font-size: 0.92rem; font-weight: 600; letter-spacing: 0.02em; }
-
-.card-input {
-  width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 0.75rem;
-  font-family: inherit; font-size: 0.95rem; background: #fff; transition: all 0.2s;
-}
-.card-input:focus { outline: none; border-color: var(--moova-primary); box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.15); }
-
-/* Modales con sombra flotante */
+/* Modales */
 .modal-overlay {
-  position: fixed; inset: 0; z-index: 1055; background: rgba(15,23,42,0.65);
+  position: fixed; inset: 0; z-index: 1055; background: rgba(15,23,42,0.5);
   backdrop-filter: blur(4px);
   display: none; align-items: center; justify-content: center; padding: 1rem;
 }
 .modal-overlay[style*="flex"] { display: flex !important; }
 .modal-overlay .modal {
-  background: #fff; border-radius: 1.5rem; padding: 30px; width: 100%; max-width: 440px;
-  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.3); position: relative; max-height: 90vh; overflow-y: auto;
-  border: 1px solid rgba(255,255,255,0.1);
+  background: #fff; border-radius: 1.25rem; padding: 24px; width: 100%; max-width: 420px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.2); position: relative;
 }
-.modal-close {
-  position: absolute; top: 14px; right: 18px; border: none; background: #f1f5f9;
-  width: 32px; height: 32px; border-radius: 50%; font-size: 1.2rem; line-height: 1;
-  color: var(--moova-muted); cursor: pointer; display: flex; align-items: center; justify-content: center;
-  transition: all 0.2s;
-}
-.modal-close:hover { background: #e2e8f0; color: var(--moova-navy); }
-.modal-monto { 
-  font-family: 'Fredoka', sans-serif; font-size: 1.8rem; font-weight: 700; 
-  background: var(--moova-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  margin: 12px 0; 
-}
-.qr-box { display: flex; justify-content: center; padding: 16px 0; }
-.qr-box img { width: 220px; height: 220px; border: 1px solid #e2e8f0; border-radius: 1rem; box-shadow: 0 8px 20px rgba(0,0,0,0.06); }
-.modal-pasos li { margin-bottom: 8px; font-size: 0.9rem; color: var(--moova-text); }
-.exito-icon { font-size: 4rem; color: #0ea5e9; display: block; text-align: center; margin-bottom: 12px; filter: drop-shadow(0 8px 16px rgba(14,165,233,0.3)); }
-.modal-exito { text-align: center; }
-.modal-exito p { color: var(--moova-muted); font-size: 0.95rem; }
