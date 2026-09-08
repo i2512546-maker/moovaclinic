@@ -1,9 +1,10 @@
 /* ============================================================
-   MOOVA Clinic - Tema Bootstrap Ultra Moderno & Compacto
+   MOOVA Clinic - Tipografía & Estilos Modernos
    ============================================================ */
 
 :root {
   --moova-primary: #0284c7;
+  --moova-primary-light: #38bdf8;
   --moova-primary-dark: #0369a1;
   --moova-primary-soft: #f0f9ff;
   --moova-navy: #0f172a;
@@ -17,47 +18,33 @@ body {
   background-color: var(--moova-sky);
   color: var(--moova-text);
   font-family: 'Nunito', sans-serif;
-  font-size: 0.93rem;
+  font-size: 0.95rem;
 }
 
-h1, h2, h3, h4, .logo {
+h1, h2, h3, h4, h5, h6 {
   font-family: 'Fredoka', sans-serif;
   letter-spacing: -0.02em;
+  color: var(--moova-navy);
 }
 
-/* Marca / Logo en burbuja flotante moderna */
-.logo {
-  font-family: 'Fredoka', sans-serif;
-  font-weight: 700;
-  font-size: 1.25rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--moova-primary-soft);
-  color: var(--moova-primary);
-  padding: 8px 18px;
-  border-radius: 50px;
-  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.08);
-  border: 1px solid rgba(2, 132, 199, 0.15);
+/* Navbar flotante y moderna */
+.navbar-bubble {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 10px 30px rgba(2, 132, 199, 0.12) !important;
+  border: 1px solid rgba(2, 132, 199, 0.2) !important;
+  transition: all 0.3s ease;
 }
-.logo span { color: var(--moova-navy); }
 
-/* Navbar ajustado y compacto */
-.navbar {
-  padding-top: 0.5rem !important;
-  padding-bottom: 0.5rem !important;
-  backdrop-filter: blur(10px);
-  background: rgba(255, 255, 255, 0.9) !important;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.03) !important;
-}
 .navbar .nav-link {
   font-weight: 600;
-  font-size: 0.9rem;
-  color: var(--moova-text) !important;
-  transition: color 0.2s;
+  font-size: 0.92rem;
+  color: var(--moova-navy) !important;
+  transition: all 0.2s ease;
 }
 .navbar .nav-link:hover {
   color: var(--moova-primary) !important;
+  transform: translateY(-1px);
 }
 
 /* Botones con estilo moderno */
@@ -65,16 +52,16 @@ h1, h2, h3, h4, .logo {
   background: var(--moova-gradient); 
   border: none; 
   color: #fff; 
-  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.25);
+  box-shadow: 0 6px 20px rgba(2, 132, 199, 0.3);
   font-weight: 600;
   border-radius: 50px;
-  padding: 0.5rem 1.25rem;
+  padding: 0.55rem 1.4rem;
   font-size: 0.9rem;
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
 }
 .btn-moova:hover, .btn-moova:focus { 
-  transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(2, 132, 199, 0.35);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(2, 132, 199, 0.4);
   color: #fff; 
 }
 .btn-moova-outline { 
@@ -82,50 +69,43 @@ h1, h2, h3, h4, .logo {
   border: 2px solid var(--moova-primary); 
   border-radius: 50px;
   font-weight: 600;
-  padding: 0.4rem 1.2rem;
-  font-size: 0.88rem;
-  transition: all 0.2s ease;
+  padding: 0.45rem 1.3rem;
+  font-size: 0.9rem;
+  transition: all 0.25s ease;
 }
 .btn-moova-outline:hover { 
   background: var(--moova-primary);
   color: #fff; 
-  transform: translateY(-1px);
+  transform: translateY(-2px);
 }
 
-/* Cards y contenedores compactos y modernos */
+/* Cards y contenedores */
 .card-moova, .nota-card, .card-cita, .form-card, .card {
   background: #fff;
-  border: 1px solid rgba(226, 232, 240, 0.8) !important;
-  border-radius: 1rem !important;
-  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.03) !important;
+  border: 1px solid rgba(2, 132, 199, 0.1) !important;
+  border-radius: 1.25rem !important;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04) !important;
+  transition: all 0.3s ease;
+}
+.card:hover {
+  box-shadow: 0 15px 35px rgba(2, 132, 199, 0.08) !important;
+  transform: translateY(-2px);
 }
 
-/* Login moderno */
+/* Login */
 .login-bg {
   min-height: 100vh;
   display: flex; align-items: center; justify-content: center;
-  background: radial-gradient(circle at 50% 20%, #e0f2fe 0%, #f8fafc 80%);
+  background: radial-gradient(circle at 50% 20%, #bae6fd 0%, #0284c7 60%, #0f172a 100%);
   padding: 1rem;
 }
 
-/* Tablas compactas */
-.table > :not(caption) > * > * { vertical-align: middle; padding: 0.75rem 0.5rem; font-size: 0.88rem; }
+/* Tablas */
+.table > :not(caption) > * > * { vertical-align: middle; padding: 0.85rem 0.75rem; font-size: 0.9rem; }
 .table thead th { 
   background: var(--moova-navy); 
   color: #fff; 
   font-weight: 600; 
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   border: none;
-}
-
-/* Modales */
-.modal-overlay {
-  position: fixed; inset: 0; z-index: 1055; background: rgba(15,23,42,0.5);
-  backdrop-filter: blur(4px);
-  display: none; align-items: center; justify-content: center; padding: 1rem;
-}
-.modal-overlay[style*="flex"] { display: flex !important; }
-.modal-overlay .modal {
-  background: #fff; border-radius: 1.25rem; padding: 24px; width: 100%; max-width: 420px;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.2); position: relative;
 }
