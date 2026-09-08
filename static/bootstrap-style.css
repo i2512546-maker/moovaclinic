@@ -1,18 +1,16 @@
 /* ============================================================
-   MOOVA Clinic - Tema Bootstrap (brand overrides)
-   Se usa junto a Bootstrap 5 CDN en todas las vistas.
-   Mantiene la identidad visual (verde/navy) sobre classes de
-   utilidad de Bootstrap. Pequeño CSS, escalable.
+   MOOVA Clinic - Tema Bootstrap (Azul / Celeste Original)
+   Mantiene la identidad visual celeste/azul original sobre Bootstrap 5.
    ============================================================ */
 
 :root {
-  --moova-green: #2f855a;
-  --moova-green-dark: #276749;
-  --moova-green-soft: #c6f6d5;
-  --moova-navy: #1a3a5c;
-  --moova-sky: #e6f4fb;
-  --moova-text: #2d3748;
-  --moova-muted: #718096;
+  --moova-primary: #0284c7;
+  --moova-primary-dark: #0369a1;
+  --moova-primary-soft: #e0f2fe;
+  --moova-navy: #1e3a8a;
+  --moova-sky: #f0f9ff;
+  --moova-text: #1e293b;
+  --moova-muted: #64748b;
 }
 
 body {
@@ -29,24 +27,43 @@ h1, h2, h3, h4, .logo, .display-heading {
 .logo {
   font-family: 'Fredoka', sans-serif;
   font-weight: 700;
-  color: var(--moova-green);
+  color: var(--moova-primary);
   font-size: 1.3rem;
 }
 .logo span { color: var(--moova-navy); }
 
-/* Botones marca */
-.btn-moova { background-color: var(--moova-green); border-color: var(--moova-green); color: #fff; }
-.btn-moova:hover, .btn-moova:focus { background-color: var(--moova-green-dark); border-color: var(--moova-green-dark); color: #fff; }
-.btn-moova-outline { color: var(--moova-green); border-color: var(--moova-green); }
-.btn-moova-outline:hover { background-color: var(--moova-green); color: #fff; }
-.btn-danger-moova { background: linear-gradient(135deg,#ef4444,#b91c1c); border: none; color: #fff; }
+/* Botones marca (Azules originales) */
+.btn-moova { 
+  background: linear-gradient(135deg, #0284c7, #0369a1); 
+  border: none; 
+  color: #fff; 
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+  font-weight: 600;
+}
+.btn-moova:hover, .btn-moova:focus { 
+  filter: brightness(1.1); 
+  color: #fff; 
+}
+.btn-moova-outline { 
+  color: var(--moova-primary); 
+  border-color: var(--moova-primary); 
+}
+.btn-moova-outline:hover { 
+  background-color: var(--moova-primary); 
+  color: #fff; 
+}
+.btn-danger-moova { 
+  background: linear-gradient(135deg,#ef4444,#b91c1c); 
+  border: none; 
+  color: #fff; 
+}
 .btn-danger-moova:hover { filter: brightness(0.92); color: #fff; }
 
 /* Badges de estado */
 .badge-nuevo, .badge-activo, .badge-completada, .badge-programada,
-.badge-pendiente { background-color: var(--moova-green-soft); color: #22543d; }
-.badge-recurrente { background-color: var(--moova-sky); color: #2b6cb0; }
-.badge-cancelada, .badge-inactivo { background-color: #fed7d7; color: #9b2c2c; }
+.badge-pendiente { background-color: var(--moova-primary-soft); color: #0369a1; }
+.badge-recurrente { background-color: #e0e7ff; color: #3730a3; }
+.badge-cancelada, .badge-inactivo { background-color: #fee2e2; color: #9b2c2c; }
 
 /* Cabeceras de panel */
 .panel-header {
@@ -59,16 +76,16 @@ h1, h2, h3, h4, .logo, .display-heading {
 /* Card con sombra suave */
 .card-moova, .nota-card, .card-cita, .form-card {
   background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.75rem;
-  box-shadow: 0 1px 3px rgba(26,58,92,0.08);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 1rem;
+  box-shadow: 0 10px 30px rgba(2, 132, 199, 0.06);
 }
 
 /* Login */
 .login-bg {
   min-height: 100vh;
   display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(135deg, var(--moova-green), var(--moova-navy));
+  background: linear-gradient(135deg, #0284c7, #1e3a8a);
   padding: 1rem;
 }
 
@@ -80,11 +97,11 @@ h1, h2, h3, h4, .logo, .display-heading {
 .btn-icon {
   display: inline-flex; align-items: center; justify-content: center;
   width: 34px; height: 34px; border-radius: 8px; border: none;
-  background: #edf2f7; color: var(--moova-text); cursor: pointer;
+  background: #f1f5f9; color: var(--moova-text); cursor: pointer;
 }
 .btn-icon:hover { background: #e2e8f0; }
 
-/* Pie de página social */
+/* Footer social */
 .contacto-btn {
   display: inline-flex; align-items: center; gap: 8px;
   padding: 8px 16px; border-radius: 50px; color: #fff; text-decoration: none;
@@ -101,7 +118,7 @@ h1, h2, h3, h4, .logo, .display-heading {
   border-radius: 16px;
   padding: 1.5rem;
   margin-bottom: 1.25rem;
-  box-shadow: 0 4px 16px rgba(26,58,92,0.08);
+  box-shadow: 0 4px 16px rgba(2,132,199,0.08);
 }
 .pago-method-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
 .pago-method-head h2 { font-family: 'Fredoka', sans-serif; font-size: 1.1rem; color: var(--moova-navy); margin: 0; }
@@ -109,11 +126,11 @@ h1, h2, h3, h4, .logo, .display-heading {
 .pago-method-icon {
   width: 46px; height: 46px; border-radius: 12px; flex: 0 0 46px;
   display: flex; align-items: center; justify-content: center;
-  background: var(--moova-green-soft); color: var(--moova-green); font-size: 1.3rem;
+  background: var(--moova-primary-soft); color: var(--moova-primary); font-size: 1.3rem;
 }
 .pago-monto {
   font-family: 'Fredoka', sans-serif; font-size: 1.8rem; font-weight: 700;
-  color: var(--moova-green); margin-bottom: 16px;
+  color: var(--moova-primary); margin-bottom: 16px;
 }
 .pago-nota { font-size: 0.82rem; color: var(--moova-muted); margin-top: 14px; }
 .pago-error { color: #b91c1c; font-size: 0.85rem; margin-top: 8px; min-height: 1em; }
@@ -126,12 +143,12 @@ h1, h2, h3, h4, .logo, .display-heading {
 .resumen-label { color: var(--moova-muted); }
 .resumen-value { font-weight: 600; color: var(--moova-text); text-align: right; }
 
-/* Primer de tarjeta */
+/* Vista previa de tarjeta */
 .card-preview {
   height: 200px; border-radius: 16px; padding: 22px; margin-bottom: 20px;
-  background: linear-gradient(135deg, #1a3a5c, #2f855a); color: #fff;
+  background: linear-gradient(135deg, #1e3a8a, #0284c7); color: #fff;
   display: flex; flex-direction: column; justify-content: space-between;
-  box-shadow: 0 8px 24px rgba(26,58,92,0.3);
+  box-shadow: 0 8px 24px rgba(30,58,138,0.3);
 }
 .card-preview-chip { font-size: 1.5rem; }
 .card-preview-num {
@@ -146,7 +163,7 @@ h1, h2, h3, h4, .logo, .display-heading {
   width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px;
   font-family: inherit; font-size: 0.95rem; background: #fff;
 }
-.card-input:focus { outline: none; border-color: var(--moova-green); }
+.card-input:focus { outline: none; border-color: var(--moova-primary); }
 
 /* Modales */
 .modal-overlay {
@@ -162,10 +179,10 @@ h1, h2, h3, h4, .logo, .display-heading {
   position: absolute; top: 12px; right: 16px; border: none; background: none;
   font-size: 1.6rem; line-height: 1; color: var(--moova-muted); cursor: pointer;
 }
-.modal-monto { font-family: 'Fredoka', sans-serif; font-size: 1.6rem; font-weight: 700; color: var(--moova-green); margin: 12px 0; }
+.modal-monto { font-family: 'Fredoka', sans-serif; font-size: 1.6rem; font-weight: 700; color: var(--moova-primary); margin: 12px 0; }
 .qr-box { display: flex; justify-content: center; padding: 16px 0; }
 .qr-box img { width: 220px; height: 220px; border: 1px solid #e2e8f0; border-radius: 12px; }
 .modal-pasos li { margin-bottom: 6px; font-size: 0.9rem; color: var(--moova-text); }
-.exito-icon { font-size: 3.5rem; color: #16a34a; display: block; text-align: center; margin-bottom: 10px; }
+.exito-icon { font-size: 3.5rem; color: #0284c7; display: block; text-align: center; margin-bottom: 10px; }
 .modal-exito { text-align: center; }
 .modal-exito p { color: var(--moova-muted); font-size: 0.92rem; }
