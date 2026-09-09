@@ -61,15 +61,15 @@
         <div class="d-flex flex-wrap gap-2 mb-4" id="selectorCitas">
             {% for i in range(1, proxima_cita + 4) %}
                 {% if i <= ultima_cita %}
-                <span class="cita-badge ocupada" title="Cita {{ i }} ya registrada">
+                <span class="cita-badge ocupada {{ 'cita-uno' if i == 1 else 'cita-siguiente' }}" title="Cita {{ i }} ya registrada">
                     <i class="bi bi-lock-fill"></i> Cita {{ i }}
                 </span>
                 {% elif i == proxima_cita %}
-                <span class="cita-badge disponible">
+                <span class="cita-badge disponible {{ 'cita-uno' if i == 1 else 'cita-siguiente' }}">
                     <i class="bi bi-plus-circle"></i> Cita {{ i }} (a registrar)
                 </span>
                 {% else %}
-                <span class="cita-badge habilitada" title="Disponible al completar la Cita {{ i - 1 }}">
+                <span class="cita-badge habilitada {{ 'cita-uno' if i == 1 else 'cita-siguiente' }}" title="Disponible al completar la Cita {{ i - 1 }}">
                     Cita {{ i }}
                 </span>
                 {% endif %}

@@ -204,6 +204,19 @@ h1, h2, h3, h4, h5, h6 {
   opacity: 0.85;
 }
 .cita-badge.habilitada { cursor: not-allowed; }
+.cita-badge.cita-uno {
+  background: #16a34a;
+  color: #fff;
+  border-color: #16a34a;
+}
+.cita-badge.cita-uno:hover { background: #15803d; border-color: #15803d; transform: translateY(-2px); }
+.cita-badge.cita-siguiente {
+  background: #dc2626;
+  color: #fff;
+  border-color: #dc2626;
+}
+.cita-badge.cita-siguiente:hover { background: #b91c1c; border-color: #b91c1c; transform: translateY(-2px); }
+.cita-badge.cita-siguiente.ocupada, .cita-badge.cita-uno.ocupada { cursor: not-allowed; }
 .cita-badge.numero {
   cursor: default;
   background: var(--moova-primary);
