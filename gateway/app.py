@@ -4,7 +4,7 @@ import yaml
 import requests
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, Response
 from flask_bcrypt import Bcrypt
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from shared.config import REDES_SOCIALES, SERVICE_URLS
 from shared.service_client import auth_client, pacientes_client, citas_client, pagos_client, notas_client
 from shared.audit import log_accion
@@ -138,8 +138,24 @@ def create_app():
         except ValueError:
             fecha_obj = datetime.today()
 
-        ayer = (fecha_obj - timedelta(days=1)).strftime("%Y-%m-%d")
-        manana = (fecha_obj + timedelta(days=1)).strftime("%Y-%m-%d")
+        # Flechas del calendario: saltan entre fechas que SÍ tienen pacientes
+        # (citas programadas), ocultando los días vacíos en la navegación.
+        anterior = None
+        siguiente = None
+        try:
+            todas, _ = citas_client.get("/api/citas?estado=programada")
+            fechas = sorted({str(c.get("fecha_cita") or "")[:10] for c in todas.get("citas", [])})
+            for f in reversed(fechas):
+                if f < fecha_str:
+                    anterior = f
+                    break
+            for f in fechas:
+                if f > fecha_str:
+                    siguiente = f
+                    break
+        except Exception:
+            pass
+
         dias = ["Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"]
         dia_semana = dias[fecha_obj.weekday() + 1 if fecha_obj.weekday() < 6 else 0]
         fecha_display = fecha_obj.strftime("%d/%m/%Y")
@@ -153,7 +169,7 @@ def create_app():
         return render_template(
             "interfaz.html", pacientes=pacientes,
             fecha_actual=fecha_str, fecha_display=fecha_display,
-            dia_semana=dia_semana, ayer=ayer, manana=manana,
+            dia_semana=dia_semana, anterior=anterior, siguiente=siguiente,
             es_hoy=es_hoy, nombre_usuario=session.get("usuario_nombre"), es_admin=es_admin,
         )
 
