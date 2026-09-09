@@ -13,6 +13,18 @@
     <nav class="navbar navbar-expand bg-white border-bottom shadow-sm px-3 py-2">
         <div class="container-fluid">
             <span class="navbar-brand mb-0 h1 brand-logo">MOOVA <span>Clinic</span></span>
+            <div class="d-flex align-items-center gap-2 ms-auto flex-wrap">
+                <a href="{{ url_for('interfaz') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+                    <i class="bi bi-calendar3"></i> Pacientes del día
+                </a>
+                <a href="{{ url_for('detalle_paciente_page', paciente_dni=paciente.dni) }}"
+                    class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+                    <i class="bi bi-person-vcard"></i> Ver historial
+                </a>
+                <a href="{{ url_for('logout') }}" class="btn btn-sm btn-danger-moova d-inline-flex align-items-center gap-1">
+                    <i class="bi bi-box-arrow-right"></i> Cerrar sesion
+                </a>
+            </div>
         </div>
     </nav>
 
@@ -26,10 +38,6 @@
                 <a href="{{ url_for('ver_cita_page', paciente_dni=paciente.dni, cita_id=cita.id) }}"
                     class="btn btn-outline-secondary btn-sm">Ver cita</a>
                 {% endif %}
-                <a href="{{ url_for('detalle_paciente_page', paciente_dni=paciente.dni) }}"
-                    class="btn btn-outline-secondary btn-sm">Ver historial</a>
-                <a href="{{ url_for('interfaz') }}" class="btn btn-outline-secondary btn-sm">Pacientes del día</a>
-                <a href="{{ url_for('logout') }}" class="btn btn-danger-moova btn-sm">Cerrar sesion</a>
             </div>
         </div>
 
