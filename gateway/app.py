@@ -451,4 +451,48 @@ def create_app():
         data, _ = citas_client.get("/api/citas/estadisticas")
         return jsonify(data)
 
+    @app.route("/api/admin/metricas")
+    def api_admin_metricas():
+        if "usuario_id" not in session or session.get("rol") != "admin":
+            return jsonify({"error": "No autorizado"}), 401
+
+        filas = call_proc("sp_dashboard_metricas_admin")
+
+        citas_estado = {"programada": 0, "completada": 0, "cancelada": 0}
+        ingresos_metodo = {}
+        ingresos_mes = {}
+        sesiones = {"usadas": 0, "restantes": 0}
+
+        for f in filas:
+            tipo = f.get("tipo")
+            etiqueta = f.get("etiqueta")
+            valor = float(f.get("valor") or 0)
+            periodo = f.get("periodo")
+
+            if tipo == "citas_estado" and etiqueta in citas_estado:
+                citas_estado[etiqueta] = int(valor)
+            elif tipo == "ingresos_metodo":
+                ingresos_metodo[etiqueta] = valor
+            elif tipo == "ingresos_mes":
+                ingresos_mes.setdefault(periodo, {})[etiqueta] = valor
+            elif tipo == "sesiones" and etiqueta in sesiones:
+                sesiones[etiqueta] = int(valor)
+
+        meses = sorted(ingresos_mes.keys())
+        metodos = sorted(set(ingresos_metodo.keys()) | {
+            m for datos in ingresos_mes.values() for m in datos.keys()
+        })
+
+        return jsonify({
+            "success": True,
+            "citas_por_estado": citas_estado,
+            "ingresos_por_metodo": ingresos_metodo,
+            "ingresos_por_mes": {
+                "meses": meses,
+                "metodos": metodos,
+                "series": ingresos_mes,
+            },
+            "sesiones": sesiones,
+        })
+
     return app

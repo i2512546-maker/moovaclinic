@@ -61,6 +61,61 @@
         {% endif %}
     {% endwith %}
 
+    <!-- Dashboard de metricas -->
+    <div class="card card-moova shadow-sm mb-4">
+        <div class="card-header panel-header d-flex align-items-center gap-2">
+            <i class="bi bi-graph-up"></i>
+            <h2 class="h5 mb-0">Dashboard de Métricas</h2>
+        </div>
+        <div class="card-body">
+            <div class="row g-3 mb-3" id="metricas-kpis">
+                <div class="col-6 col-md-3">
+                    <div class="p-3 rounded-3 text-center h-100" style="background:var(--celeste-claro, #DDF4FC);">
+                        <div class="small text-muted">Programadas</div>
+                        <div class="h4 mb-0" id="kpi-programadas">—</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-3 rounded-3 text-center h-100" style="background:var(--celeste-claro, #DDF4FC);">
+                        <div class="small text-muted">Completadas</div>
+                        <div class="h4 mb-0" id="kpi-completadas">—</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-3 rounded-3 text-center h-100" style="background:var(--celeste-claro, #DDF4FC);">
+                        <div class="small text-muted">Canceladas</div>
+                        <div class="h4 mb-0" id="kpi-canceladas">—</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-3 rounded-3 text-center h-100" style="background:var(--celeste-claro, #DDF4FC);">
+                        <div class="small text-muted">Ingresos totales (S/)</div>
+                        <div class="h4 mb-0" id="kpi-ingresos">—</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="metricas-error" class="alert alert-danger d-none"></div>
+
+            <div class="row g-4">
+                <div class="col-12 col-lg-5">
+                    <h3 class="h6 text-muted mb-2">Citas por estado</h3>
+                    <div style="position:relative; height:280px;">
+                        <canvas id="chartCitasEstado"></canvas>
+                    </div>
+                </div>
+                <div class="col-12 col-lg-7">
+                    <h3 class="h6 text-muted mb-2">Ingresos por método de pago y por mes</h3>
+                    <div style="position:relative; height:280px;">
+                        <canvas id="chartIngresosMes"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-3 small text-muted" id="metricas-sesiones"></div>
+        </div>
+    </div>
+
     <div class="row g-4">
 
         <div class="col-12 col-lg-5 col-xl-4">
@@ -346,5 +401,145 @@
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    const COLORES_METODO = {
+        yape: '#8E44EC',
+        plin: '#20B8EE',
+        tarjeta: '#0878C9'
+    };
+    const COLOR_METODO_DEFAULT = '#9DDEF5';
+
+    function colorMetodo(nombre) {
+        return COLORES_METODO[(nombre || '').toLowerCase()] || COLOR_METODO_DEFAULT;
+    }
+
+    function capitalizar(txt) {
+        if (!txt) return '';
+        return txt.charAt(0).toUpperCase() + txt.slice(1);
+    }
+
+    function formatoMes(periodo) {
+        if (!periodo) return periodo;
+        const [anio, mes] = periodo.split('-');
+        const nombres = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+        const idx = parseInt(mes, 10) - 1;
+        return (nombres[idx] || mes) + ' ' + anio;
+    }
+
+    async function cargarMetricas() {
+        const errorBox = document.getElementById('metricas-error');
+        try {
+            const resp = await fetch('/api/admin/metricas', { headers: { 'Accept': 'application/json' } });
+            if (!resp.ok) throw new Error('No se pudo cargar el dashboard de métricas.');
+            const data = await resp.json();
+            pintarKPIs(data);
+            pintarDona(data.citas_por_estado);
+            pintarBarras(data.ingresos_por_mes);
+            pintarSesiones(data.sesiones);
+        } catch (err) {
+            errorBox.textContent = err.message || 'Error cargando métricas.';
+            errorBox.classList.remove('d-none');
+        }
+    }
+
+    function pintarKPIs(data) {
+        const c = data.citas_por_estado || {};
+        document.getElementById('kpi-programadas').textContent = c.programada ?? 0;
+        document.getElementById('kpi-completadas').textContent = c.completada ?? 0;
+        document.getElementById('kpi-canceladas').textContent = c.cancelada ?? 0;
+
+        const totalIngresos = Object.values(data.ingresos_por_metodo || {})
+            .reduce((acc, v) => acc + Number(v || 0), 0);
+        document.getElementById('kpi-ingresos').textContent =
+            totalIngresos.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function pintarDona(citasEstado) {
+        const ctx = document.getElementById('chartCitasEstado');
+        if (!ctx || typeof Chart === 'undefined') return;
+        const etiquetas = ['Programada', 'Completada', 'Cancelada'];
+        const valores = [
+            citasEstado.programada || 0,
+            citasEstado.completada || 0,
+            citasEstado.cancelada || 0
+        ];
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: etiquetas,
+                datasets: [{
+                    data: valores,
+                    backgroundColor: ['#20B8EE', '#22c55e', '#ef4444'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    }
+
+    function pintarBarras(ingresosPorMes) {
+        const ctx = document.getElementById('chartIngresosMes');
+        if (!ctx || typeof Chart === 'undefined') return;
+
+        const meses = (ingresosPorMes && ingresosPorMes.meses) || [];
+        const metodos = (ingresosPorMes && ingresosPorMes.metodos) || [];
+        const series = (ingresosPorMes && ingresosPorMes.series) || {};
+
+        if (meses.length === 0 || metodos.length === 0) {
+            ctx.closest('div').insertAdjacentHTML(
+                'beforeend',
+                '<p class="text-muted text-center mt-4">Aún no hay pagos confirmados para graficar.</p>'
+            );
+            return;
+        }
+
+        const datasets = metodos.map(metodo => ({
+            label: capitalizar(metodo),
+            data: meses.map(mes => (series[mes] && series[mes][metodo]) || 0),
+            backgroundColor: colorMetodo(metodo)
+        }));
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: meses.map(formatoMes),
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { stacked: true },
+                    y: { stacked: true, beginAtZero: true }
+                },
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    }
+
+    function pintarSesiones(sesiones) {
+        const el = document.getElementById('metricas-sesiones');
+        if (!el || !sesiones) return;
+        const usadas = sesiones.usadas || 0;
+        const restantes = sesiones.restantes || 0;
+        const total = usadas + restantes;
+        el.innerHTML = total > 0
+            ? `<i class="bi bi-clipboard2-pulse"></i> Sesiones de paquetes: <strong>${usadas}</strong> usadas / <strong>${restantes}</strong> restantes (${total} en total)`
+            : 'No hay paquetes de sesiones registrados.';
+    }
+
+    document.addEventListener('DOMContentLoaded', cargarMetricas);
+})();
+</script>
 </body>
 </html>

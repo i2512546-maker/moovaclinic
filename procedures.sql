@@ -623,6 +623,64 @@ BEGIN
 END$$
 
 -- ============================================================
+-- DASHBOARD ADMIN (gateway/app.py -> GET /api/admin/metricas)
+-- Devuelve UN SOLO result set (UNION ALL) con columnas fijas
+-- tipo/etiqueta/valor/periodo, para ser compatible con
+-- shared.proc.call_proc() (que aplana todos los stored_results
+-- en una sola lista y por lo tanto no soporta result sets
+-- separados). El backend Python agrupa las filas por `tipo`.
+--
+-- Filas devueltas:
+--   tipo='citas_estado'    etiqueta=programada|completada|cancelada        valor=conteo
+--   tipo='ingresos_metodo' etiqueta=yape|plin|tarjeta                      valor=suma monto (solo pagos 'pagado')
+--   tipo='ingresos_mes'    etiqueta=yape|plin|tarjeta   periodo='YYYY-MM'  valor=suma monto del mes (ultimos 6 meses)
+--   tipo='sesiones'        etiqueta=usadas|restantes                      valor=conteo de sesiones (paquetes)
+-- ============================================================
+
+DROP PROCEDURE IF EXISTS `sp_dashboard_metricas_admin`$$
+CREATE PROCEDURE `sp_dashboard_metricas_admin`()
+BEGIN
+    -- 1) Citas por estado (grafico de dona)
+    SELECT 'citas_estado' AS tipo, h.estado AS etiqueta, COUNT(*) AS valor, NULL AS periodo
+    FROM historial_citas h
+    GROUP BY h.estado
+
+    UNION ALL
+
+    -- 2) Ingresos totales por metodo de pago (solo pagos confirmados)
+    SELECT 'ingresos_metodo' AS tipo, pg.metodo_pago AS etiqueta,
+           SUM(pg.monto) AS valor, NULL AS periodo
+    FROM pagos pg
+    WHERE pg.estado_pago = 'pagado'
+    GROUP BY pg.metodo_pago
+
+    UNION ALL
+
+    -- 3) Ingresos por metodo de pago y por mes, ultimos 6 meses (grafico de barras)
+    SELECT 'ingresos_mes' AS tipo, pg.metodo_pago AS etiqueta,
+           SUM(pg.monto) AS valor, DATE_FORMAT(pg.fecha_pago, '%Y-%m') AS periodo
+    FROM pagos pg
+    WHERE pg.estado_pago = 'pagado'
+      AND pg.fecha_pago >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+    GROUP BY pg.metodo_pago, DATE_FORMAT(pg.fecha_pago, '%Y-%m')
+
+    UNION ALL
+
+    -- 4) Sesiones usadas vs restantes (paquetes de sesiones)
+    SELECT 'sesiones' AS tipo, 'usadas' AS etiqueta,
+           COALESCE(SUM(ps.sesiones_usadas), 0) AS valor, NULL AS periodo
+    FROM paquetes_sesiones ps
+
+    UNION ALL
+
+    SELECT 'sesiones' AS tipo, 'restantes' AS etiqueta,
+           COALESCE(SUM(ps.total_sesiones - ps.sesiones_usadas), 0) AS valor, NULL AS periodo
+    FROM paquetes_sesiones ps
+
+    ORDER BY tipo, periodo, etiqueta;
+END$$
+
+-- ============================================================
 -- FICHA CLINICA  (services/pacientes_service/routes.py -> PDF)
 -- Devuelve 4 result sets en orden:
 --   1. Datos del paciente (0 o 1 fila)

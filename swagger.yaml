@@ -35,6 +35,8 @@ tags:
     description: Gestion de pagos (Yape, Plin, Niubiz, webhook)
   - name: notas
     description: Notas clinicas
+  - name: admin
+    description: Panel de administracion (metricas y gestion interna)
 paths:
   # ---------------- AUTH ----------------
   /api/auth/login:
@@ -901,3 +903,49 @@ paths:
               success: { type: boolean, example: true }
               nota_id: { type: integer }
         "400": { description: Nota vacia }
+
+  # ---------------- ADMIN ----------------
+  /api/admin/metricas:
+    get:
+      tags: [admin]
+      summary: Metricas para el dashboard del panel de administrador
+      description: |
+        Requiere sesion activa con rol admin. Devuelve conteo de citas
+        por estado, ingresos totales por metodo de pago, ingresos por
+        metodo y mes (ultimos 6 meses, solo pagos confirmados) y el
+        total de sesiones usadas/restantes de los paquetes de sesiones.
+      responses:
+        "200":
+          description: Metricas del dashboard
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              citas_por_estado:
+                type: object
+                properties:
+                  programada: { type: integer, example: 12 }
+                  completada: { type: integer, example: 45 }
+                  cancelada: { type: integer, example: 3 }
+              ingresos_por_metodo:
+                type: object
+                description: "Suma de montos pagados por metodo, ej: {\"yape\": 1500.00, \"plin\": 800.00, \"tarjeta\": 2000.00}"
+                additionalProperties: { type: number, format: float }
+              ingresos_por_mes:
+                type: object
+                properties:
+                  meses:
+                    type: array
+                    items: { type: string, example: "2026-08" }
+                  metodos:
+                    type: array
+                    items: { type: string, example: "yape" }
+                  series:
+                    type: object
+                    description: "Mapa periodo -> {metodo: monto}"
+              sesiones:
+                type: object
+                properties:
+                  usadas: { type: integer, example: 120 }
+                  restantes: { type: integer, example: 45 }
+        "401": { description: No autorizado (requiere sesion admin) }
