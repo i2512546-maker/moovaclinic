@@ -45,7 +45,7 @@
         <tr><th>Fecha de nacimiento</th><td>{{ paciente.fecha_nacimiento or '-' }}</td>
             <th>Sexo</th><td>{{ 'Masculino' if paciente.sexo == 'M' else ('Femenino' if paciente.sexo == 'F' else (paciente.sexo or '-')) }}</td></tr>
         <tr><th>Domicilio</th><td>{{ paciente.direccion or '-' }}</td>
-            <th>Seguro</th><td>{{ paciente.seguro or '-' }}</td></tr>
+            <td></td><td></td></tr>
     </table>
 
     <h2>Citas / Atenciones</h2>
