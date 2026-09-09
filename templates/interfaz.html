@@ -118,10 +118,17 @@
                                 </form>
                             </td>
                             <td class="text-end">
-                                <button type="button" class="btn btn-sm btn-moova-outline d-inline-flex align-items-center gap-1"
-                                    onclick="event.stopPropagation(); seleccionarPaciente('{{ p.dni }}')">
-                                    <i class="bi bi-eye"></i> Ver detalle
-                                </button>
+                                <div class="d-flex align-items-center justify-content-end gap-2">
+                                    <a href="/pacientes/{{ p.dni }}/rehabilitacion"
+                                        class="btn btn-moova btn-sm d-inline-flex align-items-center gap-1"
+                                        onclick="event.stopPropagation()">
+                                        <i class="bi bi-plus-circle"></i> REGISTRO
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-moova-outline d-inline-flex align-items-center gap-1"
+                                        onclick="event.stopPropagation(); seleccionarPaciente('{{ p.dni }}')">
+                                        <i class="bi bi-eye"></i> Ver detalle
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}

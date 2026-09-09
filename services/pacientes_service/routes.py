@@ -26,19 +26,28 @@ def detalle_paciente(dni):
 @pacientes_bp.route("/api/pacientes/<dni>/historial", methods=["GET"])
 def historial_paciente(dni):
     """Endpoint compuesto: devuelve en una sola llamada todos los datos
-    de la vista 'Historial del Paciente'."""
+    de la vista 'Historial del Paciente'. Cada consulta es defensiva:
+    si una tabla/procedure falla, se devuelve lista vacia para esa
+    seccion sin romper la pagina."""
     paciente = call_proc_one("sp_obtener_paciente_por_dni", (dni,))
     if not paciente:
         return jsonify({"error": "Paciente no encontrado"}), 404
 
     paciente_id = paciente["id"]
+
+    def _seguro(proc, *args):
+        try:
+            return call_proc(proc, *args) or []
+        except Exception:
+            return []
+
     return jsonify({
         "success": True,
         "paciente": paciente,
-        "historial": call_proc("sp_obtener_historial_paciente", (paciente_id,)),
-        "paquetes": call_proc("sp_listar_paquetes", (paciente_id,)),
-        "evaluaciones": call_proc("sp_listar_evaluaciones", (paciente_id,)),
-        "consentimientos": call_proc("sp_listar_consentimientos", (paciente_id,)),
+        "historial": _seguro("sp_obtener_historial_paciente", (paciente_id,)),
+        "paquetes": _seguro("sp_listar_paquetes", (paciente_id,)),
+        "evaluaciones": _seguro("sp_listar_evaluaciones", (paciente_id,)),
+        "consentimientos": _seguro("sp_listar_consentimientos", (paciente_id,)),
     })
 
 
@@ -134,10 +143,22 @@ def listar_rehabilitaciones(dni):
         return jsonify({"error": "Paciente no encontrado"}), 404
 
     paciente_id = paciente["id"]
-    historial = call_proc("sp_listar_rehabilitaciones", (paciente_id,))
-    resumen = call_proc_one("sp_resumen_rehabilitaciones", (paciente_id,)) or {}
-    terapeutas = call_proc("sp_listar_terapeutas_activos")
-    areas = call_proc("sp_listar_areas_rehabilitacion")
+
+    def _seguro(proc, *args):
+        try:
+            return call_proc(proc, *args) or []
+        except Exception:
+            return []
+
+    historial = _seguro("sp_listar_rehabilitaciones", (paciente_id,))
+    resumen = {}
+    try:
+        r = call_proc_one("sp_resumen_rehabilitaciones", (paciente_id,))
+        resumen = r or {}
+    except Exception:
+        resumen = {}
+    terapeutas = _seguro("sp_listar_terapeutas_activos")
+    areas = _seguro("sp_listar_areas_rehabilitacion")
 
     return jsonify({
         "success": True,

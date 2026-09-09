@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Rehabilitación - MOOVA Clinic</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Nunito:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap-style.css') }}">
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <div class="panel-header d-flex align-items-center justify-content-between rounded mb-4">
+            <h1 class="h4 mb-0 d-flex align-items-center gap-2">
+                <i class="bi bi-lungs"></i> Registro de Rehabilitación
+            </h1>
+            <div class="d-flex align-items-center gap-2">
+                <a href="{{ url_for('detalle_paciente_page', paciente_dni=paciente.dni) }}"
+                    class="btn btn-outline-secondary btn-sm">Ver historial</a>
+                <a href="{{ url_for('interfaz') }}" class="btn btn-outline-secondary btn-sm">Pacientes del día</a>
+                <a href="{{ url_for('pacientes_page') }}" class="btn btn-outline-secondary btn-sm">Pacientes Registrados</a>
+                <a href="{{ url_for('logout') }}" class="btn btn-danger-moova btn-sm">Cerrar sesion</a>
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for msg in messages %}
+                    {% if msg.startswith('exito:') %}
+                    <div class="alert alert-success d-flex align-items-center gap-2">
+                        <i class="bi bi-check-circle"></i> {{ msg[6:] }}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-danger d-flex align-items-center gap-2">
+                        <i class="bi bi-exclamation-circle"></i> {{ msg }}
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Datos del paciente (autocargados por DNI) -->
+        <div class="card card-moova shadow-sm mb-4">
+            <div class="card-header panel-header">
+                <h2 class="h5 mb-0 d-flex align-items-center gap-2"><i class="bi bi-person-vcard"></i> Datos del Paciente</h2>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small text-uppercase">Paciente ID</label>
+                        <input type="text" class="form-control" value="{{ paciente.id }}" readonly>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small text-uppercase">DNI</label>
+                        <input type="text" class="form-control" value="{{ paciente.dni }}" readonly>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small text-uppercase">Nombre completo</label>
+                        <input type="text" class="form-control" value="{{ paciente.nombre }} {{ paciente.apellido }}" readonly>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small text-uppercase">Teléfono</label>
+                        <input type="text" class="form-control" value="{{ paciente.telefono or 'No registrado' }}" readonly>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small text-uppercase">Correo</label>
+                        <input type="text" class="form-control" value="{{ paciente.email or 'No registrado' }}" readonly>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small text-uppercase">Citas registradas</label>
+                        <input type="text" class="form-control" value="{{ total_citas }} cita(s)" readonly>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <!-- Columna izquierda: selector de cita -->
+            <div class="col-lg-5">
+                <div class="card card-moova shadow-sm h-100">
+                    <div class="card-header panel-header">
+                        <h2 class="h5 mb-0 d-flex align-items-center gap-2"><i class="bi bi-clipboard2-pulse"></i> Citas de Rehabilitación</h2>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">
+                            Las citas se asignan en orden consecutivo. Solo puedes registrar la <strong>Cita {{ proxima_cita }}</strong>;
+                            las anteriores quedan registradas y bloqueadas.
+                        </p>
+
+                        <div class="d-flex flex-wrap gap-2 mb-4" id="selectorCitas">
+                            {% for i in range(1, proxima_cita + 4) %}
+                                {% if i <= ultima_cita %}
+                                <span class="cita-badge ocupada" title="Cita {{ i }} ya registrada">
+                                    <i class="bi bi-lock-fill"></i> Cita {{ i }}
+                                </span>
+                                {% elif i == proxima_cita %}
+                                <button type="button" class="cita-badge disponible" data-numero="{{ i }}" data-proxima="1">
+                                    <i class="bi bi-plus-circle"></i> Cita {{ i }}
+                                </button>
+                                {% elif i == proxima_cita + 1 %}
+                                <button type="button" class="cita-badge habilitada" data-numero="{{ i }}" data-proxima="0" data-anterior="1" disabled>
+                                    <i class="bi bi-lock"></i> Cita {{ i }}
+                                </button>
+                                {% else %}
+                                <span class="cita-badge habilitada" title="Disponible al completar la Cita {{ i - 1 }}">
+                                    Cita {{ i }}
+                                </span>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+
+                        <div class="alert alert-info small mb-0">
+                            <i class="bi bi-info-circle"></i> Aunque se muestre el estado visual de las citas, la restricción también se
+                            valida en el servidor y en la base de datos (UNIQUE paciente_id + numero_cita).
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Columna derecha: formulario de registro -->
+            <div class="col-lg-7">
+                <div class="card card-moova shadow-sm">
+                    <div class="card-header panel-header">
+                        <h2 class="h5 mb-0 d-flex align-items-center gap-2"><i class="bi bi-pencil-square"></i> Datos de la Atención</h2>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" id="formRehab">
+                            <input type="hidden" name="numero_cita" value="{{ proxima_cita }}">
+                            <div class="row g-3">
+                                <div class="col-md-2">
+                                    <label class="form-label">Cita</label>
+                                    <input type="text" class="form-control" value="Cita {{ proxima_cita }}" readonly>
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label">Fecha de la cita</label>
+                                    <input type="date" name="fecha_cita" class="form-control" required>
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label">Hora</label>
+                                    <input type="time" name="hora_ingreso" class="form-control">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Hora de salida</label>
+                                    <input type="time" name="hora_salida" class="form-control">
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label">Tipo / Área de rehabilitación</label>
+                                    <select name="area_tipo" class="form-select">
+                                        <option value="">Seleccionar</option>
+                                        {% for a in areas %}
+                                        <option value="{{ a.nombre }}">{{ a.nombre }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label">Motivo / Diagnóstico</label>
+                                    <input type="text" name="motivo_diagnostico" class="form-control"
+                                        placeholder="Ej: Dolor lumbar crónico" required>
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label">Profesional que realizó la atención</label>
+                                    <select name="profesional" class="form-select">
+                                        <option value="">Seleccionar</option>
+                                        {% for t in terapeutas %}
+                                        <option value="{{ t.terapeuta_nombre }}">{{ t.terapeuta_nombre }} ({{ t.especialidad or 'General' }})</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label">Tratamiento realizado</label>
+                                    <textarea name="tratamiento" class="form-control" rows="2"
+                                        placeholder="Ej: Terapia manual, electroterapia, ejercicios de fortalecimiento..."></textarea>
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label">Observaciones</label>
+                                    <textarea name="observaciones" class="form-control" rows="2"
+                                        placeholder="Observaciones adicionales de la atención"></textarea>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Estado de la atención</label>
+                                    <select name="estado" class="form-select">
+                                        <option value="registrada">Registrada</option>
+                                        <option value="completada">Completada</option>
+                                        <option value="cancelada">Cancelada</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Próxima cita</label>
+                                    <input type="date" name="proxima_cita" class="form-control">
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-end gap-2 mt-4">
+                                <a href="{{ url_for('interfaz') }}" class="btn btn-outline-secondary">Cancelar</a>
+                                <button type="submit" class="btn btn-moova d-inline-flex align-items-center gap-1">
+                                    <i class="bi bi-check-lg"></i> Guardar Rehabilitación
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if rehabilitaciones %}
+        <div class="card card-moova shadow-sm mt-4">
+            <div class="card-header panel-header d-flex align-items-center justify-content-between">
+                <h2 class="h5 mb-0 d-flex align-items-center gap-2"><i class="bi bi-clock-history"></i> Rehabilitaciones registradas de este paciente</h2>
+                <span class="badge text-bg-light">{{ rehabilitaciones|length }}</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover table-striped align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Cita</th>
+                            <th>Fecha</th>
+                            <th>Hora</th>
+                            <th>Tipo</th>
+                            <th>Profesional</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in rehabilitaciones %}
+                        <tr>
+                            <td><strong>Cita {{ r.numero_cita }}</strong></td>
+                            <td>{{ r.fecha_cita }}</td>
+                            <td>{{ r.hora_ingreso or '-' }}</td>
+                            <td>{{ r.area_tipo or '-' }}</td>
+                            <td>{{ r.profesional or '-' }}</td>
+                            <td><span class="badge badge-{{ r.estado }}">{{ r.estado|capitalize }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        const fechaInput = document.querySelector('input[name="fecha_cita"]');
+        if (fechaInput) {
+            fechaInput.value = new Date().toISOString().slice(0, 10);
+        }
+
+        // Prevenir seleccion de citas que no son la siguiente disponible
+        document.querySelectorAll('#selectorCitas .cita-badge.disponible').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const n = btn.getAttribute('data-numero');
+                document.querySelector('input[name="numero_cita"]').value = n;
+                document.querySelectorAll('#selectorCitas .cita-badge').forEach(b => b.classList.remove('btn-seleccion'));
+                btn.classList.add('btn-seleccion');
+            });
+        });
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

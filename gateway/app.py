@@ -4,7 +4,7 @@ import yaml
 import requests
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, Response
 from flask_bcrypt import Bcrypt
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from shared.config import REDES_SOCIALES, SERVICE_URLS
 from shared.service_client import auth_client, pacientes_client, citas_client, pagos_client, notas_client
 from shared.audit import log_accion
@@ -401,8 +401,22 @@ def create_app():
     def detalle_paciente_page(paciente_dni):
         if "usuario_id" not in session or session.get("rol") != "admin":
             return redirect(url_for("login"))
-        data, _ = pacientes_client.get(f"/api/pacientes/{paciente_dni}/historial")
-        rehab, _ = pacientes_client.get(f"/api/rehabilitaciones/{paciente_dni}")
+
+        data = {}
+        rehab = {}
+        try:
+            d, st = pacientes_client.get(f"/api/pacientes/{paciente_dni}/historial")
+            if st == 200:
+                data = d
+        except Exception:
+            pass
+        try:
+            r, st = pacientes_client.get(f"/api/rehabilitaciones/{paciente_dni}")
+            if st == 200:
+                rehab = r
+        except Exception:
+            pass
+
         return render_template("detalle_paciente.html",
                                paciente=data.get("paciente", {}),
                                historial=data.get("historial", []),
@@ -413,6 +427,78 @@ def create_app():
                                rehab_resumen=rehab.get("resumen", {}),
                                terapeutas=rehab.get("terapeutas", []),
                                areas=rehab.get("areas", []))
+
+    @app.route("/pacientes/<paciente_dni>/rehabilitacion", methods=["GET", "POST"])
+    def registro_rehabilitacion_page(paciente_dni):
+        if "usuario_id" not in session or session.get("rol") != "admin":
+            return redirect(url_for("login"))
+
+        # Cargar datos del paciente + estado de sus rehabilitaciones
+        data = {}
+        try:
+            d, st = pacientes_client.get(f"/api/rehabilitaciones/{paciente_dni}")
+            if st == 200:
+                data = d
+        except Exception:
+            pass
+
+        paciente = data.get("paciente", {})
+        if not paciente:
+            flash("Paciente no encontrado.")
+            return redirect(url_for("pacientes_page"))
+
+        resumen = data.get("resumen", {}) or {}
+        total = int(resumen.get("total_registradas") or resumen.get("ultima_cita") or 0)
+        try:
+            ultima = int(resumen.get("ultima_cita") or 0)
+        except (TypeError, ValueError):
+            ultima = 0
+        proxima_cita = ultima + 1
+
+        if request.method == "POST":
+            form = request.form
+            fecha_cita = form.get("fecha_cita", "").strip()
+            motivo = form.get("motivo_diagnostico", "").strip()
+            if not motivo and not fecha_cita:
+                flash("Completa al menos la fecha y el motivo/diagnostico.")
+                return redirect(url_for("registro_rehabilitacion_page", paciente_dni=paciente_dni))
+
+            payload = {
+                "numero_cita": proxima_cita,
+                "nombres": paciente.get("nombre") or form.get("nombres", ""),
+                "apellidos": paciente.get("apellido") or form.get("apellidos", ""),
+                "fecha_cita": fecha_cita or date.today().strftime("%Y-%m-%d"),
+                "hora_ingreso": form.get("hora_ingreso", "").strip() or None,
+                "hora_salida": form.get("hora_salida", "").strip() or None,
+                "motivo_diagnostico": motivo or form.get("motivo_diagnostico", "").strip(),
+                "area_tipo": form.get("area_tipo", "").strip(),
+                "profesional": form.get("profesional", "").strip(),
+                "tratamiento": form.get("tratamiento", "").strip(),
+                "evolucion": form.get("evolucion", "").strip(),
+                "observaciones": form.get("observaciones", "").strip(),
+                "estado": form.get("estado", "registrada").strip(),
+                "proxima_cita": form.get("proxima_cita", "").strip() or None,
+                "registrado_por": session.get("usuario_id"),
+            }
+
+            try:
+                result, status = pacientes_client.post(
+                    f"/api/rehabilitaciones/{paciente_dni}", payload)
+                if status == 201 and result.get("success"):
+                    flash("exito:Cita {} de rehabilitacion registrada correctamente.".format(result.get("numero_cita")))
+                    return redirect(url_for("detalle_paciente_page", paciente_dni=paciente_dni))
+                flash(result.get("error", "No se pudo registrar la rehabilitacion."))
+            except Exception:
+                flash("Error de conexion con el servicio de pacientes.")
+
+        return render_template("registro_rehabilitacion.html",
+                               paciente=paciente,
+                               total_citas=total,
+                               ultima_cita=ultima,
+                               proxima_cita=proxima_cita,
+                               terapeutas=data.get("terapeutas", []),
+                               areas=data.get("areas", []),
+                               rehabilitaciones=data.get("rehabilitaciones", []))
 
     @app.route("/pacientes/<int:paciente_id>/pdf")
     def ficha_clinica_pdf(paciente_id):

@@ -68,6 +68,47 @@
         </div>
 
         <!-- ===============================
+             RESUMEN DE REHABILITACIÓN
+             =============================== -->
+        {% set total_rehab = rehab_resumen.get('total_registradas', rehabilitaciones|length) %}
+        {% set ultima = rehab_resumen.get('ultima_cita', 0) %}
+        {% set proxima = rehab_resumen.get('proxima_cita_disponible', ultima + 1) %}
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-lg-3">
+                <div class="card card-moova shadow-sm text-center h-100">
+                    <div class="card-body py-3">
+                        <div class="display-6 fw-bold" style="color:var(--moova-primary);">{{ total_rehab }}</div>
+                        <div class="text-muted small text-uppercase">Total de citas</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="card card-moova shadow-sm text-center h-100">
+                    <div class="card-body py-3">
+                        <div class="display-6 fw-bold" style="color:#16a34a;">{{ total_rehab }}</div>
+                        <div class="text-muted small text-uppercase">Citas realizadas</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="card card-moova shadow-sm text-center h-100">
+                    <div class="card-body py-3">
+                        <div class="display-6 fw-bold" style="color:var(--moova-primary-dark);">{{ 'Cita ' ~ ultima if ultima else '-' }}</div>
+                        <div class="text-muted small text-uppercase">Última cita</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="card card-moova shadow-sm text-center h-100">
+                    <div class="card-body py-3">
+                        <div class="display-6 fw-bold" style="color:#d97706;">{{ 'Cita ' ~ proxima }}</div>
+                        <div class="text-muted small text-uppercase">Próxima cita</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===============================
              REGISTRO DE REHABILITACIÓN (evolución por citas)
              =============================== -->
         <div class="d-flex align-items-center justify-content-between mb-3">
