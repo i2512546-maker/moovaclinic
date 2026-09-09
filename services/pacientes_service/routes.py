@@ -138,7 +138,10 @@ def listar_servicios():
 def listar_rehabilitaciones(dni):
     """Devuelve paciente + historial completo de rehabilitaciones,
     ordenado por numero de cita, buscando por DNI."""
-    paciente = call_proc_one("sp_obtener_paciente_por_dni", (dni,))
+    try:
+        paciente = call_proc_one("sp_obtener_paciente_por_dni", (dni,))
+    except Exception:
+        paciente = None
     if not paciente:
         return jsonify({"error": "Paciente no encontrado"}), 404
 
@@ -191,7 +194,10 @@ def crear_rehabilitacion(dni):
     historia clinica. Backend valida que no exista un registro para la
     cita que el procedure calcularia, evitando duplicados."""
     data = request.get_json() or {}
-    paciente = call_proc_one("sp_obtener_paciente_por_dni", (dni,))
+    try:
+        paciente = call_proc_one("sp_obtener_paciente_por_dni", (dni,))
+    except Exception:
+        paciente = None
     if not paciente:
         return jsonify({"error": "Paciente no encontrado"}), 404
 

@@ -8,43 +8,33 @@ class ServiceClient:
         self.timeout = timeout
         self.headers = {"Content-Type": "application/json"}
 
+    def _call(self, method, path, **kwargs):
+        try:
+            resp = requests.request(
+                method,
+                f"{self.base_url}{path}",
+                headers=self.headers,
+                timeout=self.timeout,
+                **kwargs,
+            )
+            try:
+                return resp.json(), resp.status_code
+            except ValueError:
+                return {}, resp.status_code
+        except requests.RequestException:
+            return {}, 502
+
     def get(self, path, **kwargs):
-        resp = requests.get(
-            f"{self.base_url}{path}",
-            headers=self.headers,
-            timeout=self.timeout,
-            **kwargs,
-        )
-        return resp.json(), resp.status_code
+        return self._call("GET", path, **kwargs)
 
     def post(self, path, json_data=None, **kwargs):
-        resp = requests.post(
-            f"{self.base_url}{path}",
-            json=json_data,
-            headers=self.headers,
-            timeout=self.timeout,
-            **kwargs,
-        )
-        return resp.json(), resp.status_code
+        return self._call("POST", path, json=json_data, **kwargs)
 
     def put(self, path, json_data=None, **kwargs):
-        resp = requests.put(
-            f"{self.base_url}{path}",
-            json=json_data,
-            headers=self.headers,
-            timeout=self.timeout,
-            **kwargs,
-        )
-        return resp.json(), resp.status_code
+        return self._call("PUT", path, json=json_data, **kwargs)
 
     def delete(self, path, **kwargs):
-        resp = requests.delete(
-            f"{self.base_url}{path}",
-            headers=self.headers,
-            timeout=self.timeout,
-            **kwargs,
-        )
-        return resp.json(), resp.status_code
+        return self._call("DELETE", path, **kwargs)
 
 
 auth_client = ServiceClient("auth")
