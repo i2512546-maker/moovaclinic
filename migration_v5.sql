@@ -6,7 +6,7 @@
 -- PARTE A: Amplia la tabla `rehabilitaciones` con los campos
 --          completos de Historia Clinica (expediente, cama,
 --          datos deportivos, motivo de consulta, diagnostico,
---          mecanismo de lesion, tratamientos previos, etc.).
+--          mecanismo de lesion, tratamientos previos, seguro, etc.).
 --          Es ADITIVA: no toca columnas existentes. El UNIQUE
 --          (paciente_id, numero_cita) se conserva intacto.
 --
@@ -77,6 +77,12 @@ BEGIN
                    WHERE TABLE_SCHEMA = v_db AND TABLE_NAME = 'rehabilitaciones'
                      AND COLUMN_NAME = 'email') THEN
         ALTER TABLE `rehabilitaciones` ADD COLUMN `email` VARCHAR(120) DEFAULT NULL AFTER `telefono`;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.COLUMNS
+                   WHERE TABLE_SCHEMA = v_db AND TABLE_NAME = 'rehabilitaciones'
+                     AND COLUMN_NAME = 'seguro') THEN
+        ALTER TABLE `rehabilitaciones` ADD COLUMN `seguro` VARCHAR(100) DEFAULT NULL AFTER `email`;
     END IF;
 
     IF NOT EXISTS (SELECT 1 FROM information_schema.COLUMNS
@@ -189,6 +195,7 @@ CREATE PROCEDURE `sp_crear_rehabilitacion`(
     IN p_domicilio VARCHAR(255),
     IN p_telefono VARCHAR(20),
     IN p_email VARCHAR(120),
+    IN p_seguro VARCHAR(100),
     IN p_deporte VARCHAR(150),
     IN p_posicion VARCHAR(100),
     IN p_antiguedad_practica VARCHAR(50),
@@ -221,9 +228,10 @@ BEGIN
         paciente_id, numero_cita, dni, nombres, apellidos,
         fecha_cita, hora_ingreso, hora_salida,
         numero_expediente, cama_cubiculo, edad, sexo, fecha_nacimiento,
-        domicilio, telefono, email,
+        domicilio, telefono, email, seguro,
         deporte, posicion, antiguedad_practica, nivel_competitivo,
         motivo_consulta, diagnostico_medico, mecanismo_lesion, tratamientos_previos,
+        -- Columna legada de v3: se mantiene como espejo de motivo_consulta
         motivo_diagnostico,
         area_tipo, profesional, peso, talla, antecedentes, examen_fisico,
         observaciones, tratamiento, evolucion,
@@ -233,7 +241,7 @@ BEGIN
         p_fecha_cita, p_hora_ingreso, p_hora_salida,
         NULLIF(p_numero_expediente, ''), NULLIF(p_cama_cubiculo, ''), p_edad,
         NULLIF(p_sexo, ''), p_fecha_nacimiento, NULLIF(p_domicilio, ''),
-        NULLIF(p_telefono, ''), NULLIF(p_email, ''),
+        NULLIF(p_telefono, ''), NULLIF(p_email, ''), NULLIF(p_seguro, ''),
         NULLIF(p_deporte, ''), NULLIF(p_posicion, ''), NULLIF(p_antiguedad_practica, ''),
         NULLIF(p_nivel_competitivo, ''),
         NULLIF(p_motivo_consulta, ''), NULLIF(p_diagnostico_medico, ''),
@@ -264,6 +272,7 @@ CREATE PROCEDURE `sp_actualizar_rehabilitacion`(
     IN p_domicilio VARCHAR(255),
     IN p_telefono VARCHAR(20),
     IN p_email VARCHAR(120),
+    IN p_seguro VARCHAR(100),
     IN p_deporte VARCHAR(150),
     IN p_posicion VARCHAR(100),
     IN p_antiguedad_practica VARCHAR(50),
@@ -298,6 +307,7 @@ BEGIN
         domicilio = IF(p_domicilio IS NOT NULL, p_domicilio, domicilio),
         telefono = IF(p_telefono IS NOT NULL, p_telefono, telefono),
         email = IF(p_email IS NOT NULL, p_email, email),
+        seguro = IF(p_seguro IS NOT NULL, p_seguro, seguro),
         deporte = IF(p_deporte IS NOT NULL, p_deporte, deporte),
         posicion = IF(p_posicion IS NOT NULL, p_posicion, posicion),
         antiguedad_practica = IF(p_antiguedad_practica IS NOT NULL, p_antiguedad_practica, antiguedad_practica),

@@ -1,10 +1,25 @@
 import os
 from datetime import date, datetime
 import requests
+import mysql.connector
 from flask import request, jsonify, Response
 from services.pacientes_service import pacientes_bp
 from shared.config import APIPERU_TOKEN, APIPERU_URL
 from shared.proc import call_proc, call_proc_one, call_proc_execute, call_proc_results
+
+
+def _nc(data, key):
+    """Valor 'None si vacio' para payloads de rehabilitacion."""
+    v = data.get(key)
+    return None if v in (None, "") else v
+
+
+def _num(data, key, cast):
+    """Casteo seguro de numeros/fechas: None si vacio o invalido."""
+    try:
+        return None if data.get(key) in (None, "") else cast(data[key])
+    except (TypeError, ValueError):
+        return None
 
 
 @pacientes_bp.route("/api/pacientes", methods=["GET"])
@@ -210,16 +225,6 @@ def crear_rehabilitacion(dni):
     if not motivo and not (data.get("diagnostico_medico") or "").strip():
         return jsonify({"error": "El motivo de consulta o el diagnostico medico son requeridos."}), 400
 
-    def _nc(key):
-        v = data.get(key)
-        return None if v in (None, "") else v
-
-    def _num(key, cast):
-        try:
-            return None if data.get(key) in (None, "") else cast(data[key])
-        except (TypeError, ValueError):
-            return None
-
     # Validacion extra (ademas de la UNIQUE constraint): verificar
     # que no haya intento de registrar fuera de secuencia.
     proxima = call_proc_one("sp_proxima_cita_rehab", (paciente_id,))
@@ -232,50 +237,66 @@ def crear_rehabilitacion(dni):
         }), 409
 
     # Verificar que el procedure no cree un duplicado
-    existente = call_proc_one("sp_existe_rehabilitacion_cita", (paciente_id, int(prox)))
+    try:
+        existente = call_proc_one("sp_existe_rehabilitacion_cita", (paciente_id, int(prox)))
+    except Exception:
+        existente = None
     if existente:
         return jsonify({
             "error": "La Cita {} ya esta registrada para este paciente.".format(prox),
             "proxima_cita": int(prox) + 1,
         }), 409
 
-    result = call_proc("sp_crear_rehabilitacion", (
-        paciente_id,
-        dni,
-        nombres,
-        apellidos,
-        fecha_cita,
-        _nc("hora_ingreso"),
-        _nc("hora_salida"),
-        _nc("numero_expediente"),
-        _nc("cama_cubiculo"),
-        _num("edad", int),
-        _nc("sexo"),
-        _num("fecha_nacimiento", lambda s: s if isinstance(s, str) else s.strftime("%Y-%m-%d")) or _nc("fecha_nacimiento"),
-        _nc("domicilio"),
-        _nc("telefono"),
-        _nc("email"),
-        _nc("deporte"),
-        _nc("posicion"),
-        _nc("antiguedad_practica"),
-        _nc("nivel_competitivo"),
-        _nc("motivo_consulta") or _nc("motivo_diagnostico"),
-        _nc("diagnostico_medico"),
-        _nc("mecanismo_lesion"),
-        _nc("tratamientos_previos"),
-        (data.get("area_tipo") or "").strip() or None,
-        (data.get("profesional") or "").strip() or None,
-        _num("peso", float),
-        _num("talla", float),
-        _nc("antecedentes"),
-        _nc("examen_fisico"),
-        _nc("observaciones"),
-        _nc("tratamiento"),
-        _nc("evolucion"),
-        (data.get("estado") or "registrada").strip(),
-        _num("proxima_cita", lambda s: s if isinstance(s, str) else s.strftime("%Y-%m-%d")) or _nc("proxima_cita"),
-        data.get("registrado_por"),
-    ))
+    # TOCTOU: el MAX+1 se calcula dentro del procedure y la UNIQUE
+    # (paciente_id, numero_cita) es la ultima barrera. Si dos sesiones
+    # pisan la misma cita a la vez, la que pierde recibe un IntegrityError
+    # de MySQL: se traduce a 409 (mensaje claro) en lugar de un 500.
+    try:
+        result = call_proc("sp_crear_rehabilitacion", (
+            paciente_id,
+            dni,
+            nombres,
+            apellidos,
+            fecha_cita,
+            _nc(data, "hora_ingreso"),
+            _nc(data, "hora_salida"),
+            _nc(data, "numero_expediente"),
+            _nc(data, "cama_cubiculo"),
+            _num(data, "edad", int),
+            _nc(data, "sexo"),
+            _num(data, "fecha_nacimiento", lambda s: s if isinstance(s, str) else s.strftime("%Y-%m-%d")) or _nc(data, "fecha_nacimiento"),
+            _nc(data, "domicilio"),
+            _nc(data, "telefono"),
+            _nc(data, "email"),
+            _nc(data, "seguro"),
+            _nc(data, "deporte"),
+            _nc(data, "posicion"),
+            _nc(data, "antiguedad_practica"),
+            _nc(data, "nivel_competitivo"),
+            _nc(data, "motivo_consulta") or _nc(data, "motivo_diagnostico"),
+            _nc(data, "diagnostico_medico"),
+            _nc(data, "mecanismo_lesion"),
+            _nc(data, "tratamientos_previos"),
+            (data.get("area_tipo") or "").strip() or None,
+            (data.get("profesional") or "").strip() or None,
+            _num(data, "peso", float),
+            _num(data, "talla", float),
+            _nc(data, "antecedentes"),
+            _nc(data, "examen_fisico"),
+            _nc(data, "observaciones"),
+            _nc(data, "tratamiento"),
+            _nc(data, "evolucion"),
+            (data.get("estado") or "registrada").strip(),
+            _num(data, "proxima_cita", lambda s: s if isinstance(s, str) else s.strftime("%Y-%m-%d")) or _nc(data, "proxima_cita"),
+            data.get("registrado_por"),
+        ))
+    except mysql.connector.errors.IntegrityError:
+        return jsonify({
+            "error": "La cita fue registrada en otra ventana. La siguiente disponible es la Cita {}.".format(prox),
+            "proxima_cita": prox,
+        }), 409
+    except Exception:
+        return jsonify({"error": "No se pudo registrar la rehabilitacion."}), 500
 
     if result and result[0]:
         numero = result[0].get("numero_cita")
@@ -315,48 +336,39 @@ def actualizar_rehabilitacion(dni, cita_id):
     if not existe or existe.get("paciente_id") != paciente["id"]:
         return jsonify({"error": "Cita no encontrada para este paciente."}), 404
 
-    def _nc(key):
-        v = data.get(key)
-        return None if v in (None, "") else v
-
-    def _num(key, cast):
-        try:
-            return None if data.get(key) in (None, "") else cast(data[key])
-        except (TypeError, ValueError):
-            return None
-
     result = call_proc("sp_actualizar_rehabilitacion", (
         cita_id,
-        _nc("fecha_cita"),
-        _nc("hora_ingreso"),
-        _nc("hora_salida"),
-        _nc("numero_expediente"),
-        _nc("cama_cubiculo"),
-        _num("edad", int),
-        _nc("sexo"),
-        _num("fecha_nacimiento", lambda s: s if isinstance(s, str) else s.strftime("%Y-%m-%d")) or _nc("fecha_nacimiento"),
-        _nc("domicilio"),
-        _nc("telefono"),
-        _nc("email"),
-        _nc("deporte"),
-        _nc("posicion"),
-        _nc("antiguedad_practica"),
-        _nc("nivel_competitivo"),
-        _nc("motivo_consulta") or _nc("motivo_diagnostico"),
-        _nc("diagnostico_medico"),
-        _nc("mecanismo_lesion"),
-        _nc("tratamientos_previos"),
+        _nc(data, "fecha_cita"),
+        _nc(data, "hora_ingreso"),
+        _nc(data, "hora_salida"),
+        _nc(data, "numero_expediente"),
+        _nc(data, "cama_cubiculo"),
+        _num(data, "edad", int),
+        _nc(data, "sexo"),
+        _num(data, "fecha_nacimiento", lambda s: s if isinstance(s, str) else s.strftime("%Y-%m-%d")) or _nc(data, "fecha_nacimiento"),
+        _nc(data, "domicilio"),
+        _nc(data, "telefono"),
+        _nc(data, "email"),
+        _nc(data, "seguro"),
+        _nc(data, "deporte"),
+        _nc(data, "posicion"),
+        _nc(data, "antiguedad_practica"),
+        _nc(data, "nivel_competitivo"),
+        _nc(data, "motivo_consulta") or _nc(data, "motivo_diagnostico"),
+        _nc(data, "diagnostico_medico"),
+        _nc(data, "mecanismo_lesion"),
+        _nc(data, "tratamientos_previos"),
         (data.get("area_tipo") or "").strip() or None,
         (data.get("profesional") or "").strip() or None,
-        _num("peso", float),
-        _num("talla", float),
-        _nc("antecedentes"),
-        _nc("examen_fisico"),
-        _nc("observaciones"),
-        _nc("tratamiento"),
-        _nc("evolucion"),
+        _num(data, "peso", float),
+        _num(data, "talla", float),
+        _nc(data, "antecedentes"),
+        _nc(data, "examen_fisico"),
+        _nc(data, "observaciones"),
+        _nc(data, "tratamiento"),
+        _nc(data, "evolucion"),
         (data.get("estado") or "registrada").strip(),
-        _num("proxima_cita", lambda s: s if isinstance(s, str) else s.strftime("%Y-%m-%d")) or _nc("proxima_cita"),
+        _num(data, "proxima_cita", lambda s: s if isinstance(s, str) else s.strftime("%Y-%m-%d")) or _nc(data, "proxima_cita"),
         data.get("registrado_por"),
     ))
 

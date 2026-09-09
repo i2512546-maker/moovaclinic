@@ -13,6 +13,50 @@ from shared.proc import call_proc, call_proc_one, call_proc_execute
 bcrypt = Bcrypt()
 
 
+def _rehab_payload(form, paciente, usuario_id):
+    """Construye el payload de historia clinica en rehabilitacion.
+    Compartido por crear y editar para no duplicar los ~30 campos."""
+    def _v(campo):
+        return form.get(campo, "").strip()
+
+    return {
+        "nombres": paciente.get("nombre") or form.get("nombres", ""),
+        "apellidos": paciente.get("apellido") or form.get("apellidos", ""),
+        "fecha_cita": _v("fecha_cita") or date.today().strftime("%Y-%m-%d"),
+        "hora_ingreso": _v("hora_ingreso") or None,
+        "hora_salida": _v("hora_salida") or None,
+        "numero_expediente": _v("numero_expediente") or None,
+        "cama_cubiculo": _v("cama_cubiculo") or None,
+        "edad": _v("edad") or None,
+        "sexo": _v("sexo") or None,
+        "fecha_nacimiento": _v("fecha_nacimiento") or None,
+        "domicilio": _v("domicilio") or None,
+        "telefono": _v("telefono") or None,
+        "email": _v("email") or None,
+        "seguro": _v("seguro") or None,
+        "deporte": _v("deporte") or None,
+        "posicion": _v("posicion") or None,
+        "antiguedad_practica": _v("antiguedad_practica") or None,
+        "nivel_competitivo": _v("nivel_competitivo") or None,
+        "motivo_consulta": _v("motivo_consulta") or None,
+        "diagnostico_medico": _v("diagnostico_medico") or None,
+        "mecanismo_lesion": _v("mecanismo_lesion") or None,
+        "tratamientos_previos": _v("tratamientos_previos") or None,
+        "area_tipo": _v("area_tipo") or None,
+        "profesional": _v("profesional") or None,
+        "peso": _v("peso") or None,
+        "talla": _v("talla") or None,
+        "antecedentes": _v("antecedentes") or None,
+        "examen_fisico": _v("examen_fisico") or None,
+        "tratamiento": _v("tratamiento") or None,
+        "observaciones": _v("observaciones") or None,
+        "evolucion": _v("evolucion") or None,
+        "estado": _v("estado") or "registrada",
+        "proxima_cita": _v("proxima_cita") or None,
+        "registrado_por": usuario_id,
+    }
+
+
 def _load_swagger():
     path = os.path.join(os.path.dirname(__file__), "..", "swagger.yaml")
     try:
@@ -467,52 +511,14 @@ def create_app():
 
         if request.method == "POST":
             form = request.form
-            fecha_cita = form.get("fecha_cita", "").strip()
             motivo = form.get("motivo_consulta", "").strip()
             diag = form.get("diagnostico_medico", "").strip()
             if not motivo and not diag:
                 flash("Completa al menos el motivo de consulta o el diagnostico medico.")
                 return redirect(url_for("registro_rehabilitacion_page", paciente_dni=paciente_dni))
 
-            def _v(campo):
-                return form.get(campo, "").strip()
-
-            payload = {
-                "numero_cita": proxima_cita,
-                "nombres": paciente.get("nombre") or form.get("nombres", ""),
-                "apellidos": paciente.get("apellido") or form.get("apellidos", ""),
-                "fecha_cita": fecha_cita or date.today().strftime("%Y-%m-%d"),
-                "hora_ingreso": _v("hora_ingreso") or None,
-                "hora_salida": _v("hora_salida") or None,
-                "numero_expediente": _v("numero_expediente") or None,
-                "cama_cubiculo": _v("cama_cubiculo") or None,
-                "edad": _v("edad") or None,
-                "sexo": _v("sexo") or None,
-                "fecha_nacimiento": _v("fecha_nacimiento") or None,
-                "domicilio": _v("domicilio") or None,
-                "telefono": _v("telefono") or None,
-                "email": _v("email") or None,
-                "deporte": _v("deporte") or None,
-                "posicion": _v("posicion") or None,
-                "antiguedad_practica": _v("antiguedad_practica") or None,
-                "nivel_competitivo": _v("nivel_competitivo") or None,
-                "motivo_consulta": motivo or None,
-                "diagnostico_medico": diag or None,
-                "mecanismo_lesion": _v("mecanismo_lesion") or None,
-                "tratamientos_previos": _v("tratamientos_previos") or None,
-                "area_tipo": _v("area_tipo") or None,
-                "profesional": _v("profesional") or None,
-                "peso": _v("peso") or None,
-                "talla": _v("talla") or None,
-                "antecedentes": _v("antecedentes") or None,
-                "examen_fisico": _v("examen_fisico") or None,
-                "tratamiento": _v("tratamiento") or None,
-                "observaciones": _v("observaciones") or None,
-                "evolucion": _v("evolucion") or None,
-                "estado": _v("estado") or "registrada",
-                "proxima_cita": _v("proxima_cita") or None,
-                "registrado_por": session.get("usuario_id"),
-            }
+            payload = _rehab_payload(form, paciente, session.get("usuario_id"))
+            payload["numero_cita"] = proxima_cita
 
             try:
                 result, status = pacientes_client.post(
@@ -574,42 +580,7 @@ def create_app():
                 flash("Completa al menos el motivo de consulta o el diagnostico medico.")
                 return redirect(url_for("editar_rehabilitacion_page", paciente_dni=paciente_dni, cita_id=cita_id))
 
-            def _v(campo):
-                return form.get(campo, "").strip()
-
-            payload = {
-                "fecha_cita": _v("fecha_cita"),
-                "hora_ingreso": _v("hora_ingreso") or None,
-                "hora_salida": _v("hora_salida") or None,
-                "numero_expediente": _v("numero_expediente") or None,
-                "cama_cubiculo": _v("cama_cubiculo") or None,
-                "edad": _v("edad") or None,
-                "sexo": _v("sexo") or None,
-                "fecha_nacimiento": _v("fecha_nacimiento") or None,
-                "domicilio": _v("domicilio") or None,
-                "telefono": _v("telefono") or None,
-                "email": _v("email") or None,
-                "deporte": _v("deporte") or None,
-                "posicion": _v("posicion") or None,
-                "antiguedad_practica": _v("antiguedad_practica") or None,
-                "nivel_competitivo": _v("nivel_competitivo") or None,
-                "motivo_consulta": motivo or None,
-                "diagnostico_medico": diag or None,
-                "mecanismo_lesion": _v("mecanismo_lesion") or None,
-                "tratamientos_previos": _v("tratamientos_previos") or None,
-                "area_tipo": _v("area_tipo") or None,
-                "profesional": _v("profesional") or None,
-                "peso": _v("peso") or None,
-                "talla": _v("talla") or None,
-                "antecedentes": _v("antecedentes") or None,
-                "examen_fisico": _v("examen_fisico") or None,
-                "tratamiento": _v("tratamiento") or None,
-                "observaciones": _v("observaciones") or None,
-                "evolucion": _v("evolucion") or None,
-                "estado": _v("estado") or "registrada",
-                "proxima_cita": _v("proxima_cita") or None,
-                "registrado_por": session.get("usuario_id"),
-            }
+            payload = _rehab_payload(form, paciente, session.get("usuario_id"))
 
             try:
                 result, status = pacientes_client.put(
