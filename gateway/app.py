@@ -402,12 +402,17 @@ def create_app():
         if "usuario_id" not in session or session.get("rol") != "admin":
             return redirect(url_for("login"))
         data, _ = pacientes_client.get(f"/api/pacientes/{paciente_dni}/historial")
+        rehab, _ = pacientes_client.get(f"/api/rehabilitaciones/{paciente_dni}")
         return render_template("detalle_paciente.html",
                                paciente=data.get("paciente", {}),
                                historial=data.get("historial", []),
                                paquetes=data.get("paquetes", []),
                                evaluaciones=data.get("evaluaciones", []),
-                               consentimientos=data.get("consentimientos", []))
+                               consentimientos=data.get("consentimientos", []),
+                               rehabilitaciones=rehab.get("rehabilitaciones", []),
+                               rehab_resumen=rehab.get("resumen", {}),
+                               terapeutas=rehab.get("terapeutas", []),
+                               areas=rehab.get("areas", []))
 
     @app.route("/pacientes/<int:paciente_id>/pdf")
     def ficha_clinica_pdf(paciente_id):
@@ -454,6 +459,16 @@ def create_app():
     def verificar_dni():
         dni = (request.json or {}).get("dni", "").strip()
         data, status = pacientes_client.post("/api/pacientes/buscar_dni", {"dni": dni})
+        return jsonify(data), status
+
+    @app.route("/api/rehabilitaciones/<paciente_dni>", methods=["GET"])
+    def api_rehabilitaciones(paciente_dni):
+        data, status = pacientes_client.get(f"/api/rehabilitaciones/{paciente_dni}")
+        return jsonify(data), status
+
+    @app.route("/api/rehabilitaciones/<paciente_dni>", methods=["POST"])
+    def api_crear_rehabilitacion(paciente_dni):
+        data, status = pacientes_client.post(f"/api/rehabilitaciones/{paciente_dni}", request.get_json() or {})
         return jsonify(data), status
 
     @app.route("/api/estadisticas")

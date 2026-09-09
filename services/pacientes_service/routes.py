@@ -122,6 +122,117 @@ def listar_servicios():
 
 
 # ============================================================
+# REHABILITACIONES  (Registro de rehabilitacion por paciente)
+# ============================================================
+
+@pacientes_bp.route("/api/rehabilitaciones/<dni>", methods=["GET"])
+def listar_rehabilitaciones(dni):
+    """Devuelve paciente + historial completo de rehabilitaciones,
+    ordenado por numero de cita, buscando por DNI."""
+    paciente = call_proc_one("sp_obtener_paciente_por_dni", (dni,))
+    if not paciente:
+        return jsonify({"error": "Paciente no encontrado"}), 404
+
+    paciente_id = paciente["id"]
+    historial = call_proc("sp_listar_rehabilitaciones", (paciente_id,))
+    resumen = call_proc_one("sp_resumen_rehabilitaciones", (paciente_id,)) or {}
+    terapeutas = call_proc("sp_listar_terapeutas_activos")
+    areas = call_proc("sp_listar_areas_rehabilitacion")
+
+    return jsonify({
+        "success": True,
+        "paciente": paciente,
+        "rehabilitaciones": historial,
+        "resumen": resumen,
+        "terapeutas": terapeutas,
+        "areas": areas,
+    })
+
+
+@pacientes_bp.route("/api/rehabilitaciones/<dni>/disponibles", methods=["GET"])
+def proxima_cita_rehabilitacion(dni):
+    """Devuelve la proxima cita disponible del paciente (backend)."""
+    paciente = call_proc_one("sp_obtener_paciente_por_dni", (dni,))
+    if not paciente:
+        return jsonify({"error": "Paciente no encontrado"}), 404
+
+    proxima = call_proc_one("sp_proxima_cita_rehab", (paciente["id"],))
+    return jsonify({
+        "success": True,
+        "proxima_cita": proxima["proxima_cita"] if proxima else 1,
+        "total_citas": proxima["total_citas"] if proxima else 0,
+    })
+
+
+@pacientes_bp.route("/api/rehabilitaciones/<dni>", methods=["POST"])
+def crear_rehabilitacion(dni):
+    """Registra la SIGUIENTE cita de rehabilitacion del paciente.
+    Backend valida que no exista un registro para la cita que el
+    procedure calcularia, evitando duplicados por concurrencia."""
+    data = request.get_json() or {}
+    paciente = call_proc_one("sp_obtener_paciente_por_dni", (dni,))
+    if not paciente:
+        return jsonify({"error": "Paciente no encontrado"}), 404
+
+    paciente_id = paciente["id"]
+    nombres = data.get("nombres") or (paciente.get("nombre") or "")
+    apellidos = data.get("apellidos") or (paciente.get("apellido") or "")
+    fecha_cita = data.get("fecha_cita") or date.today().strftime("%Y-%m-%d")
+    motivo = (data.get("motivo_diagnostico") or "").strip()
+
+    if not motivo:
+        return jsonify({"error": "El motivo/diagnostico es requerido."}), 400
+
+    # Validacion extra (ademas de la UNIQUE constraint): verificar
+    # que no haya intento de registrar fuera de secuencia.
+    proxima = call_proc_one("sp_proxima_cita_rehab", (paciente_id,))
+    prox = proxima["proxima_cita"] if proxima else 1
+    numero_solicitado = data.get("numero_cita")
+    if numero_solicitado is not None and int(numero_solicitado) != int(prox):
+        return jsonify({
+            "error": "No puedes registrar la cita solicitada. La siguiente disponible es la Cita {}.".format(prox),
+            "proxima_cita": prox,
+        }), 409
+
+    # Verificar que el procedure no cree un duplicado
+    existente = call_proc_one("sp_existe_rehabilitacion_cita", (paciente_id, int(prox)))
+    if existente:
+        return jsonify({
+            "error": "La Cita {} ya esta registrada para este paciente.".format(prox),
+            "proxima_cita": int(prox) + 1,
+        }), 409
+
+    result = call_proc("sp_crear_rehabilitacion", (
+        paciente_id,
+        dni,
+        nombres,
+        apellidos,
+        fecha_cita,
+        data.get("hora_ingreso"),
+        data.get("hora_salida"),
+        motivo,
+        (data.get("area_tipo") or "").strip(),
+        (data.get("profesional") or "").strip(),
+        (data.get("observaciones") or "").strip(),
+        (data.get("tratamiento") or "").strip(),
+        (data.get("evolucion") or "").strip(),
+        (data.get("estado") or "registrada").strip(),
+        data.get("proxima_cita"),
+        data.get("registrado_por"),
+    ))
+
+    if result and result[0]:
+        numero = result[0].get("numero_cita")
+        return jsonify({
+            "success": True,
+            "numero_cita": numero,
+            "proxima_cita": int(numero) + 1,
+        }), 201
+
+    return jsonify({"error": "No se pudo registrar la rehabilitacion."}), 500
+
+
+# ============================================================
 # Paquetes de sesiones
 # ============================================================
 

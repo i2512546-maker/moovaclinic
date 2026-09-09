@@ -26,7 +26,10 @@
 
         <div class="card card-moova shadow-sm mb-4">
             <div class="card-body">
-                <h2 class="h5 mb-3">{{ paciente.nombre }} {{ paciente.apellido }}</h2>
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                    <h2 class="h5 mb-0">{{ paciente.nombre }} {{ paciente.apellido }}</h2>
+                    <span class="badge text-bg-light">Total citas de rehabilitación: {{ rehabilitaciones|length }}</span>
+                </div>
                 <div class="row g-3">
                     <div class="col-6 col-md-3">
                         <div class="small text-muted text-uppercase">DNI</div>
@@ -63,6 +66,91 @@
                 </div>
             </div>
         </div>
+
+        <!-- ===============================
+             REGISTRO DE REHABILITACIÓN (evolución por citas)
+             =============================== -->
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <h2 class="h5 mb-0 d-flex align-items-center gap-2">
+                <i class="bi bi-lungs"></i> Registro de Rehabilitación
+            </h2>
+            <span class="badge text-bg-light">{{ rehabilitaciones|length }} cita(s) registrada(s)</span>
+        </div>
+
+        {% if rehabilitaciones %}
+        <div class="rehab-timeline mb-4">
+            {% for r in rehabilitaciones %}
+            <div class="rehab-item">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                    <div class="rehab-num">
+                        <i class="bi bi-clipboard2-pulse"></i> Cita {{ r.numero_cita }}
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge badge-{{ r.estado }}">{{ r.estado|capitalize }}</span>
+                        <span class="small text-muted">{{ r.fecha_cita }}</span>
+                    </div>
+                </div>
+                <div class="row g-2">
+                    <div class="col-6 col-md-3">
+                        <div class="small text-muted text-uppercase">Hora ingreso</div>
+                        <div class="fw-semibold">{{ r.hora_ingreso or '-' }}</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="small text-muted text-uppercase">Hora salida</div>
+                        <div class="fw-semibold">{{ r.hora_salida or '-' }}</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="small text-muted text-uppercase">Área / Tipo</div>
+                        <div class="fw-semibold">{{ r.area_tipo or '-' }}</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="small text-muted text-uppercase">Profesional</div>
+                        <div class="fw-semibold">{{ r.profesional or '-' }}</div>
+                    </div>
+                    <div class="col-12 mt-2">
+                        <div class="small text-muted text-uppercase">Motivo / Diagnóstico</div>
+                        <div class="fw-semibold">{{ r.motivo_diagnostico or '-' }}</div>
+                    </div>
+                    {% if r.tratamiento %}
+                    <div class="col-12">
+                        <div class="small text-muted text-uppercase">Tratamiento realizado</div>
+                        <div class="fw-semibold">{{ r.tratamiento }}</div>
+                    </div>
+                    {% endif %}
+                    {% if r.evolucion %}
+                    <div class="col-12">
+                        <div class="small text-muted text-uppercase">Evolución</div>
+                        <div class="fw-semibold">{{ r.evolucion }}</div>
+                    </div>
+                    {% endif %}
+                    {% if r.observaciones %}
+                    <div class="col-12">
+                        <div class="small text-muted text-uppercase">Observaciones</div>
+                        <div class="fw-semibold">{{ r.observaciones }}</div>
+                    </div>
+                    {% endif %}
+                    {% if r.proxima_cita %}
+                    <div class="col-6 col-md-3">
+                        <div class="small text-muted text-uppercase">Próxima cita</div>
+                        <div class="fw-semibold">{{ r.proxima_cita }}</div>
+                    </div>
+                    {% endif %}
+                    <div class="col-6 col-md-3">
+                        <div class="small text-muted text-uppercase">Fecha de registro</div>
+                        <div class="fw-semibold">{{ r.fecha_registro.strftime('%d/%m/%Y %H:%M') if r.fecha_registro else r.fecha_registro }}</div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="card card-moova shadow-sm mb-4">
+            <div class="text-center py-5 text-muted">
+                <i class="bi bi-clipboard-plus fs-1"></i>
+                <p class="mb-0 mt-2">Sin rehabilitaciones registradas.</p>
+            </div>
+        </div>
+        {% endif %}
 
         <h2 class="h5 mb-3">Historial de Citas</h2>
         <div class="card card-moova shadow-sm mb-4">

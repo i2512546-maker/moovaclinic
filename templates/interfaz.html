@@ -8,8 +8,6 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap-style.css') }}">
-    <!-- Contentsquare - UX & Usability Testing -->
-    <script src="https://t.contentsquare.com/uxa/6897c7b83eb5.js"></script>
 </head>
 <body>
 
@@ -57,6 +55,9 @@
         </a>
     </div>
 
+    <!-- ===============================
+         PACIENTES DEL DÍA (arriba)
+         =============================== -->
     <div class="card card-moova shadow-sm">
         <div class="card-header panel-header d-flex align-items-center justify-content-between">
             <h2 class="h5 mb-0 d-flex align-items-center gap-2">
@@ -67,7 +68,7 @@
         <div class="card-body p-0">
             {% if pacientes %}
             <div class="table-responsive">
-                <table class="table table-hover table-striped align-middle mb-0">
+                <table class="table table-hover align-middle mb-0">
                     <thead>
                         <tr>
                             <th>Paciente</th>
@@ -75,11 +76,12 @@
                             <th>Teléfono</th>
                             <th>Estado</th>
                             <th>Notas de sesión</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for p in pacientes %}
-                        <tr>
+                        <tr class="paciente-row" data-dni="{{ p.dni }}" onclick="seleccionarPaciente('{{ p.dni }}')">
                             <td>
                                 <div class="d-flex align-items-center gap-2">
                                     <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold {{ 'bg-danger' if p.total_visitas == 1 else 'bg-success' }}" style="width:38px;height:38px;">
@@ -105,7 +107,8 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <form method="POST" action="{{ url_for('guardar_descripcion') }}" class="d-flex align-items-start gap-2">
+                                <form method="POST" action="{{ url_for('guardar_descripcion') }}" class="d-flex align-items-start gap-2"
+                                    onclick="event.stopPropagation()">
                                     <input type="hidden" name="historial_id" value="{{ p.historial_id }}">
                                     <input type="hidden" name="fecha" value="{{ fecha_actual }}">
                                     <textarea name="descripcion" placeholder="Notas..." rows="2" class="form-control form-control-sm">{{ p.descripcion or '' }}</textarea>
@@ -113,6 +116,12 @@
                                         <i class="bi bi-save"></i> Guardar
                                     </button>
                                 </form>
+                            </td>
+                            <td class="text-end">
+                                <button type="button" class="btn btn-sm btn-moova-outline d-inline-flex align-items-center gap-1"
+                                    onclick="event.stopPropagation(); seleccionarPaciente('{{ p.dni }}')">
+                                    <i class="bi bi-eye"></i> Ver detalle
+                                </button>
                             </td>
                         </tr>
                         {% endfor %}
@@ -129,7 +138,272 @@
         </div>
     </div>
 
+    <!-- ===============================
+         DETALLE DEL PACIENTE + REGISTRO DE REHABILITACIÓN
+         (se carga por DNI cuando se selecciona un paciente)
+         =============================== -->
+    <div id="detallePaciente" class="mt-4 d-none">
+        <div id="detalleLoading" class="text-center py-5 text-muted">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 mb-0">Cargando detalle del paciente...</p>
+        </div>
+        <div id="detalleContent"></div>
+    </div>
+
 </div>
+
+<!-- Modal Registro de rehabilitación -->
+<div class="modal fade" id="modalRehab" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title d-flex align-items-center gap-2">
+                    <i class="bi bi-lungs"></i> Registrar Rehabilitación
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formRehab">
+                    <input type="hidden" name="numero_cita" id="rehabNumero">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Cita a registrar</label>
+                            <input type="text" class="form-control" id="rehabNumeroLbl" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Fecha de la cita</label>
+                            <input type="date" name="fecha_cita" class="form-control" id="rehabFecha">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Hora de ingreso</label>
+                            <input type="time" name="hora_ingreso" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Hora de salida</label>
+                            <input type="time" name="hora_salida" class="form-control">
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Motivo / Diagnóstico</label>
+                            <input type="text" name="motivo_diagnostico" class="form-control" placeholder="Ej: Dolor lumbar crónico" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Área / Tipo de rehabilitación</label>
+                            <select name="area_tipo" class="form-select" id="rehabArea">
+                                <option value="">Seleccionar</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Profesional / Técnico</label>
+                            <select name="profesional" class="form-select" id="rehabProfesional">
+                                <option value="">Seleccionar</option>
+                            </select>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Tratamiento realizado</label>
+                            <textarea name="tratamiento" class="form-control" rows="2" placeholder="Ej: Terapia manual, electroterapia..."></textarea>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Evolución</label>
+                            <textarea name="evolucion" class="form-control" rows="2" placeholder="Evolución del paciente en esta sesión"></textarea>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Observaciones</label>
+                            <textarea name="observaciones" class="form-control" rows="2" placeholder="Observaciones adicionales"></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Estado de la cita</label>
+                            <select name="estado" class="form-select">
+                                <option value="registrada">Registrada</option>
+                                <option value="completada">Completada</option>
+                                <option value="cancelada">Cancelada</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Próxima cita</label>
+                            <input type="date" name="proxima_cita" class="form-control">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-moova d-inline-flex align-items-center gap-1" id="btnGuardarRehab">
+                    <i class="bi bi-check-lg"></i> Registrar Cita
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let pacienteActual = null;
+
+    function seleccionarPaciente(dni) {
+        // Resaltar fila seleccionada
+        document.querySelectorAll('.paciente-row').forEach(r => {
+            r.classList.toggle('seleccionado', r.getAttribute('data-dni') === dni);
+        });
+        cargarDetalle(dni);
+    }
+
+    function cargarDetalle(dni) {
+        const cont = document.getElementById('detallePaciente');
+        const content = document.getElementById('detalleContent');
+        const loading = document.getElementById('detalleLoading');
+        cont.classList.remove('d-none');
+        loading.classList.remove('d-none');
+        content.innerHTML = '';
+
+        fetch("/api/rehabilitaciones/" + encodeURIComponent(dni))
+            .then(r => r.json())
+            .then(data => {
+                loading.classList.add('d-none');
+                if (!data.success) {
+                    content.innerHTML = '<div class="alert alert-danger">Paciente no encontrado.</div>';
+                    return;
+                }
+                pacienteActual = data;
+                content.innerHTML = renderDetalle(data);
+                // Cargar catalogos en el modal
+                cargarCatalogos(data);
+            })
+            .catch(() => {
+                loading.classList.add('d-none');
+                content.innerHTML = '<div class="alert alert-danger">Error al cargar el detalle del paciente.</div>';
+            });
+    }
+
+    function cargarCatalogos(data) {
+        const areas = document.getElementById('rehabArea');
+        areas.innerHTML = '<option value="">Seleccionar</option>';
+        (data.areas || []).forEach(a => {
+            areas.insertAdjacentHTML('beforeend', '<option value="' + a.nombre + '">' + a.nombre + '</option>');
+        });
+        const prof = document.getElementById('rehabProfesional');
+        prof.innerHTML = '<option value="">Seleccionar</option>';
+        (data.terapeutas || []).forEach(t => {
+            prof.insertAdjacentHTML('beforeend', '<option value="' + t.terapeuta_nombre + '">' + t.terapeuta_nombre + ' (' + (t.especialidad || 'General') + ')</option>');
+        });
+    }
+
+    function renderDetalle(data) {
+        const p = data.paciente;
+        const rehab = data.rehabilitaciones || [];
+        const resumen = data.resumen || {};
+        const prox = resumen.proxima_cita_disponible || 1;
+        const total = resumen.ultima_cita || 0;
+
+        // Generar seleccion de citas (1..proxima) marcando ocupadas las ya registradas
+        const maxCitas = Math.max(prox, 5);
+        let citasHtml = '<div class="d-flex flex-wrap gap-2 mb-3">';
+        for (let i = 1; i <= maxCitas; i++) {
+            const registrada = i <= total;
+            const dispon = i === prox;
+            if (registrada) {
+                citasHtml += '<span class="cita-badge ocupada" title="Cita ' + i + ' ya registrada"><i class="bi bi-lock-fill"></i> Cita ' + i + '</span>';
+            } else if (dispon) {
+                citasHtml += '<button type="button" class="cita-badge disponible" onclick="abrirRegistro(' + i + ')"><i class="bi bi-plus-circle"></i> Cita ' + i + '</button>';
+            } else {
+                citasHtml += '<span class="cita-badge habilitada" title="Disponible al completar la Cita ' + (i - 1) + '">Cita ' + i + '</span>';
+            }
+        }
+        citasHtml += '</div>';
+
+        // Detalle del paciente
+        let detalleHtml = `
+        <div class="card card-moova shadow-sm h-100">
+            <div class="card-header panel-header">
+                <h2 class="h5 mb-0 d-flex align-items-center gap-2"><i class="bi bi-person-vcard"></i> Detalles del Paciente</h2>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold" style="width:56px;height:56px;background:var(--moova-gradient);">
+                        ${(p.nombre||'')[0].toUpperCase()}
+                    </div>
+                    <div>
+                        <h4 class="h5 mb-0">${p.nombre || ''} ${p.apellido || ''}</h4>
+                        <span class="badge ${p.estado === 'activo' ? 'badge-activo' : 'badge-inactivo'}">${(p.estado || 'activo').toUpperCase()}</span>
+                    </div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-6 col-md-4"><div class="kv"><span class="k">DNI</span><span class="v">${p.dni || '-'}</span></div></div>
+                    <div class="col-6 col-md-4"><div class="kv"><span class="k">Teléfono</span><span class="v">${p.telefono || '-'}</span></div></div>
+                    <div class="col-6 col-md-4"><div class="kv"><span class="k">Email</span><span class="v">${p.email || 'No registrado'}</span></div></div>
+                    <div class="col-6 col-md-4"><div class="kv"><span class="k">Sexo</span><span class="v">${p.sexo === 'M' ? 'Masculino' : p.sexo === 'F' ? 'Femenino' : (p.sexo || 'No registrado')}</span></div></div>
+                    <div class="col-6 col-md-4"><div class="kv"><span class="k">Nacimiento</span><span class="v">${p.fecha_nacimiento || 'No registrado'}</span></div></div>
+                    <div class="col-6 col-md-4"><div class="kv"><span class="k">Seguro</span><span class="v">${p.seguro || 'No registrado'}</span></div></div>
+                    <div class="col-12"><div class="kv"><span class="k">Dirección</span><span class="v">${p.direccion || 'No registrado'}</span></div></div>
+                </div>
+            </div>
+        </div>`;
+
+        // Panel registro de rehabilitacion
+        let rehabHtml = `
+        <div class="card card-moova shadow-sm h-100">
+            <div class="card-header panel-header d-flex align-items-center justify-content-between">
+                <h2 class="h5 mb-0 d-flex align-items-center gap-2"><i class="bi bi-lungs"></i> Registro de Rehabilitación</h2>
+                <span class="badge text-bg-light">${total} registrada(s)</span>
+            </div>
+            <div class="card-body">
+                ${citasHtml}
+                <div class="alert alert-info py-2 small mb-3">
+                    <i class="bi bi-info-circle"></i> Solo puedes registrar la <strong>Cita ${prox}</strong>. Las citas anteriores quedan bloqueadas automáticamente.
+                </div>
+            </div>
+        </div>`;
+
+        const btnHistorial = `
+        <div class="mt-3 text-end">
+            <a href="/pacientes/${encodeURIComponent(p.dni)}" class="btn btn-moova d-inline-flex align-items-center gap-1">
+                <i class="bi bi-clock-history"></i> Ver historial completo
+            </a>
+        </div>`;
+
+        return `
+        <div class="detalle-grid">
+            <div>${detalleHtml}</div>
+            <div>${rehabHtml}</div>
+        </div>
+        ${btnHistorial}`;
+    }
+
+    function abrirRegistro(numero) {
+        const modal = new bootstrap.Modal(document.getElementById('modalRehab'));
+        document.getElementById('rehabNumero').value = numero;
+        document.getElementById('rehabNumeroLbl').value = 'Cita ' + numero;
+        document.getElementById('rehabFecha').value = new Date().toISOString().slice(0, 10);
+        // Limpiar campos opcionales
+        document.querySelectorAll('#formRehab input:not([type=hidden]):not([name=numero_cita])').forEach(i => { if (i.name !== 'fecha_cita') i.value = i.type === 'date' || i.type === 'time' ? '' : i.value; });
+        document.querySelectorAll('#formRehab textarea, #formRehab select').forEach(i => { if (i.id !== 'rehabArea' && i.id !== 'rehabProfesional') i.value = i.tagName === 'SELECT' ? (i.name === 'estado' ? 'registrada' : '') : ''; });
+        modal.show();
+    }
+
+    document.getElementById('btnGuardarRehab').addEventListener('click', () => {
+        const form = document.getElementById('formRehab');
+        if (!form.reportValidity()) return;
+        const dni = pacienteActual.paciente.dni;
+        const formData = new FormData(form);
+        const payload = Object.fromEntries(formData.entries());
+        payload.registrado_por = {{ session.get('usuario_id') or 'null' }};
+
+        fetch("/api/rehabilitaciones/" + encodeURIComponent(dni), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                bootstrap.Modal.getInstance(document.getElementById('modalRehab')).hide();
+                // Volver a cargar el detalle
+                cargarDetalle(dni);
+            } else {
+                alert(data.error || 'No se pudo registrar la rehabilitación.');
+            }
+        })
+        .catch(() => alert('Error de conexión.'));
+    });
+</script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
