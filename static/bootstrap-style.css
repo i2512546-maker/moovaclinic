@@ -226,6 +226,13 @@ h1, h2, h3, h4, h5, h6 {
 }
 .cita-badge.numero:hover { transform: none; }
 
+/* Seccion de especialidades: celeste intenso en los costados que se
+   desvanece hacia un tono muy claro/blanco en el centro */
+.especialidades {
+  background: linear-gradient(120deg, #20B8EE 0%, #9DDEF5 15%, #FFFFFF 40%, #FFFFFF 60%, #9DDEF5 85%, #20B8EE 100%);
+  position: relative;
+}
+
 /* Timeline de historial de rehabilitacion */
 .rehab-timeline {
   position: relative;
