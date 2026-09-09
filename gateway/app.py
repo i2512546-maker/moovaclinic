@@ -434,10 +434,10 @@ def create_app():
         if "usuario_id" not in session or session.get("rol") != "admin":
             return redirect(url_for("login"))
 
-        # Cargar datos del paciente + estado de sus rehabilitaciones
+        # Cargar datos del paciente (endpoint base, siempre disponible)
         data = {}
         try:
-            d, st = pacientes_client.get(f"/api/rehabilitaciones/{paciente_dni}")
+            d, st = pacientes_client.get(f"/api/pacientes/{paciente_dni}")
             if st == 200:
                 data = d
         except Exception:
@@ -448,7 +448,16 @@ def create_app():
             flash("Paciente no encontrado.")
             return redirect(url_for("pacientes_page"))
 
-        resumen = data.get("resumen", {}) or {}
+        # Cargar estado de rehabilitaciones (opcional, no debe impedir abrir el formulario)
+        rehab = {}
+        try:
+            r, st = pacientes_client.get(f"/api/rehabilitaciones/{paciente_dni}")
+            if st == 200:
+                rehab = r
+        except Exception:
+            pass
+
+        resumen = rehab.get("resumen", {}) or {}
         total = int(resumen.get("total_registradas") or resumen.get("ultima_cita") or 0)
         try:
             ultima = int(resumen.get("ultima_cita") or 0)
@@ -520,9 +529,9 @@ def create_app():
                                total_citas=total,
                                ultima_cita=ultima,
                                proxima_cita=proxima_cita,
-                               terapeutas=data.get("terapeutas", []),
-                               areas=data.get("areas", []),
-                               rehabilitaciones=data.get("rehabilitaciones", []),
+                               terapeutas=rehab.get("terapeutas", []),
+                               areas=rehab.get("areas", []),
+                               rehabilitaciones=rehab.get("rehabilitaciones", []),
                                cita={},
                                modo="crear")
 
