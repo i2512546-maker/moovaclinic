@@ -10,17 +10,32 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap-style.css') }}">
 </head>
 <body>
+    <nav class="navbar navbar-expand bg-white border-bottom shadow-sm px-3 py-2">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1 brand-logo">MOOVA <span>Clinic</span></span>
+            <div class="d-flex align-items-center gap-2 ms-auto flex-wrap">
+                <a href="{{ url_for('pacientes_page') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+                    <i class="bi bi-people"></i> Pacientes
+                </a>
+                <a href="{{ url_for('panel_admin') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+                    <i class="bi bi-gear"></i> Panel Admin
+                </a>
+                <a href="{{ url_for('logout') }}" class="btn btn-sm btn-danger-moova d-inline-flex align-items-center gap-1">
+                    <i class="bi bi-box-arrow-right"></i> Cerrar sesion
+                </a>
+            </div>
+        </div>
+    </nav>
+
     <div class="container-fluid py-4">
         <div class="panel-header d-flex align-items-center justify-content-between rounded mb-4">
-            <h1 class="h4 mb-0">Historial del Paciente</h1>
+            <h1 class="h4 mb-0"><i class="bi bi-person-vcard"></i> Historial del Paciente</h1>
             <div class="d-flex align-items-center gap-2">
-                <a href="{{ url_for('ficha_clinica_pdf', paciente_id=paciente.id) }}" target="_blank"
-                    class="btn btn-moova d-inline-flex align-items-center gap-1">
-                    <i class="bi bi-file-earmark-pdf"></i> Descargar Ficha PDF
+                <a href="{{ url_for('exportar_historia_page', paciente_dni=paciente.dni) }}?formato=pdf"
+                    target="_blank" class="btn btn-moova d-inline-flex align-items-center gap-1">
+                    <i class="bi bi-file-earmark-pdf"></i> Descargar Historial PDF
                 </a>
                 <a href="{{ url_for('pacientes_page') }}" class="btn btn-outline-secondary btn-sm">Volver a Pacientes</a>
-                <a href="{{ url_for('panel_admin') }}" class="btn btn-outline-secondary btn-sm">Panel Admin</a>
-                <a href="{{ url_for('logout') }}" class="btn btn-danger-moova btn-sm">Cerrar sesion</a>
             </div>
         </div>
 
@@ -86,6 +101,7 @@
         <!-- ===============================
              RESUMEN DE REHABILITACIÓN
              =============================== -->
+        {% if rehabilitaciones %}
         {% set total_rehab = rehab_resumen.get('total_registradas', rehabilitaciones|length) %}
         {% set ultima = rehab_resumen.get('ultima_cita', 0) %}
         {% set proxima = rehab_resumen.get('proxima_cita_disponible', ultima + 1) %}
@@ -123,6 +139,7 @@
                 </div>
             </div>
         </div>
+        {% endif %}
 
         <!-- ===============================
              HISTORIAL DE CITAS / ATENCIONES EN REHABILITACIÓN
@@ -188,8 +205,9 @@
         {% else %}
         <div class="card card-moova shadow-sm mb-4">
             <div class="text-center py-5 text-muted">
-                <i class="bi bi-clipboard-plus fs-1"></i>
-                <p class="mb-0 mt-2">Sin atenciones registradas.</p>
+                <i class="bi bi-person-dash fs-1"></i>
+                <h3 class="h5 mt-3 mb-1">Paciente no registrado</h3>
+                <p class="mb-0">Este paciente aun no tiene atenciones en su historial.</p>
                 <a href="{{ url_for('registro_rehabilitacion_page', paciente_dni=paciente.dni) }}"
                     class="btn btn-moova btn-sm mt-3">
                     <i class="bi bi-plus-circle"></i> Registrar primera cita
@@ -201,6 +219,7 @@
         <!-- ===============================
              OPCIONES: Nueva cita / Editar / Imprimir / Exportar
              =============================== -->
+        {% if rehabilitaciones %}
         <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
             <a href="{{ url_for('registro_rehabilitacion_page', paciente_dni=paciente.dni) }}"
                 class="btn btn-moova d-inline-flex align-items-center gap-1">
@@ -260,7 +279,9 @@
                 </div>
             </div>
         </div>
+        {% endif %}
 
+        {% if historial %}
         <h2 class="h5 mb-3">Historial de Citas</h2>
         <div class="card card-moova shadow-sm mb-4">
             <div class="table-responsive">
@@ -296,6 +317,7 @@
                 </table>
             </div>
         </div>
+        {% endif %}
 
         {% if paquetes %}
         <h2 class="h5 mb-3">Paquetes de Sesiones</h2>
@@ -395,6 +417,7 @@
     </div>
 
 <script>
+        {% if rehabilitaciones %}
         const formExportar = document.getElementById('formExportar');
         const formatoInput = document.getElementById('exportarFormato');
         const alcTodo = document.getElementById('alcTodo');
@@ -431,6 +454,7 @@
                 formExportar.action = '{{ url_for('editar_rehabilitacion_page', paciente_dni=paciente.dni, cita_id=0) }}'.replace('/0', '/' + id);
             }
         });
+        {% endif %}
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
