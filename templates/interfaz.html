@@ -75,7 +75,6 @@
                             <th>DNI</th>
                             <th>Teléfono</th>
                             <th>Estado</th>
-                            <th>Notas de sesión</th>
                             <th></th>
                         </tr>
                     </thead>
@@ -106,17 +105,6 @@
                                 <span class="badge badge-recurrente"><i class="bi bi-arrow-repeat"></i> Recurrente</span>
                                 {% endif %}
                             </td>
-                            <td>
-                                <form method="POST" action="{{ url_for('guardar_descripcion') }}" class="d-flex align-items-start gap-2"
-                                    onclick="event.stopPropagation()">
-                                    <input type="hidden" name="historial_id" value="{{ p.historial_id }}">
-                                    <input type="hidden" name="fecha" value="{{ fecha_actual }}">
-                                    <textarea name="descripcion" placeholder="Notas..." rows="2" class="form-control form-control-sm">{{ p.descripcion or '' }}</textarea>
-                                    <button type="submit" class="btn btn-moova btn-sm d-inline-flex align-items-center gap-1">
-                                        <i class="bi bi-save"></i> Guardar
-                                    </button>
-                                </form>
-                            </td>
                             <td class="text-end">
                                 <div class="d-flex align-items-center justify-content-end gap-2">
                                     <a href="/pacientes/{{ p.dni }}/rehabilitacion"
@@ -124,10 +112,6 @@
                                         onclick="event.stopPropagation()">
                                         <i class="bi bi-plus-circle"></i> REGISTRO
                                     </a>
-                                    <button type="button" class="btn btn-sm btn-moova-outline d-inline-flex align-items-center gap-1"
-                                        onclick="event.stopPropagation(); seleccionarPaciente('{{ p.dni }}')">
-                                        <i class="bi bi-eye"></i> Ver detalle
-                                    </button>
                                 </div>
                             </td>
                         </tr>
