@@ -226,10 +226,11 @@ h1, h2, h3, h4, h5, h6 {
 }
 .cita-badge.numero:hover { transform: none; }
 
-/* Seccion de especialidades: celeste intenso en los costados que se
-   desvanece hacia un tono muy claro/blanco en el centro */
+/* Seccion de especialidades: celeste claro en los costados que se
+   desvanece suavemente hasta blanco en el centro */
 .especialidades {
-  background: linear-gradient(120deg, #20B8EE 0%, #9DDEF5 15%, #FFFFFF 40%, #FFFFFF 60%, #9DDEF5 85%, #20B8EE 100%);
+  background: linear-gradient(90deg, #9FD9F5 0%, #C8EAFB 12%, #FFFFFF 38%, #FFFFFF 62%, #C8EAFB 88%, #9FD9F5 100%);
+  background-repeat: no-repeat;
   position: relative;
 }
 
