@@ -24,6 +24,22 @@
             </div>
         </div>
 
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for msg in messages %}
+                    {% if msg.startswith('exito:') %}
+                    <div class="alert alert-success d-flex align-items-center gap-2">
+                        <i class="bi bi-check-circle"></i> {{ msg[6:] }}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-danger d-flex align-items-center gap-2">
+                        <i class="bi bi-exclamation-circle"></i> {{ msg }}
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
         <div class="card card-moova shadow-sm mb-4">
             <div class="card-body">
                 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
@@ -109,76 +125,61 @@
         </div>
 
         <!-- ===============================
-             REGISTRO DE REHABILITACIÓN (evolución por citas)
+             HISTORIAL DE CITAS / ATENCIONES EN REHABILITACIÓN
              =============================== -->
         <div class="d-flex align-items-center justify-content-between mb-3">
             <h2 class="h5 mb-0 d-flex align-items-center gap-2">
-                <i class="bi bi-lungs"></i> Registro de Rehabilitación
+                <i class="bi bi-lungs"></i> Historial de Citas / Atenciones
             </h2>
             <span class="badge text-bg-light">{{ rehabilitaciones|length }} cita(s) registrada(s)</span>
         </div>
 
         {% if rehabilitaciones %}
-        <div class="rehab-timeline mb-4">
+        <div class="mb-2">
             {% for r in rehabilitaciones %}
-            <div class="rehab-item">
-                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-                    <div class="rehab-num">
-                        <i class="bi bi-clipboard2-pulse"></i> Cita {{ r.numero_cita }}
+            <div class="card card-moova shadow-sm mb-2">
+                <div class="card-body py-3">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <span class="cita-badge numero"><i class="bi bi-clipboard2-pulse"></i> Cita {{ r.numero_cita }}</span>
+                            <span class="small text-muted"><i class="bi bi-calendar3"></i> {{ r.fecha_cita }}</span>
+                            {% if r.hora_ingreso %}
+                            <span class="small text-muted"><i class="bi bi-clock"></i> {{ r.hora_ingreso }}{% if r.hora_salida %} - {{ r.hora_salida }}{% endif %}</span>
+                            {% endif %}
+                            <span class="badge badge-{{ r.estado }}">{{ r.estado|capitalize }}</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <a href="{{ url_for('ver_cita_page', paciente_dni=paciente.dni, cita_id=r.id) }}"
+                                class="btn btn-sm btn-moova-outline d-inline-flex align-items-center gap-1">
+                                <i class="bi bi-eye"></i> Ver
+                            </a>
+                            <a href="{{ url_for('editar_rehabilitacion_page', paciente_dni=paciente.dni, cita_id=r.id) }}"
+                                class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+                                <i class="bi bi-pencil-square"></i> Editar
+                            </a>
+                        </div>
                     </div>
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="badge badge-{{ r.estado }}">{{ r.estado|capitalize }}</span>
-                        <span class="small text-muted">{{ r.fecha_cita }}</span>
-                    </div>
-                </div>
-                <div class="row g-2">
-                    <div class="col-6 col-md-3">
-                        <div class="small text-muted text-uppercase">Hora ingreso</div>
-                        <div class="fw-semibold">{{ r.hora_ingreso or '-' }}</div>
-                    </div>
-                    <div class="col-6 col-md-3">
-                        <div class="small text-muted text-uppercase">Hora salida</div>
-                        <div class="fw-semibold">{{ r.hora_salida or '-' }}</div>
-                    </div>
-                    <div class="col-6 col-md-3">
-                        <div class="small text-muted text-uppercase">Área / Tipo</div>
-                        <div class="fw-semibold">{{ r.area_tipo or '-' }}</div>
-                    </div>
-                    <div class="col-6 col-md-3">
-                        <div class="small text-muted text-uppercase">Profesional</div>
-                        <div class="fw-semibold">{{ r.profesional or '-' }}</div>
-                    </div>
-                    <div class="col-12 mt-2">
-                        <div class="small text-muted text-uppercase">Motivo / Diagnóstico</div>
-                        <div class="fw-semibold">{{ r.motivo_diagnostico or '-' }}</div>
-                    </div>
-                    {% if r.tratamiento %}
-                    <div class="col-12">
-                        <div class="small text-muted text-uppercase">Tratamiento realizado</div>
-                        <div class="fw-semibold">{{ r.tratamiento }}</div>
-                    </div>
-                    {% endif %}
-                    {% if r.evolucion %}
-                    <div class="col-12">
-                        <div class="small text-muted text-uppercase">Evolución</div>
-                        <div class="fw-semibold">{{ r.evolucion }}</div>
-                    </div>
-                    {% endif %}
-                    {% if r.observaciones %}
-                    <div class="col-12">
-                        <div class="small text-muted text-uppercase">Observaciones</div>
-                        <div class="fw-semibold">{{ r.observaciones }}</div>
-                    </div>
-                    {% endif %}
-                    {% if r.proxima_cita %}
-                    <div class="col-6 col-md-3">
-                        <div class="small text-muted text-uppercase">Próxima cita</div>
-                        <div class="fw-semibold">{{ r.proxima_cita }}</div>
-                    </div>
-                    {% endif %}
-                    <div class="col-6 col-md-3">
-                        <div class="small text-muted text-uppercase">Fecha de registro</div>
-                        <div class="fw-semibold">{{ r.fecha_registro.strftime('%d/%m/%Y %H:%M') if r.fecha_registro else r.fecha_registro }}</div>
+                    <div class="row g-2 mt-1">
+                        <div class="col-md-4">
+                            <div class="small text-muted text-uppercase">Área / Tipo</div>
+                            <div class="fw-semibold">{{ r.area_tipo or '-' }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="small text-muted text-uppercase">Profesional</div>
+                            <div class="fw-semibold">{{ r.profesional or '-' }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="small text-muted text-uppercase">Expediente</div>
+                            <div class="fw-semibold">{{ r.numero_expediente or '-' }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="small text-muted text-uppercase">Motivo de consulta</div>
+                            <div class="fw-semibold">{{ r.motivo_consulta or r.motivo_diagnostico or '-' }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="small text-muted text-uppercase">Diagnóstico médico</div>
+                            <div class="fw-semibold">{{ r.diagnostico_medico or '-' }}</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -188,10 +189,77 @@
         <div class="card card-moova shadow-sm mb-4">
             <div class="text-center py-5 text-muted">
                 <i class="bi bi-clipboard-plus fs-1"></i>
-                <p class="mb-0 mt-2">Sin rehabilitaciones registradas.</p>
+                <p class="mb-0 mt-2">Sin atenciones registradas.</p>
+                <a href="{{ url_for('registro_rehabilitacion_page', paciente_dni=paciente.dni) }}"
+                    class="btn btn-moova btn-sm mt-3">
+                    <i class="bi bi-plus-circle"></i> Registrar primera cita
+                </a>
             </div>
         </div>
         {% endif %}
+
+        <!-- ===============================
+             OPCIONES: Nueva cita / Editar / Imprimir / Exportar
+             =============================== -->
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
+            <a href="{{ url_for('registro_rehabilitacion_page', paciente_dni=paciente.dni) }}"
+                class="btn btn-moova d-inline-flex align-items-center gap-1">
+                <i class="bi bi-plus-circle"></i> Nueva cita
+            </a>
+            <button type="button" class="btn btn-outline-secondary d-inline-flex align-items-center gap-1"
+                data-bs-toggle="modal" data-bs-target="#modalExportar" onclick="abrirExportar('editar')">
+                <i class="bi bi-pencil-square"></i> Editar
+            </button>
+            <button type="button" class="btn btn-outline-secondary d-inline-flex align-items-center gap-1"
+                data-bs-toggle="modal" data-bs-target="#modalExportar" onclick="abrirExportar('html', true)">
+                <i class="bi bi-printer"></i> Imprimir
+            </button>
+            <button type="button" class="btn btn-outline-secondary d-inline-flex align-items-center gap-1"
+                data-bs-toggle="modal" data-bs-target="#modalExportar" onclick="abrirExportar('pdf')">
+                <i class="bi bi-file-earmark-pdf"></i> Descargar PDF
+            </button>
+            <button type="button" class="btn btn-outline-secondary d-inline-flex align-items-center gap-1"
+                data-bs-toggle="modal" data-bs-target="#modalExportar" onclick="abrirExportar('word')">
+                <i class="bi bi-file-word"></i> Descargar Word
+            </button>
+        </div>
+
+        <!-- Modal exportar -->
+        <div class="modal fade" id="modalExportar" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form id="formExportar" method="GET" action="{{ url_for('exportar_historia_page', paciente_dni=paciente.dni) }}">
+                        <input type="hidden" name="formato" id="exportarFormato" value="pdf">
+                        <div class="modal-header panel-header">
+                            <h5 class="modal-title">¿Qué deseas exportar?</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="radio" name="alcance" id="alcTodo" value="todo" checked>
+                                <label class="form-check-label" for="alcTodo">Todo el historial del paciente</label>
+                            </div>
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="radio" name="alcance" id="alcUna" value="una">
+                                <label class="form-check-label" for="alcUna">Una sola cita</label>
+                            </div>
+                            <div id="citaSelectWrap" style="display:none;">
+                                <select name="cita_id" class="form-select">
+                                    <option value="">Seleccione la cita</option>
+                                    {% for r in rehabilitaciones %}
+                                    <option value="{{ r.id }}">Cita {{ r.numero_cita }} - {{ r.fecha_cita }}{{ (' ' ~ r.hora_ingreso) if r.hora_ingreso }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-moova" id="btnExportarOK">Generar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
 
         <h2 class="h5 mb-3">Historial de Citas</h2>
         <div class="card card-moova shadow-sm mb-4">
@@ -326,6 +394,45 @@
         {% endif %}
     </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+        const formExportar = document.getElementById('formExportar');
+        const formatoInput = document.getElementById('exportarFormato');
+        const alcTodo = document.getElementById('alcTodo');
+        const alcUna = document.getElementById('alcUna');
+        const citaWrap = document.getElementById('citaSelectWrap');
+        const btnOk = document.getElementById('btnExportarOK');
+        const radioAlc = document.querySelectorAll('input[name="alcance"]');
+        radioAlc.forEach(r => r.addEventListener('change', () => {
+            citaWrap.style.display = alcUna.checked ? '' : 'none';
+        }));
+        function abrirExportar(tipo) {
+            formatoInput.value = tipo === 'editar' ? 'editar' : (tipo === 'html' ? 'html' : tipo);
+            formExportar.target = tipo === 'html' ? '_blank' : '';
+            if (tipo === 'editar') {
+                alcTodo.disabled = true;
+                alcUna.checked = true;
+                alcUna.disabled = false;
+                citaWrap.style.display = '';
+                btnOk.textContent = 'Editar cita';
+            } else {
+                alcTodo.disabled = false;
+                alcUna.checked = false;
+                alcUna.disabled = false;
+                alcTodo.checked = true;
+                citaWrap.style.display = 'none';
+                btnOk.textContent = tipo === 'html' ? 'Abrir vista de impresión' : 'Generar';
+            }
+        }
+        formExportar.addEventListener('submit', (e) => {
+            if (formatoInput.value === 'editar') {
+                const id = formExportar.querySelector('select[name="cita_id"]').value;
+                if (!id) { e.preventDefault(); alert('Selecciona una cita para editar.'); return; }
+                formExportar.method = 'GET';
+                formExportar.action = '{{ url_for('editar_rehabilitacion_page', paciente_dni=paciente.dni, cita_id=0) }}'.replace('/0', '/' + id);
+            }
+        });
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

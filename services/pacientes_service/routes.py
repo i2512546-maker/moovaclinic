@@ -187,9 +187,9 @@ def proxima_cita_rehabilitacion(dni):
 
 @pacientes_bp.route("/api/rehabilitaciones/<dni>", methods=["POST"])
 def crear_rehabilitacion(dni):
-    """Registra la SIGUIENTE cita de rehabilitacion del paciente.
-    Backend valida que no exista un registro para la cita que el
-    procedure calcularia, evitando duplicados por concurrencia."""
+    """Registra la SIGUIENTE cita de rehabilitacion del paciente con
+    historia clinica. Backend valida que no exista un registro para la
+    cita que el procedure calcularia, evitando duplicados."""
     data = request.get_json() or {}
     paciente = call_proc_one("sp_obtener_paciente_por_dni", (dni,))
     if not paciente:
@@ -199,10 +199,20 @@ def crear_rehabilitacion(dni):
     nombres = data.get("nombres") or (paciente.get("nombre") or "")
     apellidos = data.get("apellidos") or (paciente.get("apellido") or "")
     fecha_cita = data.get("fecha_cita") or date.today().strftime("%Y-%m-%d")
-    motivo = (data.get("motivo_diagnostico") or "").strip()
+    motivo = (data.get("motivo_consulta") or data.get("motivo_diagnostico") or "").strip()
 
-    if not motivo:
-        return jsonify({"error": "El motivo/diagnostico es requerido."}), 400
+    if not motivo and not (data.get("diagnostico_medico") or "").strip():
+        return jsonify({"error": "El motivo de consulta o el diagnostico medico son requeridos."}), 400
+
+    def _nc(key):
+        v = data.get(key)
+        return None if v in (None, "") else v
+
+    def _num(key, cast):
+        try:
+            return None if data.get(key) in (None, "") else cast(data[key])
+        except (TypeError, ValueError):
+            return None
 
     # Validacion extra (ademas de la UNIQUE constraint): verificar
     # que no haya intento de registrar fuera de secuencia.
@@ -229,16 +239,35 @@ def crear_rehabilitacion(dni):
         nombres,
         apellidos,
         fecha_cita,
-        data.get("hora_ingreso"),
-        data.get("hora_salida"),
-        motivo,
-        (data.get("area_tipo") or "").strip(),
-        (data.get("profesional") or "").strip(),
-        (data.get("observaciones") or "").strip(),
-        (data.get("tratamiento") or "").strip(),
-        (data.get("evolucion") or "").strip(),
+        _nc("hora_ingreso"),
+        _nc("hora_salida"),
+        _nc("numero_expediente"),
+        _nc("cama_cubiculo"),
+        _num("edad", int),
+        _nc("sexo"),
+        _num("fecha_nacimiento", lambda s: s if isinstance(s, str) else s.strftime("%Y-%m-%d")) or _nc("fecha_nacimiento"),
+        _nc("domicilio"),
+        _nc("telefono"),
+        _nc("email"),
+        _nc("deporte"),
+        _nc("posicion"),
+        _nc("antiguedad_practica"),
+        _nc("nivel_competitivo"),
+        _nc("motivo_consulta") or _nc("motivo_diagnostico"),
+        _nc("diagnostico_medico"),
+        _nc("mecanismo_lesion"),
+        _nc("tratamientos_previos"),
+        (data.get("area_tipo") or "").strip() or None,
+        (data.get("profesional") or "").strip() or None,
+        _num("peso", float),
+        _num("talla", float),
+        _nc("antecedentes"),
+        _nc("examen_fisico"),
+        _nc("observaciones"),
+        _nc("tratamiento"),
+        _nc("evolucion"),
         (data.get("estado") or "registrada").strip(),
-        data.get("proxima_cita"),
+        _num("proxima_cita", lambda s: s if isinstance(s, str) else s.strftime("%Y-%m-%d")) or _nc("proxima_cita"),
         data.get("registrado_por"),
     ))
 
@@ -251,6 +280,81 @@ def crear_rehabilitacion(dni):
         }), 201
 
     return jsonify({"error": "No se pudo registrar la rehabilitacion."}), 500
+
+
+@pacientes_bp.route("/api/rehabilitaciones/<dni>/<int:cita_id>", methods=["GET"])
+def obtener_rehabilitacion(dni, cita_id):
+    """Devuelve una cita de rehabilitacion completa por su id."""
+    paciente = call_proc_one("sp_obtener_paciente_por_dni", (dni,))
+    if not paciente:
+        return jsonify({"error": "Paciente no encontrado"}), 404
+
+    cita = call_proc_one("sp_obtener_rehabilitacion", (cita_id,))
+    if not cita or cita.get("paciente_id") != paciente["id"]:
+        return jsonify({"error": "Cita no encontrada para este paciente."}), 404
+
+    return jsonify({"success": True, "paciente": paciente, "cita": cita})
+
+
+@pacientes_bp.route("/api/rehabilitaciones/<dni>/<int:cita_id>", methods=["PUT"])
+def actualizar_rehabilitacion(dni, cita_id):
+    """Edita los datos de la historia clinica de una cita existente.
+    El numero de cita y el vinculo con el paciente NO cambian."""
+    data = request.get_json() or {}
+    paciente = call_proc_one("sp_obtener_paciente_por_dni", (dni,))
+    if not paciente:
+        return jsonify({"error": "Paciente no encontrado"}), 404
+
+    existe = call_proc_one("sp_obtener_rehabilitacion", (cita_id,))
+    if not existe or existe.get("paciente_id") != paciente["id"]:
+        return jsonify({"error": "Cita no encontrada para este paciente."}), 404
+
+    def _nc(key):
+        v = data.get(key)
+        return None if v in (None, "") else v
+
+    def _num(key, cast):
+        try:
+            return None if data.get(key) in (None, "") else cast(data[key])
+        except (TypeError, ValueError):
+            return None
+
+    result = call_proc("sp_actualizar_rehabilitacion", (
+        cita_id,
+        _nc("fecha_cita"),
+        _nc("hora_ingreso"),
+        _nc("hora_salida"),
+        _nc("numero_expediente"),
+        _nc("cama_cubiculo"),
+        _num("edad", int),
+        _nc("sexo"),
+        _num("fecha_nacimiento", lambda s: s if isinstance(s, str) else s.strftime("%Y-%m-%d")) or _nc("fecha_nacimiento"),
+        _nc("domicilio"),
+        _nc("telefono"),
+        _nc("email"),
+        _nc("deporte"),
+        _nc("posicion"),
+        _nc("antiguedad_practica"),
+        _nc("nivel_competitivo"),
+        _nc("motivo_consulta") or _nc("motivo_diagnostico"),
+        _nc("diagnostico_medico"),
+        _nc("mecanismo_lesion"),
+        _nc("tratamientos_previos"),
+        (data.get("area_tipo") or "").strip() or None,
+        (data.get("profesional") or "").strip() or None,
+        _num("peso", float),
+        _num("talla", float),
+        _nc("antecedentes"),
+        _nc("examen_fisico"),
+        _nc("observaciones"),
+        _nc("tratamiento"),
+        _nc("evolucion"),
+        (data.get("estado") or "registrada").strip(),
+        _num("proxima_cita", lambda s: s if isinstance(s, str) else s.strftime("%Y-%m-%d")) or _nc("proxima_cita"),
+        data.get("registrado_por"),
+    ))
+
+    return jsonify({"success": True, "cita_id": cita_id})
 
 
 # ============================================================
@@ -570,4 +674,181 @@ def ficha_clinica_pdf(paciente_id):
         pdf_bytes,
         mimetype="application/pdf",
         headers={"Content-Disposition": "attachment; filename=ficha_clinica_{}.pdf".format(dni)},
+    )
+
+
+def _seccion_cita_pdf(pdf, cita):
+    """Dibuja una cita de rehabilitacion completa en el PDF."""
+    verde = (47, 133, 90)
+    gris = (74, 85, 104)
+    fecha_txt = _fmt_fecha(cita.get("fecha_cita"))
+    if cita.get("hora_ingreso"):
+        fecha_txt = (fecha_txt + " " + _texto_pdf(cita.get("hora_ingreso"))).strip()
+    pdf.set_font("Helvetica", "B", 10.5)
+    pdf.set_text_color(*verde)
+    pdf.cell(0, 6, "Cita {} - {}".format(_texto_pdf(cita.get("numero_cita")), fecha_txt))
+    pdf.ln(7)
+    pdf.set_text_color(0, 0, 0)
+
+    _pdf_grid(pdf, [
+        ("Expediente", _texto_pdf(cita.get("numero_expediente")) or "-"),
+        ("Cama/Cubiculo", _texto_pdf(cita.get("cama_cubiculo")) or "-"),
+        ("Hora entrada", _texto_pdf(cita.get("hora_ingreso")) or "-"),
+        ("Hora salida", _texto_pdf(cita.get("hora_salida")) or "-"),
+        ("Area/Tipo", _texto_pdf(cita.get("area_tipo")) or "-"),
+        ("Profesional", _texto_pdf(cita.get("profesional")) or "-"),
+        ("Estado", _texto_pdf(cita.get("estado")) or "-"),
+    ], compact=True)
+
+    def _bloque(titulo, valor):
+        valor = _texto_pdf(valor, 2000)
+        if not valor:
+            return
+        pdf.set_font("Helvetica", "B", 8.5)
+        pdf.set_text_color(*gris)
+        pdf.cell(0, 5, titulo + ":")
+        pdf.ln(5.5)
+        pdf.set_font("Helvetica", "", 8.5)
+        pdf.set_text_color(0, 0, 0)
+        pdf.multi_cell(0, 4.5, valor, new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(1)
+
+    _bloque("Motivo de consulta", cita.get("motivo_consulta"))
+    _bloque("Diagnostico medico", cita.get("diagnostico_medico"))
+    _bloque("Mecanismo de lesion", cita.get("mecanismo_lesion"))
+    _bloque("Tratamientos previos", cita.get("tratamientos_previos"))
+
+    if cita.get("deporte") or cita.get("posicion"):
+        pdf.set_font("Helvetica", "I", 8)
+        pdf.set_text_color(*gris)
+        pdf.cell(0, 5, "Datos del paciente deportivo:")
+        pdf.ln(5.5)
+        pdf.set_text_color(0, 0, 0)
+        _pdf_grid(pdf, [
+            ("Deporte", _texto_pdf(cita.get("deporte")) or "-"),
+            ("Posicion", _texto_pdf(cita.get("posicion")) or "-"),
+            ("Antiguedad", _texto_pdf(cita.get("antiguedad_practica")) or "-"),
+            ("Nivel", _texto_pdf(cita.get("nivel_competitivo")) or "-"),
+        ], compact=True)
+
+    _bloque("Tratamiento realizado", cita.get("tratamiento"))
+    _bloque("Evolucion", cita.get("evolucion"))
+    _bloque("Antecedentes", cita.get("antecedentes"))
+    _bloque("Examen fisico", cita.get("examen_fisico"))
+    _bloque("Observaciones", cita.get("observaciones"))
+
+    prox = cita.get("proxima_cita")
+    if prox:
+        pdf.set_font("Helvetica", "", 8.5)
+        pdf.set_text_color(0, 0, 0)
+        pdf.cell(0, 5, "Proxima cita: " + _fmt_fecha(prox))
+        pdf.ln(5)
+
+
+def _generar_historia_rehab_pdf(paciente, citas):
+    """Genera el PDF de historia clinica en rehabilitacion:
+    datos del paciente y una o todas sus citas."""
+    from fpdf import FPDF
+
+    logo_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+        "static", "pp.png",
+    )
+
+    verde = (47, 133, 90)
+    gris = (74, 85, 104)
+
+    pdf = FPDF(format="A4", unit="mm")
+    pdf.set_margins(12, 12, 12)
+    pdf.set_auto_page_break(auto=True, margin=14)
+    pdf.add_page()
+
+    if os.path.exists(logo_path):
+        try:
+            pdf.image(logo_path, x=12, y=10, w=30)
+        except Exception:
+            pass
+    pdf.set_xy(46, 14)
+    pdf.set_font("Helvetica", "B", 17)
+    pdf.set_text_color(*verde)
+    pdf.cell(0, 8, "MOOVA CLINIC")
+    pdf.set_xy(46, 22)
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.set_text_color(*gris)
+    pdf.cell(0, 6, "Historia Clinica en Rehabilitacion")
+    pdf.set_xy(46, 30)
+    pdf.set_font("Helvetica", "", 8)
+    pdf.set_text_color(150, 150, 150)
+    pdf.cell(0, 4, "Generado el " + datetime.now().strftime("%d/%m/%Y a las %H:%M"))
+    pdf.set_draw_color(*verde)
+    pdf.set_line_width(0.6)
+    pdf.line(12, 36, 198, 36)
+    pdf.set_text_color(0, 0, 0)
+    pdf.ln(11)
+
+    _pdf_titulo_seccion(pdf, "Datos del Paciente")
+    sexo = {"M": "Masculino", "F": "Femenino"}.get(paciente.get("sexo"))
+    sexo_txt = sexo if sexo else (_texto_pdf(paciente.get("sexo")) or "No registrado")
+    _pdf_grid(pdf, [
+        ("Nombre", (_texto_pdf(paciente.get("nombre")) + " " + _texto_pdf(paciente.get("apellido"))).strip()),
+        ("DNI", _texto_pdf(paciente.get("dni"))),
+        ("Telefono", _texto_pdf(paciente.get("telefono"))),
+        ("Email", _texto_pdf(paciente.get("email")) or "No registrado"),
+        ("Nacimiento", _fmt_fecha(paciente.get("fecha_nacimiento")) or "No registrado"),
+        ("Sexo", sexo_txt),
+        ("Direccion", _texto_pdf(paciente.get("direccion")) or "No registrado"),
+        ("Seguro", _texto_pdf(paciente.get("seguro")) or "No registrado"),
+    ])
+
+    _pdf_titulo_seccion(pdf, "Citas / Atenciones ({})".format(len(citas)))
+    if not citas:
+        pdf.set_font("Helvetica", "I", 9)
+        pdf.multi_cell(0, 5, "Sin atenciones registradas.", new_x="LMARGIN", new_y="NEXT")
+    for c in citas:
+        _seccion_cita_pdf(pdf, c)
+        pdf.ln(2)
+
+    pdf.set_y(-15)
+    pdf.set_draw_color(200, 200, 200)
+    pdf.line(12, pdf.get_y(), 198, pdf.get_y())
+    pdf.set_font("Helvetica", "", 7.5)
+    pdf.set_text_color(150, 150, 150)
+    pdf.cell(0, 5, "Documento generado por MOOVA Clinic - Uso interno", align="C")
+
+    return pdf.output()
+
+
+@pacientes_bp.route("/api/pacientes/<dni>/historia_rehab_pdf", methods=["GET"])
+def historia_clinica_rehab_pdf(dni):
+    """PDF de historia clinica: una sola cita (?cita_id=N) o todo el
+    historial del paciente (sin parametro)."""
+    paciente = call_proc_one("sp_obtener_paciente_por_dni", (dni,))
+    if not paciente:
+        return jsonify({"error": "Paciente no encontrado"}), 404
+
+    citas = call_proc("sp_listar_rehabilitaciones", (paciente["id"],))
+
+    cita_id = request.args.get("cita_id")
+    if cita_id:
+        try:
+            cita_id = int(cita_id)
+        except (TypeError, ValueError):
+            cita_id = None
+        if cita_id is not None:
+            citas = [c for c in citas if c.get("id") == cita_id]
+        if not citas:
+            return jsonify({"error": "Cita no encontrada para este paciente."}), 404
+
+    citas = sorted(citas, key=lambda c: str(c.get("fecha_cita") or ""))
+    try:
+        pdf_bytes = bytes(_generar_historia_rehab_pdf(paciente, citas))
+    except Exception:
+        return jsonify({"error": "No se pudo generar el PDF."}), 500
+
+    dni_txt = _texto_pdf(paciente.get("dni")) or "paciente"
+    sufijo = "cima" if cita_id else "historial"
+    return Response(
+        pdf_bytes,
+        mimetype="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=historia_rehab_{}_{}.pdf".format(dni_txt, sufijo)},
     )

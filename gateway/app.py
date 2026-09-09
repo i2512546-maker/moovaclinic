@@ -423,7 +423,8 @@ def create_app():
                                paquetes=data.get("paquetes", []),
                                evaluaciones=data.get("evaluaciones", []),
                                consentimientos=data.get("consentimientos", []),
-                               rehabilitaciones=rehab.get("rehabilitaciones", []),
+                               rehabilitaciones=sorted(rehab.get("rehabilitaciones", []),
+                                                      key=lambda c: str(c.get("fecha_cita") or "")),
                                rehab_resumen=rehab.get("resumen", {}),
                                terapeutas=rehab.get("terapeutas", []),
                                areas=rehab.get("areas", []))
@@ -458,26 +459,49 @@ def create_app():
         if request.method == "POST":
             form = request.form
             fecha_cita = form.get("fecha_cita", "").strip()
-            motivo = form.get("motivo_diagnostico", "").strip()
-            if not motivo and not fecha_cita:
-                flash("Completa al menos la fecha y el motivo/diagnostico.")
+            motivo = form.get("motivo_consulta", "").strip()
+            diag = form.get("diagnostico_medico", "").strip()
+            if not motivo and not diag:
+                flash("Completa al menos el motivo de consulta o el diagnostico medico.")
                 return redirect(url_for("registro_rehabilitacion_page", paciente_dni=paciente_dni))
+
+            def _v(campo):
+                return form.get(campo, "").strip()
 
             payload = {
                 "numero_cita": proxima_cita,
                 "nombres": paciente.get("nombre") or form.get("nombres", ""),
                 "apellidos": paciente.get("apellido") or form.get("apellidos", ""),
                 "fecha_cita": fecha_cita or date.today().strftime("%Y-%m-%d"),
-                "hora_ingreso": form.get("hora_ingreso", "").strip() or None,
-                "hora_salida": form.get("hora_salida", "").strip() or None,
-                "motivo_diagnostico": motivo or form.get("motivo_diagnostico", "").strip(),
-                "area_tipo": form.get("area_tipo", "").strip(),
-                "profesional": form.get("profesional", "").strip(),
-                "tratamiento": form.get("tratamiento", "").strip(),
-                "evolucion": form.get("evolucion", "").strip(),
-                "observaciones": form.get("observaciones", "").strip(),
-                "estado": form.get("estado", "registrada").strip(),
-                "proxima_cita": form.get("proxima_cita", "").strip() or None,
+                "hora_ingreso": _v("hora_ingreso") or None,
+                "hora_salida": _v("hora_salida") or None,
+                "numero_expediente": _v("numero_expediente") or None,
+                "cama_cubiculo": _v("cama_cubiculo") or None,
+                "edad": _v("edad") or None,
+                "sexo": _v("sexo") or None,
+                "fecha_nacimiento": _v("fecha_nacimiento") or None,
+                "domicilio": _v("domicilio") or None,
+                "telefono": _v("telefono") or None,
+                "email": _v("email") or None,
+                "deporte": _v("deporte") or None,
+                "posicion": _v("posicion") or None,
+                "antiguedad_practica": _v("antiguedad_practica") or None,
+                "nivel_competitivo": _v("nivel_competitivo") or None,
+                "motivo_consulta": motivo or None,
+                "diagnostico_medico": diag or None,
+                "mecanismo_lesion": _v("mecanismo_lesion") or None,
+                "tratamientos_previos": _v("tratamientos_previos") or None,
+                "area_tipo": _v("area_tipo") or None,
+                "profesional": _v("profesional") or None,
+                "peso": _v("peso") or None,
+                "talla": _v("talla") or None,
+                "antecedentes": _v("antecedentes") or None,
+                "examen_fisico": _v("examen_fisico") or None,
+                "tratamiento": _v("tratamiento") or None,
+                "observaciones": _v("observaciones") or None,
+                "evolucion": _v("evolucion") or None,
+                "estado": _v("estado") or "registrada",
+                "proxima_cita": _v("proxima_cita") or None,
                 "registrado_por": session.get("usuario_id"),
             }
 
@@ -498,7 +522,215 @@ def create_app():
                                proxima_cita=proxima_cita,
                                terapeutas=data.get("terapeutas", []),
                                areas=data.get("areas", []),
-                               rehabilitaciones=data.get("rehabilitaciones", []))
+                               rehabilitaciones=data.get("rehabilitaciones", []),
+                               cita={},
+                               modo="crear")
+
+    @app.route("/pacientes/<paciente_dni>/rehabilitacion/<int:cita_id>/editar", methods=["GET", "POST"])
+    def editar_rehabilitacion_page(paciente_dni, cita_id):
+        if "usuario_id" not in session or session.get("rol") != "admin":
+            return redirect(url_for("login"))
+
+        # Obtener la cita a editar
+        data = {}
+        try:
+            d, st = pacientes_client.get(
+                f"/api/rehabilitaciones/{paciente_dni}/{cita_id}")
+            if st == 200:
+                data = d
+        except Exception:
+            pass
+
+        paciente = data.get("paciente", {})
+
+        info = {}
+        st2 = 0
+        try:
+            info, st2 = pacientes_client.get(f"/api/rehabilitaciones/{paciente_dni}")
+            terapeutas = (info or {}).get("terapeutas", []) if st2 == 200 else []
+            areas = (info or {}).get("areas", []) if st2 == 200 else []
+        except Exception:
+            terapeutas, areas = [], []
+
+        cita = data.get("cita", {})
+        if not cita or not paciente:
+            flash("Cita no encontrada.")
+            return redirect(url_for("detalle_paciente_page", paciente_dni=paciente_dni))
+
+        if request.method == "POST":
+            form = request.form
+            motivo = form.get("motivo_consulta", "").strip()
+            diag = form.get("diagnostico_medico", "").strip()
+            if not motivo and not diag:
+                flash("Completa al menos el motivo de consulta o el diagnostico medico.")
+                return redirect(url_for("editar_rehabilitacion_page", paciente_dni=paciente_dni, cita_id=cita_id))
+
+            def _v(campo):
+                return form.get(campo, "").strip()
+
+            payload = {
+                "fecha_cita": _v("fecha_cita"),
+                "hora_ingreso": _v("hora_ingreso") or None,
+                "hora_salida": _v("hora_salida") or None,
+                "numero_expediente": _v("numero_expediente") or None,
+                "cama_cubiculo": _v("cama_cubiculo") or None,
+                "edad": _v("edad") or None,
+                "sexo": _v("sexo") or None,
+                "fecha_nacimiento": _v("fecha_nacimiento") or None,
+                "domicilio": _v("domicilio") or None,
+                "telefono": _v("telefono") or None,
+                "email": _v("email") or None,
+                "deporte": _v("deporte") or None,
+                "posicion": _v("posicion") or None,
+                "antiguedad_practica": _v("antiguedad_practica") or None,
+                "nivel_competitivo": _v("nivel_competitivo") or None,
+                "motivo_consulta": motivo or None,
+                "diagnostico_medico": diag or None,
+                "mecanismo_lesion": _v("mecanismo_lesion") or None,
+                "tratamientos_previos": _v("tratamientos_previos") or None,
+                "area_tipo": _v("area_tipo") or None,
+                "profesional": _v("profesional") or None,
+                "peso": _v("peso") or None,
+                "talla": _v("talla") or None,
+                "antecedentes": _v("antecedentes") or None,
+                "examen_fisico": _v("examen_fisico") or None,
+                "tratamiento": _v("tratamiento") or None,
+                "observaciones": _v("observaciones") or None,
+                "evolucion": _v("evolucion") or None,
+                "estado": _v("estado") or "registrada",
+                "proxima_cita": _v("proxima_cita") or None,
+                "registrado_por": session.get("usuario_id"),
+            }
+
+            try:
+                result, status = pacientes_client.put(
+                    f"/api/rehabilitaciones/{paciente_dni}/{cita_id}", payload)
+                if status == 200 and result.get("success"):
+                    flash("exito:Cita {} actualizada correctamente.".format(cita.get("numero_cita")))
+                    return redirect(url_for("detalle_paciente_page", paciente_dni=paciente_dni))
+                flash(result.get("error", "No se pudo actualizar la cita."))
+            except Exception:
+                flash("Error de conexion con el servicio de pacientes.")
+
+        total = 0
+        ultima = 0
+        try:
+            resumen = (info or {}).get("resumen", {}) if st2 == 200 else {}
+            ultima = int(resumen.get("ultima_cita") or 0)
+            total = int(resumen.get("total_registradas") or ultima)
+        except (TypeError, ValueError):
+            ultima, total = 0, 0
+
+        return render_template("registro_rehabilitacion.html",
+                               paciente=paciente,
+                               cita=cita,
+                               modo="editar",
+                               proxima_cita=int(cita.get("numero_cita") or ultima + 1),
+                               ultima_cita=ultima,
+                               total_citas=total,
+                               terapeutas=terapeutas,
+                               areas=areas,
+                               rehabilitaciones=[])
+
+    @app.route("/pacientes/<paciente_dni>/citas/<int:cita_id>")
+    def ver_cita_page(paciente_dni, cita_id):
+        if "usuario_id" not in session or session.get("rol") != "admin":
+            return redirect(url_for("login"))
+
+        data = {}
+        try:
+            d, st = pacientes_client.get(
+                f"/api/rehabilitaciones/{paciente_dni}/{cita_id}")
+            if st == 200:
+                data = d
+        except Exception:
+            pass
+
+        paciente = data.get("paciente", {})
+        cita = data.get("cita", {})
+        if not cita or not paciente:
+            flash("Cita no encontrada.")
+            return redirect(url_for("detalle_paciente_page", paciente_dni=paciente_dni))
+
+        return render_template("detalle_cita.html", paciente=paciente, cita=cita)
+
+    @app.route("/pacientes/<paciente_dni>/exportar")
+    def exportar_historia_page(paciente_dni):
+        if "usuario_id" not in session or session.get("rol") != "admin":
+            return redirect(url_for("login"))
+
+        formato = request.args.get("formato", "html")
+        cita_id = request.args.get("cita_id")
+        alcance = request.args.get("alcance", "todo")  # todo | una
+
+        # Datos del paciente + historial
+        data = {}
+        try:
+            d, st = pacientes_client.get(f"/api/rehabilitaciones/{paciente_dni}")
+            if st == 200:
+                data = d
+        except Exception:
+            pass
+
+        paciente = data.get("paciente", {})
+        if not paciente:
+            flash("Paciente no encontrado.")
+            return redirect(url_for("pacientes_page"))
+
+        citas = list(data.get("rehabilitaciones", []))
+        cita = None
+        if alcance == "una" and cita_id:
+            try:
+                cita_id = int(cita_id)
+            except (TypeError, ValueError):
+                cita_id = None
+            if cita_id is not None:
+                cita = next((c for c in citas if c.get("id") == cita_id), None)
+                if cita:
+                    citas = [cita]
+
+        citas = sorted(citas, key=lambda c: str(c.get("fecha_cita") or ""))
+
+        if formato == "pdf":
+            url = SERVICE_URLS["pacientes"] + "/api/pacientes/{}/historia_rehab_pdf".format(paciente_dni)
+            if alcance == "una" and cita_id:
+                url += "?cita_id={}".format(cita_id)
+            try:
+                resp = requests.get(url, timeout=30)
+            except Exception:
+                flash("No se pudo generar el PDF.")
+                return redirect(url_for("detalle_paciente_page", paciente_dni=paciente_dni))
+            if resp.status_code != 200:
+                flash("No se pudo generar el PDF.")
+                return redirect(url_for("detalle_paciente_page", paciente_dni=paciente_dni))
+            nombre_archivo = "historia_rehab_{}.pdf".format(paciente_dni)
+            return Response(
+                resp.content,
+                mimetype="application/pdf",
+                headers={"Content-Disposition": "attachment; filename={}".format(nombre_archivo)},
+            )
+
+        html = render_template("export_historia.html",
+                               paciente=paciente,
+                               citas=citas,
+                               alcance=alcance,
+                               generar_fecha=datetime.now().strftime("%d/%m/%Y %H:%M"))
+
+        if formato == "word":
+            nombre = "historia_rehab_{}.doc".format(paciente_dni)
+            return Response(
+                html,
+                mimetype="application/msword",
+                headers={"Content-Disposition": "attachment; filename={}".format(nombre)},
+            )
+
+        # formato html: vista imprimible
+        return render_template("export_historia.html",
+                               paciente=paciente,
+                               citas=citas,
+                               alcance=alcance,
+                               imprimir=True,
+                               generar_fecha=datetime.now().strftime("%d/%m/%Y %H:%M"))
 
     @app.route("/pacientes/<int:paciente_id>/pdf")
     def ficha_clinica_pdf(paciente_id):

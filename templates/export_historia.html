@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historia Clínica en Rehabilitación - {{ paciente.nombre }} {{ paciente.apellido }}</title>
+    <style>
+        body { font-family: 'Segoe UI', Calibri, Arial, sans-serif; color: #1f2937; margin: 24px; }
+        h1 { font-size: 20px; margin: 0; color: #0284c7; }
+        h2 { font-size: 14px; margin: 18px 0 6px; padding-bottom: 4px; border-bottom: 2px solid #0284c7; color: #0369a1; }
+        h3 { font-size: 13px; margin: 14px 0 4px; color: #047857; }
+        .titulo { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #0284c7; padding-bottom: 8px; margin-bottom: 12px; }
+        .subtitulo { color: #6b7280; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+        td, th { border: 1px solid #d1d5db; padding: 4px 8px; font-size: 12px; vertical-align: top; }
+        th { background: #eff6ff; text-align: left; color: #0369a1; width: 22%; }
+        .cita { margin-bottom: 14px; }
+        .cita-titulo { font-weight: bold; color: #0284c7; }
+        .vacio { color: #9ca3af; font-style: italic; }
+        @media print { body { margin: 8px; } }
+    </style>
+</head>
+<body>
+    {% if imprimir %}
+    <div style="text-align:right; margin-bottom:12px;">
+        <button onclick="window.print()" style="padding:8px 16px; background:#0284c7; color:#fff; border:0; border-radius:6px; cursor:pointer;">Imprimir / Guardar PDF</button>
+    </div>
+    {% endif %}
+    <div class="titulo">
+        <div>
+            <h1>MOOVA CLINIC</h1>
+            <div class="subtitulo">Historia Clínica en Rehabilitación</div>
+        </div>
+        <div class="subtitulo">Generado el {{ generar_fecha }}
+            {% if alcance == 'una' %}<br>Alcance: una sola cita{% else %}<br>Alcance: historial completo ({{ citas|length }} cita(s)){% endif %}
+        </div>
+    </div>
+
+    <h2>Datos del Paciente</h2>
+    <table>
+        <tr><th>Nombre completo</th><td>{{ paciente.nombre }} {{ paciente.apellido }}</td>
+            <th>DNI</th><td>{{ paciente.dni }}</td></tr>
+        <tr><th>Teléfono</th><td>{{ paciente.telefono or '-' }}</td>
+            <th>Correo</th><td>{{ paciente.email or '-' }}</td></tr>
+        <tr><th>Fecha de nacimiento</th><td>{{ paciente.fecha_nacimiento or '-' }}</td>
+            <th>Sexo</th><td>{{ 'Masculino' if paciente.sexo == 'M' else ('Femenino' if paciente.sexo == 'F' else (paciente.sexo or '-')) }}</td></tr>
+        <tr><th>Domicilio</th><td>{{ paciente.direccion or '-' }}</td>
+            <th>Seguro</th><td>{{ paciente.seguro or '-' }}</td></tr>
+    </table>
+
+    <h2>Citas / Atenciones</h2>
+    {% if not citas %}
+    <p class="vacio">Sin atenciones registradas.</p>
+    {% endif %}
+    {% for c in citas %}
+    <div class="cita">
+        <h3><span class="cita-titulo">Cita {{ c.numero_cita }}</span>
+            &nbsp;-&nbsp; {{ c.fecha_cita }} {% if c.hora_ingreso %}({{ c.hora_ingreso }}{% if c.hora_salida %} - {{ c.hora_salida }}{% endif %}){% endif %}
+            &nbsp;-&nbsp; Estado: {{ c.estado|capitalize if c.estado else 'registrada' }}</h3>
+        <table>
+            <tr><th>N.º Expediente</th><td>{{ c.numero_expediente or '-' }}</td>
+                <th>Cama/Cubículo</th><td>{{ c.cama_cubiculo or '-' }}</td></tr>
+            <tr><th>Área / Tipo</th><td>{{ c.area_tipo or '-' }}</td>
+                <th>Profesional</th><td>{{ c.profesional or '-' }}</td></tr>
+            <tr><th>Edad</th><td>{{ c.edad or '-' }}</td>
+                <th>Sexo</th><td>{{ 'Masculino' if c.sexo == 'M' else ('Femenino' if c.sexo == 'F' else (c.sexo or '-')) }}</td></tr>
+            <tr><th>Próxima cita</th><td>{{ c.proxima_cita or '-' }}</td>
+                <th>Registrado el</th><td>{{ c.fecha_registro or '-' }}</td></tr>
+            <tr><th>Motivo de consulta</th><td colspan="3">{{ c.motivo_consulta or c.motivo_diagnostico or '-' }}</td></tr>
+            <tr><th>Diagnóstico médico</th><td colspan="3">{{ c.diagnostico_medico or '-' }}</td></tr>
+            <tr><th>Mecanismo de lesión</th><td colspan="3">{{ c.mecanismo_lesion or '-' }}</td></tr>
+            <tr><th>Tratamientos previos</th><td colspan="3">{{ c.tratamientos_previos or '-' }}</td></tr>
+            {% if c.deporte or c.posicion or c.antiguedad_practica or c.nivel_competitivo %}
+            <tr><th>Deporte</th><td>{{ c.deporte or '-' }}</td>
+                <th>Posición</th><td>{{ c.posicion or '-' }}</td></tr>
+            <tr><th>Antigüedad</th><td>{{ c.antiguedad_practica or '-' }}</td>
+                <th>Nivel</th><td>{{ (c.nivel_competitivo|replace('_', ' ')|capitalize) if c.nivel_competitivo else '-' }}</td></tr>
+            {% endif %}
+            <tr><th>Peso / Talla</th><td>{{ c.peso ~ ' kg' if c.peso else '-' }} / {{ c.talla ~ ' m' if c.talla else '-' }}</td>
+                <th>Antecedentes</th><td>{{ c.antecedentes or '-' }}</td></tr>
+            <tr><th>Examen físico</th><td colspan="3">{{ c.examen_fisico or '-' }}</td></tr>
+            <tr><th>Tratamiento realizado</th><td colspan="3">{{ c.tratamiento or '-' }}</td></tr>
+            <tr><th>Evolución</th><td colspan="3">{{ c.evolucion or '-' }}</td></tr>
+            <tr><th>Observaciones</th><td colspan="3">{{ c.observaciones or '-' }}</td></tr>
+        </table>
+    </div>
+    {% endfor %}
+
+    <p style="text-align:center; color:#9ca3af; font-size:11px; margin-top:24px;">
+        Documento generado por MOOVA Clinic - Uso interno
+    </p>
+</body>
+</html>

@@ -192,6 +192,14 @@ h1, h2, h3, h4, h5, h6 {
   opacity: 0.85;
 }
 .cita-badge.habilitada { cursor: not-allowed; }
+.cita-badge.numero {
+  cursor: default;
+  background: var(--moova-primary);
+  color: #fff;
+  border-color: var(--moova-primary);
+  min-width: auto;
+}
+.cita-badge.numero:hover { transform: none; }
 
 /* Timeline de historial de rehabilitacion */
 .rehab-timeline {
@@ -275,4 +283,12 @@ h1, h2, h3, h4, h5, h6 {
 
 @media (max-width: 992px) {
   .detalle-grid { grid-template-columns: 1fr; }
+}
+
+/* Impresion */
+@media print {
+  .panel-header .btn, .btn-moova-outline, .btn-outline-secondary, .btn-danger-moova,
+  .d-flex.justify-content-end, .modal, .selectorCitas, #selectorCitas { display: none !important; }
+  body { background: #fff !important; }
+  .card-moova { box-shadow: none !important; border: 1px solid #cbd5e1; }
 }

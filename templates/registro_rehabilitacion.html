@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registro de Rehabilitación - MOOVA Clinic</title>
+    <title>Historia Clínica en Rehabilitación - MOOVA Clinic</title>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Nunito:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
@@ -13,13 +13,16 @@
     <div class="container-fluid py-4">
         <div class="panel-header d-flex align-items-center justify-content-between rounded mb-4">
             <h1 class="h4 mb-0 d-flex align-items-center gap-2">
-                <i class="bi bi-lungs"></i> Registro de Rehabilitación
+                <i class="bi bi-lungs"></i> {{ 'Editar' if modo == 'editar' else 'Registrar' }} Historia Clínica en Rehabilitación
             </h1>
             <div class="d-flex align-items-center gap-2">
+                {% if modo == 'editar' and cita %}
+                <a href="{{ url_for('ver_cita_page', paciente_dni=paciente.dni, cita_id=cita.id) }}"
+                    class="btn btn-outline-secondary btn-sm">Ver cita</a>
+                {% endif %}
                 <a href="{{ url_for('detalle_paciente_page', paciente_dni=paciente.dni) }}"
                     class="btn btn-outline-secondary btn-sm">Ver historial</a>
                 <a href="{{ url_for('interfaz') }}" class="btn btn-outline-secondary btn-sm">Pacientes del día</a>
-                <a href="{{ url_for('pacientes_page') }}" class="btn btn-outline-secondary btn-sm">Pacientes Registrados</a>
                 <a href="{{ url_for('logout') }}" class="btn btn-danger-moova btn-sm">Cerrar sesion</a>
             </div>
         </div>
@@ -40,219 +43,308 @@
             {% endif %}
         {% endwith %}
 
-        <!-- Datos del paciente (autocargados por DNI) -->
-        <div class="card card-moova shadow-sm mb-4">
-            <div class="card-header panel-header">
-                <h2 class="h5 mb-0 d-flex align-items-center gap-2"><i class="bi bi-person-vcard"></i> Datos del Paciente</h2>
-            </div>
-            <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small text-uppercase">Paciente ID</label>
-                        <input type="text" class="form-control" value="{{ paciente.id }}" readonly>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small text-uppercase">DNI</label>
-                        <input type="text" class="form-control" value="{{ paciente.dni }}" readonly>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small text-uppercase">Nombre completo</label>
-                        <input type="text" class="form-control" value="{{ paciente.nombre }} {{ paciente.apellido }}" readonly>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small text-uppercase">Teléfono</label>
-                        <input type="text" class="form-control" value="{{ paciente.telefono or 'No registrado' }}" readonly>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small text-uppercase">Correo</label>
-                        <input type="text" class="form-control" value="{{ paciente.email or 'No registrado' }}" readonly>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small text-uppercase">Citas registradas</label>
-                        <input type="text" class="form-control" value="{{ total_citas }} cita(s)" readonly>
-                    </div>
-                </div>
-            </div>
+        {% if modo == 'crear' %}
+        <div class="d-flex flex-wrap gap-2 mb-4" id="selectorCitas">
+            {% for i in range(1, proxima_cita + 4) %}
+                {% if i <= ultima_cita %}
+                <span class="cita-badge ocupada" title="Cita {{ i }} ya registrada">
+                    <i class="bi bi-lock-fill"></i> Cita {{ i }}
+                </span>
+                {% elif i == proxima_cita %}
+                <span class="cita-badge disponible">
+                    <i class="bi bi-plus-circle"></i> Cita {{ i }} (a registrar)
+                </span>
+                {% else %}
+                <span class="cita-badge habilitada" title="Disponible al completar la Cita {{ i - 1 }}">
+                    Cita {{ i }}
+                </span>
+                {% endif %}
+            {% endfor %}
         </div>
-
-        <div class="row g-4">
-            <!-- Columna izquierda: selector de cita -->
-            <div class="col-lg-5">
-                <div class="card card-moova shadow-sm h-100">
-                    <div class="card-header panel-header">
-                        <h2 class="h5 mb-0 d-flex align-items-center gap-2"><i class="bi bi-clipboard2-pulse"></i> Citas de Rehabilitación</h2>
-                    </div>
-                    <div class="card-body">
-                        <p class="text-muted small mb-3">
-                            Las citas se asignan en orden consecutivo. Solo puedes registrar la <strong>Cita {{ proxima_cita }}</strong>;
-                            las anteriores quedan registradas y bloqueadas.
-                        </p>
-
-                        <div class="d-flex flex-wrap gap-2 mb-4" id="selectorCitas">
-                            {% for i in range(1, proxima_cita + 4) %}
-                                {% if i <= ultima_cita %}
-                                <span class="cita-badge ocupada" title="Cita {{ i }} ya registrada">
-                                    <i class="bi bi-lock-fill"></i> Cita {{ i }}
-                                </span>
-                                {% elif i == proxima_cita %}
-                                <button type="button" class="cita-badge disponible" data-numero="{{ i }}" data-proxima="1">
-                                    <i class="bi bi-plus-circle"></i> Cita {{ i }}
-                                </button>
-                                {% elif i == proxima_cita + 1 %}
-                                <button type="button" class="cita-badge habilitada" data-numero="{{ i }}" data-proxima="0" data-anterior="1" disabled>
-                                    <i class="bi bi-lock"></i> Cita {{ i }}
-                                </button>
-                                {% else %}
-                                <span class="cita-badge habilitada" title="Disponible al completar la Cita {{ i - 1 }}">
-                                    Cita {{ i }}
-                                </span>
-                                {% endif %}
-                            {% endfor %}
-                        </div>
-
-                        <div class="alert alert-info small mb-0">
-                            <i class="bi bi-info-circle"></i> Aunque se muestre el estado visual de las citas, la restricción también se
-                            valida en el servidor y en la base de datos (UNIQUE paciente_id + numero_cita).
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Columna derecha: formulario de registro -->
-            <div class="col-lg-7">
-                <div class="card card-moova shadow-sm">
-                    <div class="card-header panel-header">
-                        <h2 class="h5 mb-0 d-flex align-items-center gap-2"><i class="bi bi-pencil-square"></i> Datos de la Atención</h2>
-                    </div>
-                    <div class="card-body">
-                        <form method="POST" id="formRehab">
-                            <input type="hidden" name="numero_cita" value="{{ proxima_cita }}">
-                            <div class="row g-3">
-                                <div class="col-md-2">
-                                    <label class="form-label">Cita</label>
-                                    <input type="text" class="form-control" value="Cita {{ proxima_cita }}" readonly>
-                                </div>
-                                <div class="col-md-5">
-                                    <label class="form-label">Fecha de la cita</label>
-                                    <input type="date" name="fecha_cita" class="form-control" required>
-                                </div>
-                                <div class="col-md-5">
-                                    <label class="form-label">Hora</label>
-                                    <input type="time" name="hora_ingreso" class="form-control">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Hora de salida</label>
-                                    <input type="time" name="hora_salida" class="form-control">
-                                </div>
-                                <div class="col-md-12">
-                                    <label class="form-label">Tipo / Área de rehabilitación</label>
-                                    <select name="area_tipo" class="form-select">
-                                        <option value="">Seleccionar</option>
-                                        {% for a in areas %}
-                                        <option value="{{ a.nombre }}">{{ a.nombre }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-md-12">
-                                    <label class="form-label">Motivo / Diagnóstico</label>
-                                    <input type="text" name="motivo_diagnostico" class="form-control"
-                                        placeholder="Ej: Dolor lumbar crónico" required>
-                                </div>
-                                <div class="col-md-12">
-                                    <label class="form-label">Profesional que realizó la atención</label>
-                                    <select name="profesional" class="form-select">
-                                        <option value="">Seleccionar</option>
-                                        {% for t in terapeutas %}
-                                        <option value="{{ t.terapeuta_nombre }}">{{ t.terapeuta_nombre }} ({{ t.especialidad or 'General' }})</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-md-12">
-                                    <label class="form-label">Tratamiento realizado</label>
-                                    <textarea name="tratamiento" class="form-control" rows="2"
-                                        placeholder="Ej: Terapia manual, electroterapia, ejercicios de fortalecimiento..."></textarea>
-                                </div>
-                                <div class="col-md-12">
-                                    <label class="form-label">Observaciones</label>
-                                    <textarea name="observaciones" class="form-control" rows="2"
-                                        placeholder="Observaciones adicionales de la atención"></textarea>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Estado de la atención</label>
-                                    <select name="estado" class="form-select">
-                                        <option value="registrada">Registrada</option>
-                                        <option value="completada">Completada</option>
-                                        <option value="cancelada">Cancelada</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Próxima cita</label>
-                                    <input type="date" name="proxima_cita" class="form-control">
-                                </div>
-                            </div>
-                            <div class="d-flex justify-content-end gap-2 mt-4">
-                                <a href="{{ url_for('interfaz') }}" class="btn btn-outline-secondary">Cancelar</a>
-                                <button type="submit" class="btn btn-moova d-inline-flex align-items-center gap-1">
-                                    <i class="bi bi-check-lg"></i> Guardar Rehabilitación
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {% if rehabilitaciones %}
-        <div class="card card-moova shadow-sm mt-4">
-            <div class="card-header panel-header d-flex align-items-center justify-content-between">
-                <h2 class="h5 mb-0 d-flex align-items-center gap-2"><i class="bi bi-clock-history"></i> Rehabilitaciones registradas de este paciente</h2>
-                <span class="badge text-bg-light">{{ rehabilitaciones|length }}</span>
-            </div>
-            <div class="table-responsive">
-                <table class="table table-hover table-striped align-middle mb-0">
-                    <thead>
-                        <tr>
-                            <th>Cita</th>
-                            <th>Fecha</th>
-                            <th>Hora</th>
-                            <th>Tipo</th>
-                            <th>Profesional</th>
-                            <th>Estado</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for r in rehabilitaciones %}
-                        <tr>
-                            <td><strong>Cita {{ r.numero_cita }}</strong></td>
-                            <td>{{ r.fecha_cita }}</td>
-                            <td>{{ r.hora_ingreso or '-' }}</td>
-                            <td>{{ r.area_tipo or '-' }}</td>
-                            <td>{{ r.profesional or '-' }}</td>
-                            <td><span class="badge badge-{{ r.estado }}">{{ r.estado|capitalize }}</span></td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+        {% else %}
+        <div class="alert alert-info mb-4">
+            <i class="bi bi-info-circle"></i> Estás editando la <strong>Cita {{ cita.numero_cita }}</strong> del {{ cita.fecha_cita }}.
+            El número de cita y el vínculo con el paciente no se pueden modificar.
         </div>
         {% endif %}
+
+        <form method="POST" id="formRehab">
+            <input type="hidden" name="numero_cita" value="{{ cita.numero_cita if modo == 'editar' else proxima_cita }}">
+
+            <!-- ============ Datos de identificación ============ -->
+            <div class="card card-moova shadow-sm mb-4">
+                <div class="card-header panel-header">
+                    <h2 class="h5 mb-0 d-flex align-items-center gap-2"><i class="bi bi-person-vcard"></i> Datos de Identificación</h2>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-2">
+                            <label class="form-label text-muted small text-uppercase">N.º Expediente</label>
+                            <input type="text" name="numero_expediente" class="form-control"
+                                value="{{ cita.numero_expediente if cita.numero_expediente else ('MC-' ~ paciente.id ~ '-' ~ proxima_cita) }}"
+                                placeholder="Ej: MC-42-1">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label text-muted small text-uppercase">Cama/Cubículo</label>
+                            <input type="text" name="cama_cubiculo" class="form-control"
+                                value="{{ cita.cama_cubiculo or '' }}" placeholder="Ej: C-03">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label text-muted small text-uppercase">Paciente ID</label>
+                            <input type="text" class="form-control" value="{{ paciente.id }}" readonly disabled>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-muted small text-uppercase">DNI</label>
+                            <input type="text" class="form-control" value="{{ paciente.dni }}" readonly disabled>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-muted small text-uppercase">Nombre completo</label>
+                            <input type="text" class="form-control" value="{{ paciente.nombre }} {{ paciente.apellido }}" readonly disabled>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Fecha de nacimiento</label>
+                            <input type="date" name="fecha_nacimiento" id="fechaNacimiento" class="form-control"
+                                value="{{ cita.fecha_nacimiento or paciente.fecha_nacimiento or '' }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Edad</label>
+                            <input type="number" name="edad" id="campoEdad" class="form-control"
+                                value="{{ cita.edad or '' }}" placeholder="Años" min="0" max="120">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Sexo</label>
+                            <select name="sexo" class="form-select">
+                                {% set sexo_sel = cita.sexo or paciente.sexo %}
+                                <option value="M" {% if sexo_sel == 'M' %}selected{% endif %}>Masculino</option>
+                                <option value="F" {% if sexo_sel == 'F' %}selected{% endif %}>Femenino</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Teléfono</label>
+                            <input type="text" name="telefono" class="form-control"
+                                value="{{ cita.telefono or paciente.telefono }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Correo</label>
+                            <input type="email" name="email" class="form-control"
+                                value="{{ cita.email or paciente.email or '' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Domicilio</label>
+                            <input type="text" name="domicilio" class="form-control"
+                                value="{{ cita.domicilio or paciente.direccion or '' }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Seguro</label>
+                            <input type="text" name="seguro" class="form-control"
+                                value="{{ cita.seguro or paciente.seguro or '' }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============ Datos de la atención ============ -->
+            <div class="card card-moova shadow-sm mb-4">
+                <div class="card-header panel-header">
+                    <h2 class="h5 mb-0 d-flex align-items-center gap-2"><i class="bi bi-clipboard2-pulse"></i> Datos de la Atención</h2>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Fecha de la cita</label>
+                            <input type="date" name="fecha_cita" class="form-control" required
+                                value="{{ cita.fecha_cita or '' }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Hora entrada</label>
+                            <input type="time" name="hora_ingreso" class="form-control"
+                                value="{{ cita.hora_ingreso or '' }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Hora salida</label>
+                            <input type="time" name="hora_salida" class="form-control"
+                                value="{{ cita.hora_salida or '' }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Tipo / Área de rehabilitación</label>
+                            <select name="area_tipo" class="form-select">
+                                <option value="">Seleccionar</option>
+                                {% for a in areas %}
+                                <option value="{{ a.nombre }}" {% if cita.area_tipo == a.nombre %}selected{% endif %}>{{ a.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Estado</label>
+                            <select name="estado" class="form-select">
+                                {% set est = cita.estado or 'registrada' %}
+                                <option value="registrada" {% if est == 'registrada' %}selected{% endif %}>Registrada</option>
+                                <option value="completada" {% if est == 'completada' %}selected{% endif %}>Completada</option>
+                                <option value="cancelada" {% if est == 'cancelada' %}selected{% endif %}>Cancelada</option>
+                            </select>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label">Profesional que realizó la atención</label>
+                            <select name="profesional" class="form-select">
+                                <option value="">Seleccionar</option>
+                                {% for t in terapeutas %}
+                                <option value="{{ t.terapeuta_nombre }}" {% if cita.profesional == t.terapeuta_nombre %}selected{% endif %}>{{ t.terapeuta_nombre }}{{ (' (' ~ t.especialidad ~ ')') if t.especialidad }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Próxima cita</label>
+                            <input type="date" name="proxima_cita" class="form-control"
+                                value="{{ cita.proxima_cita or '' }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============ Datos del paciente deportivo (opcional) ============ -->
+            <div class="card card-moova shadow-sm mb-4">
+                <div class="card-header panel-header d-flex align-items-center justify-content-between">
+                    <h2 class="h5 mb-0 d-flex align-items-center gap-2"><i class="bi bi-trophy"></i> Datos del Paciente Deportivo</h2>
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" id="toggleDeportivo"
+                            {% if cita.deporte or cita.posicion or cita.antiguedad_practica or cita.nivel_competitivo %}checked{% endif %}>
+                        <label class="form-check-label small" for="toggleDeportivo">¿Es paciente deportivo?</label>
+                    </div>
+                </div>
+                <div class="card-body" id="datosDeportivo"
+                    {% if not (cita.deporte or cita.posicion or cita.antiguedad_practica or cita.nivel_competitivo) %}style="display:none;"{% endif %}>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Deporte que practica</label>
+                            <input type="text" name="deporte" class="form-control"
+                                value="{{ cita.deporte or '' }}" placeholder="Ej: Fútbol">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Posición / Disciplina</label>
+                            <input type="text" name="posicion" class="form-control"
+                                value="{{ cita.posicion or '' }}" placeholder="Ej: Delantero">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Antigüedad de práctica</label>
+                            <input type="text" name="antiguedad_practica" class="form-control"
+                                value="{{ cita.antiguedad_practica or '' }}" placeholder="Ej: 5 años">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Nivel competitivo</label>
+                            <select name="nivel_competitivo" class="form-select">
+                                {% set nivel = cita.nivel_competitivo or '' %}
+                                <option value="" {% if not nivel %}selected{% endif %}>Ninguno</option>
+                                <option value="amateur" {% if nivel == 'amateur' %}selected{% endif %}>Amateur</option>
+                                <option value="semi_profesional" {% if nivel == 'semi_profesional' %}selected{% endif %}>Semi profesional</option>
+                                <option value="profesional" {% if nivel == 'profesional' %}selected{% endif %}>Profesional</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============ Historia clínica ============ -->
+            <div class="card card-moova shadow-sm mb-4">
+                <div class="card-header panel-header">
+                    <h2 class="h5 mb-0 d-flex align-items-center gap-2"><i class="bi bi-journal-medical"></i> Historia Clínica de la Atención</h2>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Motivo de consulta</label>
+                            <textarea name="motivo_consulta" class="form-control" rows="2"
+                                placeholder="Ej: Dolor agudo en rodilla derecha al realizar sentadillas">{{ cita.motivo_consulta or '' }}</textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Diagnóstico médico</label>
+                            <textarea name="diagnostico_medico" class="form-control" rows="2"
+                                placeholder="Ej: Distensión del ligamento colateral medial Grado I">{{ cita.diagnostico_medico or '' }}</textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Mecanismo de lesión</label>
+                            <textarea name="mecanismo_lesion" class="form-control" rows="2"
+                                placeholder="Ej: Giro brusco con apoyo plantar fijo">{{ cita.mecanismo_lesion or '' }}</textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Tratamientos previos</label>
+                            <textarea name="tratamientos_previos" class="form-control" rows="2"
+                                placeholder="Ej: Ibuprofeno, crioterapia, sin fisioterapia previa">{{ cita.tratamientos_previos or '' }}</textarea>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Peso (kg)</label>
+                            <input type="number" name="peso" class="form-control" step="0.01" min="0"
+                                value="{{ cita.peso or '' }}" placeholder="Ej: 70.5">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Talla (m)</label>
+                            <input type="number" name="talla" class="form-control" step="0.01" min="0"
+                                value="{{ cita.talla or '' }}" placeholder="Ej: 1.72">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Antecedentes y comorbilidades</label>
+                            <textarea name="antecedentes" class="form-control" rows="2"
+                                placeholder="Ej: HTA controlada, diabetes tipo 2">{{ cita.antecedentes or '' }}</textarea>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Examen físico</label>
+                            <textarea name="examen_fisico" class="form-control" rows="3"
+                                placeholder="Ej: Edema leve, arco de movimiento limitado en flexion a 90°">{{ cita.examen_fisico or '' }}</textarea>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Tratamiento realizado</label>
+                            <textarea name="tratamiento" class="form-control" rows="3"
+                                placeholder="Ej: Terapia manual, electroterapia, ejercicios de fortalecimiento...">{{ cita.tratamiento or '' }}</textarea>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Evolución</label>
+                            <textarea name="evolucion" class="form-control" rows="2"
+                                placeholder="Ej: El paciente refiere disminución del dolor de 7/10 a 4/10">{{ cita.evolucion or '' }}</textarea>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Observaciones</label>
+                            <textarea name="observaciones" class="form-control" rows="2"
+                                placeholder="Observaciones adicionales de la atención">{{ cita.observaciones or '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mb-4">
+                <a href="{{ url_for('interfaz') }}" class="btn btn-outline-secondary">Cancelar</a>
+                {% if modo == 'editar' %}
+                <a href="{{ url_for('ver_cita_page', paciente_dni=paciente.dni, cita_id=cita.id) }}" class="btn btn-outline-secondary">Ver cita</a>
+                {% endif %}
+                <button type="submit" class="btn btn-moova d-inline-flex align-items-center gap-1">
+                    <i class="bi bi-check-lg"></i> {{ 'Guardar cambios' if modo == 'editar' else 'Guardar Historia Clínica' }}
+                </button>
+            </div>
+        </form>
     </div>
 
     <script>
         const fechaInput = document.querySelector('input[name="fecha_cita"]');
-        if (fechaInput) {
+        if (fechaInput && !fechaInput.value) {
             fechaInput.value = new Date().toISOString().slice(0, 10);
         }
-
-        // Prevenir seleccion de citas que no son la siguiente disponible
-        document.querySelectorAll('#selectorCitas .cita-badge.disponible').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const n = btn.getAttribute('data-numero');
-                document.querySelector('input[name="numero_cita"]').value = n;
-                document.querySelectorAll('#selectorCitas .cita-badge').forEach(b => b.classList.remove('btn-seleccion'));
-                btn.classList.add('btn-seleccion');
+        const nac = document.getElementById('fechaNacimiento');
+        const edad = document.getElementById('campoEdad');
+        if (nac && edad) {
+            nac.addEventListener('change', () => {
+                const f = nac.value;
+                if (!f) { edad.value = ''; return; }
+                const hoy = new Date();
+                const n = new Date(f + 'T00:00:00');
+                let anios = hoy.getFullYear() - n.getFullYear();
+                const m = hoy.getMonth() - n.getMonth();
+                if (m < 0 || (m === 0 && hoy.getDate() < n.getDate())) anios--;
+                if (anios >= 0 && !edad.value) edad.value = anios;
             });
-        });
+        }
+        const tgl = document.getElementById('toggleDeportivo');
+        const sec = document.getElementById('datosDeportivo');
+        if (tgl && sec) {
+            tgl.addEventListener('change', () => { sec.style.display = tgl.checked ? '' : 'none'; });
+        }
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
