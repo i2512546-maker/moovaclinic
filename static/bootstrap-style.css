@@ -234,6 +234,18 @@ h1, h2, h3, h4, h5, h6 {
   position: relative;
 }
 
+/* Seccion de proceso (Como trabajamos): fondo celeste medio opaco con
+   texto en tono navy oscuro para garantizar contraste y legibilidad */
+.proceso {
+  background: #7CC4EE;
+}
+.proceso h3 {
+  color: #10375B;
+}
+.proceso p {
+  color: #1E3A5F;
+}
+
 /* Timeline de historial de rehabilitacion */
 .rehab-timeline {
   position: relative;
