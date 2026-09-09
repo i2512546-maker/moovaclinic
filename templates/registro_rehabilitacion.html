@@ -26,6 +26,10 @@
                 <a href="{{ url_for('ver_cita_page', paciente_dni=paciente.dni, cita_id=cita.id) }}"
                     class="btn btn-outline-secondary btn-sm">Ver cita</a>
                 {% endif %}
+                <a href="{{ url_for('detalle_paciente_page', paciente_dni=paciente.dni) }}"
+                    class="btn btn-outline-secondary btn-sm">Ver historial</a>
+                <a href="{{ url_for('interfaz') }}" class="btn btn-outline-secondary btn-sm">Pacientes del día</a>
+                <a href="{{ url_for('logout') }}" class="btn btn-danger-moova btn-sm">Cerrar sesion</a>
             </div>
         </div>
 
