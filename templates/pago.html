@@ -300,12 +300,18 @@ if (btnYape) {
         abrirModal('modalYape');
         document.getElementById('qrYape').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cargando código QR...';
         document.getElementById('msgYape').textContent = '';
+        var controladorQR = new AbortController();
+        var timerQR = setTimeout(function(){
+            controladorQR.abort();
+            document.getElementById('qrYape').innerHTML = '<p class="pago-error">No se pudo generar el QR, intenta de nuevo o cierra esta ventana.</p>';
+        }, 10000);
         fetch('/api/pagos/yape/iniciar', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({cita_id: CITA_ID})
+            body: JSON.stringify({cita_id: CITA_ID}),
+            signal: controladorQR.signal
         })
-        .then(function(r){ return r.json(); })
+        .then(function(r){ clearTimeout(timerQR); return r.json(); })
         .then(function(res){
             if (res.ok) {
                 yapeCobroId = res.cobro_id;
@@ -315,7 +321,11 @@ if (btnYape) {
             }
         })
         .catch(function(){
-            document.getElementById('qrYape').innerHTML = '<p class="pago-error">Error de conexión. Intenta de nuevo.</p>';
+            clearTimeout(timerQR);
+            var msg = controladorQR.signal.aborted
+                ? 'No se pudo generar el QR, intenta de nuevo o cierra esta ventana.'
+                : 'Error de conexión. Intenta de nuevo.';
+            document.getElementById('qrYape').innerHTML = '<p class="pago-error">' + msg + '</p>';
         });
     });
 }
@@ -352,12 +362,18 @@ if (btnPlin) {
         abrirModal('modalPlin');
         document.getElementById('qrPlin').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cargando código QR...';
         document.getElementById('msgPlin').textContent = '';
+        var controladorQR = new AbortController();
+        var timerQR = setTimeout(function(){
+            controladorQR.abort();
+            document.getElementById('qrPlin').innerHTML = '<p class="pago-error">No se pudo generar el QR, intenta de nuevo o cierra esta ventana.</p>';
+        }, 10000);
         fetch('/api/pagos/plin/iniciar', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({cita_id: CITA_ID})
+            body: JSON.stringify({cita_id: CITA_ID}),
+            signal: controladorQR.signal
         })
-        .then(function(r){ return r.json(); })
+        .then(function(r){ clearTimeout(timerQR); return r.json(); })
         .then(function(res){
             if (res.ok) {
                 plinCobroId = res.cobro_id;
@@ -367,7 +383,11 @@ if (btnPlin) {
             }
         })
         .catch(function(){
-            document.getElementById('qrPlin').innerHTML = '<p class="pago-error">Error de conexión. Intenta de nuevo.</p>';
+            clearTimeout(timerQR);
+            var msg = controladorQR.signal.aborted
+                ? 'No se pudo generar el QR, intenta de nuevo o cierra esta ventana.'
+                : 'Error de conexión. Intenta de nuevo.';
+            document.getElementById('qrPlin').innerHTML = '<p class="pago-error">' + msg + '</p>';
         });
     });
 }

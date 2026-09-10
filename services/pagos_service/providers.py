@@ -2,6 +2,9 @@ import os
 import requests
 
 API_TIMEOUT = 20
+# Timeout corto para la generacion/consulta de QR de Yape/Plin: la UI de
+# pago corta a los 10s el spinner, el backend debe fallar ANTES que eso.
+QR_API_TIMEOUT = 8
 
 
 class PaymentNotConfigured(Exception):
@@ -111,7 +114,7 @@ class YapeClient:
             resp = requests.post(
                 f"{self.base_url}/oauth/token",
                 data={"grant_type": "client_credentials", "client_id": self.client_id, "client_secret": self.client_secret},
-                timeout=API_TIMEOUT,
+                timeout=QR_API_TIMEOUT,
             )
         except requests.RequestException as e:
             raise PaymentProviderError(f"Yape: sin conexion ({e})")
@@ -127,7 +130,7 @@ class YapeClient:
             resp = requests.post(
                 f"{self.base_url}/api/v1/cobros",
                 headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-                json=body, timeout=API_TIMEOUT,
+                json=body, timeout=QR_API_TIMEOUT,
             )
         except requests.RequestException as e:
             raise PaymentProviderError(f"Yape: sin conexion ({e})")
@@ -146,7 +149,7 @@ class YapeClient:
             resp = requests.get(
                 f"{self.base_url}/api/v1/cobros/{cobro_id}",
                 headers={"Authorization": f"Bearer {token}"},
-                timeout=API_TIMEOUT,
+                timeout=QR_API_TIMEOUT,
             )
         except requests.RequestException as e:
             raise PaymentProviderError(f"Yape: sin conexion ({e})")
@@ -177,7 +180,7 @@ class PlinClient:
             resp = requests.post(
                 f"{self.base_url}/oauth/token",
                 data={"grant_type": "client_credentials", "client_id": self.client_id, "client_secret": self.client_secret},
-                timeout=API_TIMEOUT,
+                timeout=QR_API_TIMEOUT,
             )
         except requests.RequestException as e:
             raise PaymentProviderError(f"Plin: sin conexion ({e})")
@@ -193,7 +196,7 @@ class PlinClient:
             resp = requests.post(
                 f"{self.base_url}/api/v1/cobros",
                 headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-                json=body, timeout=API_TIMEOUT,
+                json=body, timeout=QR_API_TIMEOUT,
             )
         except requests.RequestException as e:
             raise PaymentProviderError(f"Plin: sin conexion ({e})")
@@ -212,7 +215,7 @@ class PlinClient:
             resp = requests.get(
                 f"{self.base_url}/api/v1/cobros/{cobro_id}",
                 headers={"Authorization": f"Bearer {token}"},
-                timeout=API_TIMEOUT,
+                timeout=QR_API_TIMEOUT,
             )
         except requests.RequestException as e:
             raise PaymentProviderError(f"Plin: sin conexion ({e})")
