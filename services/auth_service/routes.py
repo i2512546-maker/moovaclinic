@@ -41,11 +41,11 @@ def listar_usuarios():
 
 @auth_bp.route("/api/auth/usuarios", methods=["POST"])
 def crear_usuario():
-    from flask import session as flask_session
     data = request.get_json() or {}
     nombre = data.get("nombre", "").strip()
     correo = data.get("correo", "").strip()
     clave = data.get("clave", "").strip()
+    telefono = data.get("telefono") or None
     rol_nombre = data.get("rol", "terapeuta").strip()
 
     if not nombre or not correo or not clave:
@@ -60,9 +60,42 @@ def crear_usuario():
     if call_proc_one("sp_obtener_usuario_por_correo", (correo,)):
         return jsonify({"error": "Ya existe un usuario con ese correo."}), 409
 
-    result = call_proc_one("sp_crear_usuario", (nombre, correo, clave_hash, rol["id"]))
+    if telefono:
+        # Usuario de panel admin (terapeuta) con telefono.
+        result = call_proc_one("sp_crear_usuario_admin", (
+            nombre, correo, telefono, clave_hash, rol["id"],
+        ))
+    else:
+        result = call_proc_one("sp_crear_usuario", (nombre, correo, clave_hash, rol["id"]))
     usuario_id = result["id"] if result else None
     return jsonify({"success": True, "usuario_id": usuario_id}), 201
+
+
+@auth_bp.route("/api/auth/usuarios/por-nombre/<path:nombre>", methods=["GET"])
+def obtener_usuario_por_nombre(nombre):
+    """Devuelve el usuario cuyo nombre coincide. Usado por
+    pacientes_service/gateway para resolver el usuario_id de un
+    terapeuta recien creado desde el panel admin."""
+    if not nombre:
+        return jsonify({"error": "nombre requerido"}), 400
+    usuario = call_proc_one("sp_obtener_usuario_por_nombre", (nombre,))
+    if not usuario:
+        return jsonify({"error": "Usuario no encontrado."}), 404
+    return jsonify({"success": True, "id": usuario["id"]})
+
+
+@auth_bp.route("/api/auth/usuarios/<int:usuario_id>", methods=["GET"])
+def obtener_usuario_por_id(usuario_id):
+    """Devuelve id/nombre/telefono de un usuario. Lo usa
+    pagos_service para el SMS de confirmacion al terapeuta."""
+    usuario = call_proc_one("sp_obtener_usuario_por_id", (usuario_id,))
+    if not usuario:
+        return jsonify({"error": "Usuario no encontrado."}), 404
+    return jsonify({"success": True, "usuario": {
+        "id": usuario["id"],
+        "nombre": usuario["nombre"],
+        "telefono": usuario.get("telefono"),
+    }})
 
 
 @auth_bp.route("/api/auth/usuarios/<int:usuario_id>", methods=["PUT"])
