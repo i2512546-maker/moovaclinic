@@ -9,7 +9,6 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap-style.css') }}">
-    <!-- Contentsquare - UX & Usability Testing -->
     <script src="https://t.contentsquare.com/uxa/6897c7b83eb5.js"></script>
 </head>
 <body>
@@ -48,6 +47,29 @@
             <p class="text-muted mb-0">Completa tus datos, elige fecha y selecciona el especialista</p>
         </div>
 
+        <!-- ══════════════ WIZARD PROGRESS ══════════════ -->
+        <div class="wizard-steps" id="wizardIndicator">
+            <div class="wizard-step active" data-step="1">
+                <div class="wizard-dot">1</div>
+                <span class="wizard-label">Datos</span>
+            </div>
+            <div class="wizard-connector" id="connector-1"></div>
+            <div class="wizard-step" data-step="2">
+                <div class="wizard-dot">2</div>
+                <span class="wizard-label">Especialidad</span>
+            </div>
+            <div class="wizard-connector" id="connector-2"></div>
+            <div class="wizard-step" data-step="3">
+                <div class="wizard-dot">3</div>
+                <span class="wizard-label">Pago</span>
+            </div>
+            <div class="wizard-connector" id="connector-3"></div>
+            <div class="wizard-step" data-step="4">
+                <div class="wizard-dot">4</div>
+                <span class="wizard-label">Confirmación</span>
+            </div>
+        </div>
+
         {% with messages = get_flashed_messages() %}
             {% if messages %}
                 {% for msg in messages %}
@@ -64,159 +86,196 @@
             {% endif %}
         {% endwith %}
 
-        <div class="row g-4">
+        <!-- ══════════════ SINGLE FORM ══════════════ -->
+        <form id="formCita" method="POST">
 
-            <div class="col-lg-6">
-                <div class="card card-moova border-0 shadow h-100">
+            <!-- ──────── STEP 1: DATOS PERSONALES ──────── -->
+            <div class="wizard-panel" id="step-1">
+                <div class="card card-moova border-0 shadow">
                     <div class="card-header bg-white border-0 pt-4 pb-0">
                         <div class="d-flex align-items-center gap-3">
                             <div class="rounded-circle bg-success bg-opacity-10 text-success d-flex align-items-center justify-content-center" style="width:52px; height:52px;">
                                 <i class="fas fa-user-plus fs-4"></i>
                             </div>
                             <div>
-                                <h2 class="h5 mb-0">Tus Datos</h2>
+                                <h2 class="h5 mb-0">Paso 1 — Tus Datos</h2>
                                 <p class="text-muted small mb-0">Ingresa tu información personal y fecha deseada</p>
                             </div>
                         </div>
                     </div>
                     <div class="card-body">
-                        <form id="formCita" method="POST">
-                            <div class="mb-3">
-                                <label for="nombre" class="form-label"><i class="fas fa-user"></i> Nombre</label>
-                                <input type="text" name="nombre" id="nombre" class="form-control" placeholder="Tu nombre" required>
+                        <div class="mb-3">
+                            <label for="nombre" class="form-label"><i class="fas fa-user"></i> Nombre</label>
+                            <input type="text" name="nombre" id="nombre" class="form-control" placeholder="Tu nombre" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="apellido" class="form-label"><i class="fas fa-user"></i> Apellido</label>
+                            <input type="text" name="apellido" id="apellido" class="form-control" placeholder="Tu apellido" required>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-6 mb-3">
+                                <label for="dni" class="form-label"><i class="fas fa-id-card"></i> DNI</label>
+                                <input type="text" name="dni" id="dni" class="form-control" placeholder="12345678" maxlength="8" required>
+                                <small id="dni-status" class="text-muted" style="display:none; margin-top:4px; font-size:0.8rem;"></small>
                             </div>
-                            <div class="mb-3">
-                                <label for="apellido" class="form-label"><i class="fas fa-user"></i> Apellido</label>
-                                <input type="text" name="apellido" id="apellido" class="form-control" placeholder="Tu apellido" required>
+                            <div class="col-md-6 mb-3">
+                                <label for="telefono" class="form-label"><i class="fas fa-phone"></i> Teléfono</label>
+                                <input type="text" name="telefono" id="telefono" class="form-control" placeholder="987654321" maxlength="9" inputmode="numeric" pattern="[0-9]{9}" title="Debe tener 9 dígitos" required>
                             </div>
-                            <div class="row g-3">
-                                <div class="col-md-6 mb-3">
-                                    <label for="dni" class="form-label"><i class="fas fa-id-card"></i> DNI</label>
-                                    <input type="text" name="dni" id="dni" class="form-control" placeholder="12345678" maxlength="8" required>
-                                    <small id="dni-status" class="text-muted" style="display:none; margin-top:4px; font-size:0.8rem;"></small>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="telefono" class="form-label"><i class="fas fa-phone"></i> Teléfono</label>
-                                    <input type="text" name="telefono" id="telefono" class="form-control" placeholder="987654321" maxlength="9" inputmode="numeric" pattern="[0-9]{9}" title="Debe tener 9 dígitos" required>
-                                </div>
-                            </div>
-                            <div class="mb-3">
-                                <label for="fecha_cita" class="form-label"><i class="fas fa-calendar-alt"></i> Fecha de la cita</label>
-                                <input type="date" name="fecha_cita" id="fecha_cita" class="form-control" required>
-                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="fecha_cita" class="form-label"><i class="fas fa-calendar-alt"></i> Fecha de la cita</label>
+                            <input type="date" name="fecha_cita" id="fecha_cita" class="form-control" required>
+                        </div>
 
-                            <div class="mb-3">
-                                <label for="servicio_id" class="form-label"><i class="fas fa-puzzle-piece"></i> Tipo de servicio</label>
-                                <select name="servicio_id" id="servicio_id" class="form-select" required>
-                                    <option value="" disabled selected>Selecciona un servicio</option>
-                                    {% for s in servicios %}
-                                    <option value="{{ s.id }}">{{ s.nombre }} — S/ {{ s.precio }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
+                        <div class="d-flex justify-content-end mt-4">
+                            <button type="button" class="btn btn-moova btn-lg" id="btnNext1">
+                                Siguiente <i class="fas fa-arrow-right ms-2"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                            <div class="mb-3 border rounded-3 bg-light p-3">
-                                <h3 class="h6 d-flex align-items-center gap-2 mb-3">
-                                    <i class="fas fa-credit-card"></i> Pago de la cita
-                                </h3>
+            <!-- ──────── STEP 2: ESPECIALIDAD + PAGO ──────── -->
+            <div class="wizard-panel" id="step-2" style="display:none;">
+                <div class="row g-4">
 
-                                <div class="row g-3 mb-3">
-                                    <div class="col-6">
-                                        <label class="form-label"><i class="fas fa-tags"></i> Costo de la cita</label>
-                                        <div id="costo-cita" class="fs-5 fw-semibold text-success">S/ —</div>
+                    <!-- LEFT: Servicio + Pago + Medico badge -->
+                    <div class="col-lg-6">
+                        <div class="card card-moova border-0 shadow h-100">
+                            <div class="card-header bg-white border-0 pt-4 pb-0">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="rounded-circle bg-success bg-opacity-10 text-success d-flex align-items-center justify-content-center" style="width:52px; height:52px;">
+                                        <i class="fas fa-puzzle-piece fs-4"></i>
                                     </div>
-                                    <div class="col-6">
-                                        <label class="form-label"><i class="fas fa-hand-holding-usd"></i> Anticipo requerido (50%)</label>
-                                        <div id="anticipo-cita" class="fs-5 fw-semibold text-success">S/ —</div>
+                                    <div>
+                                        <h2 class="h5 mb-0">Paso 2 — Especialidad y Pago</h2>
+                                        <p class="text-muted small mb-0">Selecciona servicio, médico y método de pago</p>
                                     </div>
                                 </div>
-
-                                <div class="mb-2">
-                                    <label for="metodo_pago" class="form-label"><i class="fas fa-money-check-alt"></i> Método de pago</label>
-                                    <select name="metodo_pago" id="metodo_pago" class="form-select" required>
-                                        <option value="" disabled selected>Selecciona un método</option>
-                                        <option value="yape">Yape</option>
-                                        <option value="plin">Plin</option>
-                                        <option value="tarjeta">Tarjeta</option>
-                                        <option value="transferencia">Transferencia bancaria</option>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="servicio_id" class="form-label"><i class="fas fa-puzzle-piece"></i> Tipo de servicio</label>
+                                    <select name="servicio_id" id="servicio_id" class="form-select" required>
+                                        <option value="" disabled selected>Selecciona un servicio</option>
+                                        {% for s in servicios %}
+                                        <option value="{{ s.id }}">{{ s.nombre }} — S/ {{ s.precio }}</option>
+                                        {% endfor %}
                                     </select>
                                 </div>
 
-                                <p class="mb-0 small text-muted">
-                                    <i class="fas fa-info-circle"></i> Para reservar tu cita se requiere un anticipo del 50% del costo de la atención.
-                                </p>
-                            </div>
+                                <div class="mb-3 border rounded-3 bg-light p-3">
+                                    <h3 class="h6 d-flex align-items-center gap-2 mb-3">
+                                        <i class="fas fa-credit-card"></i> Pago de la cita
+                                    </h3>
 
-                            <input type="hidden" name="medico_id" id="medico_id">
+                                    <div class="row g-3 mb-3">
+                                        <div class="col-6">
+                                            <label class="form-label"><i class="fas fa-tags"></i> Costo de la cita</label>
+                                            <div id="costo-cita" class="fs-5 fw-semibold text-success">S/ —</div>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label"><i class="fas fa-hand-holding-usd"></i> Anticipo requerido (50%)</label>
+                                            <div id="anticipo-cita" class="fs-5 fw-semibold text-success">S/ —</div>
+                                        </div>
+                                    </div>
 
-                            <div id="medico-seleccionado" class="d-flex align-items-center gap-2 rounded-pill text-bg-success p-2 px-3 mb-3" style="display:none;">
-                                <i class="fas fa-user-md"></i>
-                                <span id="medico-nombre-badge">Ninguno</span>
-                                <button type="button" onclick="limpiarMedico()" class="btn btn-sm btn-outline-light border-0 ms-auto" aria-label="Quitar médico elegido"><i class="fas fa-times"></i></button>
-                            </div>
+                                    <div class="mb-2">
+                                        <label for="metodo_pago" class="form-label"><i class="fas fa-money-check-alt"></i> Método de pago</label>
+                                        <select name="metodo_pago" id="metodo_pago" class="form-select" required>
+                                            <option value="" disabled selected>Selecciona un método</option>
+                                            <option value="yape">Yape</option>
+                                            <option value="plin">Plin</option>
+                                            <option value="tarjeta">Tarjeta</option>
+                                            <option value="transferencia">Transferencia bancaria</option>
+                                        </select>
+                                    </div>
 
-                            <button type="submit" class="btn btn-moova btn-lg w-100 d-inline-flex align-items-center justify-content-center gap-2" id="btn-submit" disabled>
-                                <i class="fas fa-calendar-check"></i> Agendar Cita
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
+                                    <p class="mb-0 small text-muted">
+                                        <i class="fas fa-info-circle"></i> Para reservar tu cita se requiere un anticipo del 50% del costo de la atención.
+                                    </p>
+                                </div>
 
-            <div class="col-lg-6">
-                <div class="card card-moova border-0 shadow h-100">
-                    <div class="card-header bg-white border-0 pt-4 pb-0">
-                        <div class="d-flex align-items-center gap-3">
-                            <div class="rounded-circle bg-success bg-opacity-10 text-success d-flex align-items-center justify-content-center" style="width:52px; height:52px;">
-                                <i class="fas fa-stethoscope fs-4"></i>
-                            </div>
-                            <div>
-                                <h2 class="h5 mb-0">Médicos Disponibles</h2>
-                                <p class="text-muted small mb-0">Selecciona el especialista de tu preferencia</p>
+                                <input type="hidden" name="medico_id" id="medico_id">
+
+                                <div id="medico-seleccionado" class="d-flex align-items-center gap-2 rounded-pill text-bg-success p-2 px-3 mb-3" style="display:none;">
+                                    <i class="fas fa-user-md"></i>
+                                    <span id="medico-nombre-badge">Ninguno</span>
+                                    <button type="button" onclick="limpiarMedico()" class="btn btn-sm btn-outline-light border-0 ms-auto" aria-label="Quitar médico elegido"><i class="fas fa-times"></i></button>
+                                </div>
+
+                                <div class="d-flex justify-content-between align-items-center mt-4">
+                                    <button type="button" class="btn btn-moova-outline btn-lg" id="btnBack2">
+                                        <i class="fas fa-arrow-left me-2"></i> Atrás
+                                    </button>
+                                    <button type="submit" class="btn btn-moova btn-lg" id="btn-submit" disabled>
+                                        <i class="fas fa-calendar-check"></i> Agendar Cita
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-striped table-hover align-middle mb-0">
-                                <thead>
-                                    <tr>
-                                        <th>Especialista</th>
-                                        <th>Especialidad</th>
-                                        <th>Seleccionar</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% if terapeutas %}
-                                        {% for m in terapeutas %}
-                                        <tr id="fila-{{ m.ID }}" data-precio="{{ m.precio or 0 }}">
-                                            <td>
-                                                <div class="d-flex align-items-center gap-2">
-                                                    <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center fw-bold" style="width:38px; height:38px;">{{ m.Nombre[0].upper() }}</div>
-                                                    <span>{{ m.Nombre }}</span>
-                                                </div>
-                                            </td>
-                                            <td><span class="badge bg-success-subtle text-success-emphasis">{{ m.Especialidad }}</span></td>
-                                            <td>
-                                                <button class="btn btn-outline-success btn-sm" onclick="seleccionarMedico('{{ m.ID }}', '{{ m.Nombre }}', '{{ m.precio or 0 }}')">
-                                                    <i class="fas fa-check"></i> Elegir
-                                                </button>
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
-                                    {% else %}
-                                        <tr>
-                                            <td colspan="3" class="text-center text-muted py-4"><i class="fas fa-user-slash"></i> No hay médicos disponibles.</td>
-                                        </tr>
-                                    {% endif %}
-                                </tbody>
-                            </table>
+
+                    <!-- RIGHT: Médicos Disponibles -->
+                    <div class="col-lg-6">
+                        <div class="card card-moova border-0 shadow h-100">
+                            <div class="card-header bg-white border-0 pt-4 pb-0">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="rounded-circle bg-success bg-opacity-10 text-success d-flex align-items-center justify-content-center" style="width:52px; height:52px;">
+                                        <i class="fas fa-stethoscope fs-4"></i>
+                                    </div>
+                                    <div>
+                                        <h2 class="h5 mb-0">Médicos Disponibles</h2>
+                                        <p class="text-muted small mb-0">Selecciona el especialista de tu preferencia</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover align-middle mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Especialista</th>
+                                                <th>Especialidad</th>
+                                                <th>Seleccionar</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% if terapeutas %}
+                                                {% for m in terapeutas %}
+                                                <tr id="fila-{{ m.ID }}" data-precio="{{ m.precio or 0 }}">
+                                                    <td>
+                                                        <div class="d-flex align-items-center gap-2">
+                                                            <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center fw-bold" style="width:38px; height:38px;">{{ m.Nombre[0].upper() }}</div>
+                                                            <span>{{ m.Nombre }}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td><span class="badge bg-success-subtle text-success-emphasis">{{ m.Especialidad }}</span></td>
+                                                    <td>
+                                                        <button type="button" class="btn btn-outline-success btn-sm" onclick="seleccionarMedico('{{ m.ID }}', '{{ m.Nombre }}', '{{ m.precio or 0 }}')">
+                                                            <i class="fas fa-check"></i> Elegir
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            {% else %}
+                                                <tr>
+                                                    <td colspan="3" class="text-center text-muted py-4"><i class="fas fa-user-slash"></i> No hay médicos disponibles.</td>
+                                                </tr>
+                                            {% endif %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                     </div>
+
                 </div>
             </div>
 
-        </div>
+        </form>
     </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -236,13 +295,46 @@
 </div>
 
 <script>
-    // Mostrar popup (modal Bootstrap). tipo: 'success' | 'error'.
-    // Si se pasa onCerrar, el modal se cierra solo (para redirigir).
+    // ── Wizard navigation ──
+    function irPaso(paso) {
+        document.querySelectorAll('.wizard-panel').forEach(p => p.style.display = 'none');
+        document.getElementById('step-' + paso).style.display = '';
+        document.querySelectorAll('.wizard-step').forEach((el, i) => {
+            el.classList.remove('active', 'completed');
+            if (i + 1 < paso) el.classList.add('completed');
+            if (i + 1 === paso) el.classList.add('active');
+        });
+        document.querySelectorAll('.wizard-connector').forEach((c, i) => {
+            c.classList.toggle('completed', i + 1 < paso);
+        });
+    }
+
+    document.getElementById('btnNext1').addEventListener('click', function () {
+        var nombre   = document.getElementById('nombre').value.trim();
+        var apellido = document.getElementById('apellido').value.trim();
+        var dni      = document.getElementById('dni').value.trim();
+        var telefono = document.getElementById('telefono').value.trim();
+        var fecha    = document.getElementById('fecha_cita').value;
+
+        if (!nombre || !apellido || dni.length !== 8 || !/^\d+$/.test(dni) || !/^\d{9}$/.test(telefono) || !fecha) {
+            mostrarPopup('Completa todos los campos antes de continuar.', 'error');
+            return;
+        }
+        irPaso(2);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    document.getElementById('btnBack2').addEventListener('click', function () {
+        irPaso(1);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    // ── Popup / AJAX helpers (unchanged) ──
     function mostrarPopup(mensaje, tipo, onCerrar) {
-        const modalEl = document.getElementById('popupModal');
-        const icono = document.getElementById('popupIcono');
-        const titulo = document.getElementById('popupTitulo');
-        const okBtn = document.getElementById('popupOk');
+        var modalEl = document.getElementById('popupModal');
+        var icono   = document.getElementById('popupIcono');
+        var titulo  = document.getElementById('popupTitulo');
+        var okBtn   = document.getElementById('popupOk');
         if (tipo === 'success') {
             titulo.textContent = '¡Listo!';
             icono.innerHTML = '<i class="bi bi-check-circle-fill text-success" style="font-size:2.6rem;"></i>';
@@ -253,7 +345,7 @@
             okBtn.className = 'btn btn-danger w-100';
         }
         document.getElementById('popupMensaje').textContent = mensaje;
-        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
         if (onCerrar) {
             modalEl.addEventListener('hidden.bs.modal', function handler() {
                 modalEl.removeEventListener('hidden.bs.modal', handler);
@@ -264,33 +356,29 @@
         return modal;
     }
 
-    // Enviar formulario por fetch (AJAX) con spinner y popup de resultado.
     function enviarFormAjax(form, boton, onSuccess) {
-        const btn = boton || form.querySelector('button[type="submit"]');
-        const originalHTML = btn.innerHTML;
+        var btn = boton || form.querySelector('button[type="submit"]');
+        var originalHTML = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Procesando...';
 
-        const formData = new FormData(form);
+        var formData = new FormData(form);
         fetch(form.action || window.location.href, {
             method: 'POST',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json',
-            },
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
             body: formData,
             credentials: 'same-origin',
         })
         .then(async function (resp) {
-            let data = {};
-            try { data = await resp.json(); } catch (e) { /* body no JSON */ }
+            var data = {};
+            try { data = await resp.json(); } catch (e) {}
             if (data.success) {
                 if (data.redirect) {
                     mostrarPopup(data.mensaje || 'Operación exitosa.', 'success', function () {
                         window.location.href = data.redirect;
                     });
                     setTimeout(function () {
-                        const m = bootstrap.Modal.getInstance(document.getElementById('popupModal'));
+                        var m = bootstrap.Modal.getInstance(document.getElementById('popupModal'));
                         if (m) m.hide();
                     }, 1400);
                     return;
@@ -312,63 +400,53 @@
         });
     }
 
-    // Convertir el submit de citas a AJAX.
-    const formCita = document.getElementById('formCita');
+    var formCita = document.getElementById('formCita');
     if (formCita) {
         formCita.addEventListener('submit', function (e) {
             e.preventDefault();
-            if (!formCita.checkValidity()) {
-                formCita.reportValidity();
-                return;
-            }
+            if (!formCita.checkValidity()) { formCita.reportValidity(); return; }
             enviarFormAjax(formCita, null, null);
         });
     }
 </script>
 <script>
-    // Ocultar alertas automáticamente después de 4 segundos
-    const alertaTop = document.getElementById('alerta-top');
+    // Ocultar alertas
+    var alertaTop = document.getElementById('alerta-top');
     if (alertaTop) {
-        setTimeout(() => {
+        setTimeout(function () {
             alertaTop.style.transition = 'opacity 0.5s';
             alertaTop.style.opacity = '0';
-            setTimeout(() => alertaTop.remove(), 500);
+            setTimeout(function () { alertaTop.remove(); }, 500);
         }, 4000);
     }
 
     // Bloquear fechas pasadas
-    const hoy = new Date().toISOString().split('T')[0];
-    document.getElementById('fecha_cita').setAttribute('min', hoy);
+    document.getElementById('fecha_cita').setAttribute('min', new Date().toISOString().split('T')[0]);
 
-    // Autocompletar nombre y apellido con APISperú
-    const dniInput = document.getElementById('dni');
-    const dniStatus = document.getElementById('dni-status');
-    let dniTimer = null;
+    // Autocompletar DNI
+    var dniInput  = document.getElementById('dni');
+    var dniStatus = document.getElementById('dni-status');
+    var dniTimer  = null;
 
     dniInput.addEventListener('input', function () {
         clearTimeout(dniTimer);
-        const dni = this.value.trim();
-
-        if (dni.length !== 8 || !/^\d+$/.test(dni)) {
-            dniStatus.style.display = 'none';
-            return;
-        }
-
+        var dni = this.value.trim();
+        if (dni.length !== 8 || !/^\d+$/.test(dni)) { dniStatus.style.display = 'none'; return; }
         dniStatus.style.display = 'block';
         dniStatus.style.color = '#888';
         dniStatus.textContent = 'Buscando...';
 
-        dniTimer = setTimeout(async () => {
+        dniTimer = setTimeout(async function () {
             try {
-                const resp = await fetch('/api/verificar_dni', {
+                var resp = await fetch('/api/verificar_dni', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ dni })
+                    body: JSON.stringify({ dni: dni })
                 });
-                const data = await resp.json();
+                var data = await resp.json();
                 if (data.success && data.data) {
-                    const d = data.data;
-                    document.getElementById('nombre').value = d.nombres || d.nombre || '';
+                    var d = data.data;
+                    document.getElementById('nombre').value   = d.nombres || d.nombre || '';
                     document.getElementById('apellido').value =
                         ((d.apellido_paterno || d.apellidoPaterno || '') + ' ' +
                          (d.apellido_materno || d.apellidoMaterno || '')).trim();
@@ -378,7 +456,7 @@
                     dniStatus.style.color = '#e74c3c';
                     dniStatus.textContent = 'DNI no encontrado — ingresa los datos manualmente';
                 }
-            } catch {
+            } catch (err) {
                 dniStatus.style.color = '#e74c3c';
                 dniStatus.textContent = 'Error al consultar DNI';
             }
@@ -390,28 +468,20 @@
     }
 
     function actualizarPrecios(precio) {
-        const costo = parseFloat(precio || 0);
-        document.getElementById('costo-cita').textContent = formatearSoles(costo);
+        var costo = parseFloat(precio || 0);
+        document.getElementById('costo-cita').textContent    = formatearSoles(costo);
         document.getElementById('anticipo-cita').textContent = formatearSoles(costo / 2);
     }
 
     function actualizarBoton() {
-        const nombre   = document.getElementById('nombre').value.trim();
-        const apellido = document.getElementById('apellido').value.trim();
-        const dni      = document.getElementById('dni').value.trim();
-        const telefono = document.querySelector('input[name="telefono"]').value.trim();
-        const fecha    = document.getElementById('fecha_cita').value;
-        const servicio = document.getElementById('servicio_id').value;
-        const medico   = document.getElementById('medico_id').value;
-        const metodo   = document.getElementById('metodo_pago').value;
-
-        const completo = nombre && apellido && dni.length === 8 && /^\d{9}$/.test(telefono) && fecha && servicio && medico && metodo;
-        document.getElementById('btn-submit').disabled = !completo;
+        var medico = document.getElementById('medico_id').value;
+        var metodo = document.getElementById('metodo_pago').value;
+        document.getElementById('btn-submit').disabled = !(medico && metodo);
     }
 
     function seleccionarMedico(id, nombre, precio) {
-        document.querySelectorAll('tr').forEach(tr => tr.classList.remove('table-primary'));
-        const fila = document.getElementById('fila-' + id);
+        document.querySelectorAll('tr').forEach(function (tr) { tr.classList.remove('table-primary'); });
+        var fila = document.getElementById('fila-' + id);
         if (fila) fila.classList.add('table-primary');
         document.getElementById('medico_id').value = id;
         document.getElementById('medico-nombre-badge').textContent = nombre;
@@ -423,22 +493,17 @@
     function limpiarMedico() {
         document.getElementById('medico_id').value = '';
         document.getElementById('medico-seleccionado').style.display = 'none';
-        document.querySelectorAll('tr').forEach(tr => tr.classList.remove('table-primary'));
+        document.querySelectorAll('tr').forEach(function (tr) { tr.classList.remove('table-primary'); });
         actualizarPrecios(0);
         actualizarBoton();
     }
 
-    // Validar el botón con cada cambio de datos
-    ['nombre', 'apellido', 'dni', 'fecha_cita', 'servicio_id', 'metodo_pago'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.addEventListener('input', actualizarBoton);
+    ['servicio_id', 'metodo_pago'].forEach(function (id) {
+        var el = document.getElementById(id);
         if (el) el.addEventListener('change', actualizarBoton);
     });
-    document.querySelector('input[name="telefono"]').addEventListener('input', actualizarBoton);
 </script>
-
 <script>
-// Dropdown citas
 document.querySelectorAll('.dropdown-wrap').forEach(function(wrap) {
     var toggle = wrap.querySelector('.dropdown-toggle');
     toggle.addEventListener('click', function(e) {
