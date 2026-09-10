@@ -7,5 +7,5 @@ mysql-connector-python==8.0.33
 gunicorn==23.0.0
 setuptools==65.5.0
 APScheduler==3.10.4
-flasgger==0.9.5
+flasgger==0.9.7.1
 MarkupSafe==2.1.5

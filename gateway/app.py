@@ -63,12 +63,9 @@ def create_app():
     try:
         from flasgger import Swagger
         specs = _load_swagger()
-        if specs:
-            Swagger(app, template=specs)
-        else:
-            Swagger(app)
-    except Exception:
-        pass
+        Swagger(app, template=specs) if specs else Swagger(app)
+    except Exception as e:
+        app.logger.error(f"No se pudo inicializar Swagger: {e!r}")
 
     @app.context_processor
     def inject():
