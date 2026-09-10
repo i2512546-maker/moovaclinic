@@ -10,4 +10,7 @@ def create_app():
     from services.citas_service.routes import citas_bp
     app.register_blueprint(citas_bp)
 
+    from services.notas_service.routes import notas_bp
+    app.register_blueprint(notas_bp)
+
     return app

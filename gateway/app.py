@@ -465,4 +465,7 @@ def create_app():
         data, _ = citas_client.get("/api/citas/estadisticas")
         return jsonify(data)
 
+    from services.audit_service.routes import audit_bp
+    app.register_blueprint(audit_bp)
+
     return app
