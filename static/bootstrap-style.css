@@ -678,6 +678,23 @@ textarea::placeholder { color: #a8c2d6; }
     object-fit: contain;
     image-rendering: pixelated;
 }
+.qr-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 200px;
+    height: 200px;
+}
+.qr-placeholder i {
+    font-size: 2.2rem;
+    color: var(--border);
+}
+.qr-placeholder span {
+    font-size: 0.8rem;
+    color: var(--text-soft);
+}
 .modal-pasos {
     margin: 0 0 18px;
     padding-left: 18px;
