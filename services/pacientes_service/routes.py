@@ -1,5 +1,5 @@
 import requests
-from flask import request, jsonify
+from flask import request, jsonify, current_app
 from services.pacientes_service import pacientes_bp
 from shared.config import APIPERU_TOKEN, APIPERU_URL
 from shared.proc import call_proc, call_proc_one, call_proc_execute
@@ -71,6 +71,24 @@ def obtener_paciente_id_por_dni(dni):
     return jsonify({"success": True, "id": paciente["id"]})
 
 
+def _validar_datos_paciente(nombre, apellido, dni, telefono):
+    """Valida formato estricto ANTES de tocar la DB. Devuelve None si OK,
+    o el mensaje de error. Solo letras/espacios en nombre/apellido."""
+    import re
+    if not re.fullmatch(r"[A-Za-zÁÉÍÓÚáéíóúÑñ ]{2,60}", nombre):
+        return "Nombre inválido"
+    if not re.fullmatch(r"[A-Za-zÁÉÍÓÚáéíóúÑñ ]{2,60}", apellido):
+        return "Apellido inválido"
+    if not re.fullmatch(r"\d{8}", dni):
+        return "DNI inválido, debe tener 8 dígitos"
+    tel = re.sub(r"[\s\-]", "", telefono or "")
+    if tel.startswith("+51"):
+        tel = tel[3:]
+    if not re.fullmatch(r"\d{9}", tel):
+        return "Teléfono inválido, debe tener 9 dígitos"
+    return None
+
+
 @pacientes_bp.route("/api/pacientes/min", methods=["POST"])
 def crear_paciente_min():
     """Crea un paciente con datos minimos. Usado por citas_service
@@ -84,11 +102,22 @@ def crear_paciente_min():
     if not all([nombre, apellido, dni, telefono]):
         return jsonify({"error": "Todos los campos son requeridos."}), 400
 
-    existente = call_proc_one("sp_existe_paciente_por_dni", (dni,))
-    if existente:
-        return jsonify({"error": "Ya existe un paciente con ese DNI.", "dni": existente["dni"]}), 409
+    error = _validar_datos_paciente(nombre, apellido, dni, telefono)
+    if error:
+        return jsonify({"error": error}), 400
 
-    result = call_proc_one("sp_crear_paciente_min", (nombre, apellido, dni, telefono))
+    try:
+        existente = call_proc_one("sp_existe_paciente_por_dni", (dni,))
+        if existente:
+            return jsonify({"error": "Ya existe un paciente con ese DNI.", "dni": existente["dni"]}), 409
+
+        result = call_proc_one("sp_crear_paciente_min", (nombre, apellido, dni, telefono))
+    except Exception as exc:
+        current_app.logger.error(
+            "[crear_paciente_min] Error en BD (sp_crear_paciente_min): %s: %s",
+            type(exc).__name__, exc,
+        )
+        return jsonify({"error": "No se pudo procesar la solicitud, intenta de nuevo"}), 500
     return jsonify({"success": True, "id": result["id"] if result else None}), 201
 
 
@@ -193,8 +222,11 @@ def buscar_dni():
             api_data = resp.json()
             if api_data.get("success"):
                 return jsonify({"success": True, "data": api_data})
-    except Exception:
-        pass
+    except Exception as exc:
+        current_app.logger.error(
+            "[buscar_dni] Error consultando APIPERU (dni=%s): %s: %s",
+            dni, type(exc).__name__, exc,
+        )
 
     return jsonify({"success": False, "error": "DNI no encontrado"}), 404
 

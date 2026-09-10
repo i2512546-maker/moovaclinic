@@ -1,7 +1,9 @@
 import random
+import re
+import mysql.connector
 import requests as http_requests
-from datetime import datetime, timedelta
-from flask import request, jsonify
+from datetime import datetime, timedelta, date
+from flask import request, jsonify, current_app
 from services.citas_service import citas_bp
 from shared.audit import log_accion
 from shared.proc import call_proc, call_proc_one, call_proc_execute
@@ -10,6 +12,23 @@ from shared.config import (
     TEXTBEE_API_KEY, TEXTBEE_DEVICE_ID, TEXTBEE_URL,
 )
 from shared.service_client import pacientes_client, pagos_client
+
+
+def _validar_datos_cita(nombre, apellido, dni, telefono):
+    """Valida formato estricto ANTES de tocar DB u otros servicios.
+    Devuelve un mensaje de error o None si todo OK."""
+    if not re.fullmatch(r"[A-Za-zÁÉÍÓÚáéíóúÑñ ]{2,60}", nombre):
+        return "Nombre inválido"
+    if not re.fullmatch(r"[A-Za-zÁÉÍÓÚáéíóúÑñ ]{2,60}", apellido):
+        return "Apellido inválido"
+    if not re.fullmatch(r"\d{8}", dni):
+        return "DNI inválido, debe tener 8 dígitos"
+    tel = re.sub(r"[\s\-]", "", telefono or "")
+    if tel.startswith("+51"):
+        tel = tel[3:]
+    if not re.fullmatch(r"\d{9}", tel):
+        return "Teléfono inválido, debe tener 9 dígitos"
+    return None
 
 
 def _enviar_sms(telefono, mensaje):
@@ -184,19 +203,45 @@ def crear_cita():
         if not data.get(campo):
             return jsonify({"error": f"Campo requerido: {campo}"}), 400
 
+    # Validacion de formato estricta, ANTES de tocar DB o servicios.
+    error_formato = _validar_datos_cita(
+        str(data.get("nombre") or "").strip(),
+        str(data.get("apellido") or "").strip(),
+        str(data.get("dni") or "").strip(),
+        str(data.get("telefono") or "").strip(),
+    )
+    if error_formato:
+        return jsonify({"error": error_formato}), 400
+
     try:
         fecha_obj = datetime.strptime(data["fecha_cita"], "%Y-%m-%d").date()
-        if fecha_obj < datetime.today().date():
+        if fecha_obj < date.today():
             return jsonify({"error": "La fecha no puede ser en el pasado"}), 400
     except ValueError:
         return jsonify({"error": "Formato de fecha invalido (YYYY-MM-DD)"}), 400
 
-    if not medico_disponible(data["medico_id"], data["fecha_cita"]):
-        return jsonify({"error": "El medico ya tiene una cita ese dia"}), 409
+    # Disponibilidad del medico (DB local). Blindada: si la BD no responde
+    # en tiempo, respondemos 500 en vez de colgar el request.
+    try:
+        if not medico_disponible(data["medico_id"], data["fecha_cita"]):
+            return jsonify({"error": "El medico ya tiene una cita ese dia"}), 409
+    except Exception as exc:
+        current_app.logger.error(
+            "[crear_cita] Error en sp_medico_disponible: %s: %s",
+            type(exc).__name__, exc,
+        )
+        return jsonify({"error": "No se pudo procesar la solicitud, intenta de nuevo"}), 500
 
     # FASE 2: precio del medico via pacientes_service (antes
     # sp_consulta_medico_precio, CROSS-DB).
-    medico_data, medico_status = pacientes_client.get(f"/api/terapeutas/{data['medico_id']}")
+    try:
+        medico_data, medico_status = pacientes_client.get(f"/api/terapeutas/{data['medico_id']}")
+    except Exception as exc:
+        current_app.logger.error(
+            "[crear_cita] Error HTTP a pacientes_service (/terapeutas/%s): %s: %s",
+            data["medico_id"], type(exc).__name__, exc,
+        )
+        return jsonify({"error": "Servicio de médicos no disponible, intenta de nuevo"}), 502
     if medico_status != 200:
         return jsonify({"error": "Medico no encontrado"}), 404
     medico = medico_data.get("terapeuta") or {}
@@ -205,21 +250,43 @@ def crear_cita():
     anticipo = round(costo / 2, 2)
 
     # FASE 2: resolver/crear paciente via pacientes_service.
-    pac_data, pac_status = pacientes_client.get(f"/api/pacientes/dni/{data['dni']}")
-    if pac_status == 200:
-        paciente_id = pac_data.get("id")
-    else:
-        creado, creado_status = pacientes_client.post("/api/pacientes/min", {
-            "nombre": data["nombre"], "apellido": data["apellido"],
-            "dni": data["dni"], "telefono": data["telefono"],
-        })
-        if creado_status not in (200, 201):
-            return jsonify({"error": "No se pudo registrar al paciente."}), 400
-        paciente_id = (creado or {}).get("id")
+    try:
+        pac_data, pac_status = pacientes_client.get(f"/api/pacientes/dni/{data['dni']}")
+        if pac_status == 200:
+            paciente_id = pac_data.get("id")
+        else:
+            creado, creado_status = pacientes_client.post("/api/pacientes/min", {
+                "nombre": data["nombre"], "apellido": data["apellido"],
+                "dni": data["dni"], "telefono": data["telefono"],
+            })
+            if creado_status not in (200, 201):
+                return jsonify({
+                    "error": (creado or {}).get("error") or "No se pudo registrar al paciente.",
+                }), creado_status if creado_status in (400, 409) else 400
+            paciente_id = (creado or {}).get("id")
+    except Exception as exc:
+        current_app.logger.error(
+            "[crear_cita] Error HTTP a pacientes_service (resolver/crear paciente): %s: %s",
+            type(exc).__name__, exc,
+        )
+        return jsonify({"error": "Servicio de pacientes no disponible, intenta de nuevo"}), 502
 
     servicio_id = data.get("servicio_id")
 
-    cita = call_proc_one("sp_crear_cita", (paciente_id, data["medico_id"], servicio_id, data["fecha_cita"]))
+    try:
+        cita = call_proc_one("sp_crear_cita", (paciente_id, data["medico_id"], servicio_id, data["fecha_cita"]))
+    except mysql.connector.Error as exc:
+        current_app.logger.error(
+            "[crear_cita] Error en BD (sp_crear_cita): %s: %s",
+            type(exc).__name__, exc,
+        )
+        return jsonify({"error": "No se pudo procesar la solicitud, intenta de nuevo"}), 500
+    except Exception as exc:
+        current_app.logger.error(
+            "[crear_cita] Error inesperado en sp_crear_cita: %s: %s",
+            type(exc).__name__, exc,
+        )
+        return jsonify({"error": "No se pudo procesar la solicitud, intenta de nuevo"}), 500
     cita_id = cita["id"] if cita else None
 
     log_accion(
@@ -235,14 +302,22 @@ def crear_cita():
         # FASE 2: pago anticipado via pagos_service (antes
         # sp_crear_pago_anticipo, CROSS-DB).
         try:
-            pagos_client.post("/api/pagos/anticipo", {
+            pago_data, pago_status = pagos_client.post("/api/pagos/anticipo", {
                 "cita_id": cita_id,
                 "paciente_id": paciente_id,
                 "monto": anticipo,
                 "metodo_pago": metodo_pago,
             })
-        except Exception:
-            pass
+            if pago_status not in (200, 201):
+                current_app.logger.warning(
+                    "[crear_cita] pagos_service no creo el anticipo (status %s): %s",
+                    pago_status, pago_data,
+                )
+        except Exception as exc:
+            current_app.logger.error(
+                "[crear_cita] Error HTTP a pagos_service (anticipo): %s: %s",
+                type(exc).__name__, exc,
+            )
 
     return jsonify({
         "success": True, "cita_id": cita_id,
