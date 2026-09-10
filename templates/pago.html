@@ -287,6 +287,13 @@ function mostrarOverlayExito() {
 }
 function abrirModal(id) { document.getElementById(id).style.display = 'flex'; }
 function cerrarModal(id) { document.getElementById(id).style.display = 'none'; }
+function mostrarPlaceholderQR(boxId) {
+    document.getElementById(boxId).innerHTML =
+        '<div class="qr-placeholder">' +
+            '<i class="fas fa-image"></i>' +
+            '<span>QR pendiente de configurar</span>' +
+        '</div>';
+}
 
 document.querySelectorAll('.modal-close').forEach(function(b){
     b.addEventListener('click', function(){ b.closest('.modal-overlay').style.display = 'none'; });
@@ -303,7 +310,7 @@ if (btnYape) {
         var controladorQR = new AbortController();
         var timerQR = setTimeout(function(){
             controladorQR.abort();
-            document.getElementById('qrYape').innerHTML = '<p class="pago-error">No se pudo generar el QR, intenta de nuevo o cierra esta ventana.</p>';
+            mostrarPlaceholderQR('qrYape');
         }, 10000);
         fetch('/api/pagos/yape/iniciar', {
             method: 'POST',
@@ -313,19 +320,16 @@ if (btnYape) {
         })
         .then(function(r){ clearTimeout(timerQR); return r.json(); })
         .then(function(res){
-            if (res.ok) {
+            if (res.ok && res.qr) {
                 yapeCobroId = res.cobro_id;
                 document.getElementById('qrYape').innerHTML = '<img src="' + res.qr + '" alt="Código QR Yape">';
             } else {
-                document.getElementById('qrYape').innerHTML = '<p class="pago-error">' + res.error + '</p>';
+                mostrarPlaceholderQR('qrYape');
             }
         })
         .catch(function(){
             clearTimeout(timerQR);
-            var msg = controladorQR.signal.aborted
-                ? 'No se pudo generar el QR, intenta de nuevo o cierra esta ventana.'
-                : 'Error de conexión. Intenta de nuevo.';
-            document.getElementById('qrYape').innerHTML = '<p class="pago-error">' + msg + '</p>';
+            mostrarPlaceholderQR('qrYape');
         });
     });
 }
@@ -365,7 +369,7 @@ if (btnPlin) {
         var controladorQR = new AbortController();
         var timerQR = setTimeout(function(){
             controladorQR.abort();
-            document.getElementById('qrPlin').innerHTML = '<p class="pago-error">No se pudo generar el QR, intenta de nuevo o cierra esta ventana.</p>';
+            mostrarPlaceholderQR('qrPlin');
         }, 10000);
         fetch('/api/pagos/plin/iniciar', {
             method: 'POST',
@@ -375,19 +379,16 @@ if (btnPlin) {
         })
         .then(function(r){ clearTimeout(timerQR); return r.json(); })
         .then(function(res){
-            if (res.ok) {
+            if (res.ok && res.qr) {
                 plinCobroId = res.cobro_id;
                 document.getElementById('qrPlin').innerHTML = '<img src="' + res.qr + '" alt="Código QR Plin">';
             } else {
-                document.getElementById('qrPlin').innerHTML = '<p class="pago-error">' + res.error + '</p>';
+                mostrarPlaceholderQR('qrPlin');
             }
         })
         .catch(function(){
             clearTimeout(timerQR);
-            var msg = controladorQR.signal.aborted
-                ? 'No se pudo generar el QR, intenta de nuevo o cierra esta ventana.'
-                : 'Error de conexión. Intenta de nuevo.';
-            document.getElementById('qrPlin').innerHTML = '<p class="pago-error">' + msg + '</p>';
+            mostrarPlaceholderQR('qrPlin');
         });
     });
 }
