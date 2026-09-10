@@ -245,7 +245,7 @@ def create_app():
         if pago.get("estado_pago") == "pagado":
             return redirect(url_for("retorno_page", cita_id=cita_id))
 
-        cita["monto"] = pago.get("monto", 0)
+        cita["monto"] = float(pago.get("monto") or 0)
         cita["metodo_pago"] = pago.get("metodo_pago", "")
         cita["estado_pago"] = pago.get("estado_pago", "pendiente")
 
@@ -264,7 +264,7 @@ def create_app():
 
         cdata, _ = citas_client.get(f"/api/citas/{cita_id}")
         cita = cdata.get("cita", {})
-        cita["monto"] = pago.get("monto", 0)
+        cita["monto"] = float(pago.get("monto") or 0)
         cita["metodo_pago"] = pago.get("metodo_pago", "")
         cita["referencia"] = pago.get("referencia")
         cita["transaccion_id"] = pago.get("transaccion_id")
