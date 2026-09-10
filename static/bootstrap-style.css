@@ -134,13 +134,13 @@ nav.navbar-bubble:not(.fixed-top) {
     z-index: 1020;
 }
 
-/* Landing: burbuja de navegación centrada y equilibrada
+/* Landing: burbuja de navegación centrada y a la medida de su contenido
    Bootstrap fuerza justify-content:space-between en .navbar .container
    (especificidad mayor que la utilidad), dejando la burbuja pegada a la
    izquierda. Se centra el contenedor, se neutraliza el div-buffer vacío
-   (.navbar-brand) que desplazaba el contenido, se amplía la burbuja a
-   ~85% del ancho de pantalla y se reparten los enlaces de forma uniforme
-   para que "Citas" quede a la derecha con espacio interno. */
+   (.navbar-brand) que desplazaba el contenido y, en escritorio, la burbuja
+   se ajusta al ancho de sus opciones (width:max-content) con una separación
+   cómoda antes de "Citas", que conserva espacio interno a la derecha. */
 nav.navbar.navbar-expand-lg.fixed-top > .container {
     justify-content: center;
 }
@@ -149,20 +149,18 @@ nav.navbar.navbar-expand-lg.fixed-top .navbar-bubble .navbar-brand {
 }
 nav.navbar.navbar-expand-lg.fixed-top .navbar-bubble {
     justify-content: flex-end;
-    max-width: 85vw !important;
 }
 @media (min-width: 992px) {
     nav.navbar.navbar-expand-lg.fixed-top .navbar-bubble {
-        justify-content: space-between;
+        width: max-content;
+        max-width: 92vw;
+        justify-content: center;
+        column-gap: 2.5rem;
     }
-    nav.navbar.navbar-expand-lg.fixed-top #navbarMoova {
-        flex-grow: 1;
-        flex-basis: 0%;
-    }
+    nav.navbar.navbar-expand-lg.fixed-top #navbarMoova,
     nav.navbar.navbar-expand-lg.fixed-top #navbarMoova .navbar-nav {
-        width: 100%;
-        justify-content: space-evenly;
-        column-gap: 0;
+        width: auto;
+        flex-grow: 0;
     }
 }
 
