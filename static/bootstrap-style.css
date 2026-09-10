@@ -618,7 +618,7 @@ textarea::placeholder { color: #a8c2d6; }
     padding: 18px;
 }
 .modal-overlay.activo { display: flex; }
-.modal-overlay .modal {
+.modal-overlay .modal-box {
     background: #fff;
     border: 2px solid var(--border);
     border-radius: var(--radius);
@@ -632,7 +632,7 @@ textarea::placeholder { color: #a8c2d6; }
     animation: fadeUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
     text-align: center;
 }
-.modal-overlay .modal h2, .modal-overlay .modal h3 {
+.modal-overlay .modal-box h2, .modal-overlay .modal-box h3 {
     font-family: 'Fredoka', sans-serif;
     color: var(--navy);
 }
@@ -1381,7 +1381,7 @@ textarea::placeholder { color: #a8c2d6; }
 @media (max-width: 480px) {
     .stats .row > div { width: 100%; }
     .proceso .row > div, .especialidades .row > div { width: 100%; }
-    .modal-overlay .modal { padding: 20px 16px; }
+    .modal-overlay .modal-box { padding: 20px 16px; }
     .qr-box img { width: 170px; height: 170px; }
     .pago-method-icon { width: 44px; height: 44px; font-size: 1.1rem; }
     .pago-method-head { align-items: flex-start; }
