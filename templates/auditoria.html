@@ -64,9 +64,42 @@
                     </select>
                 </div>
                 <div class="col-12 col-md-3">
+                    <label class="form-label">Usuario</label>
+                    <select name="usuario_id" class="form-select">
+                        <option value="">Todos los usuarios</option>
+                        {% for u in usuarios_filtro %}
+                        <option value="{{ u.id }}" {% if filtros.get('usuario_id')|string == u.id|string %}selected{% endif %}>
+                            {{ u.nombre }} ({{ u.rol }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
                     <label class="form-label">Acción</label>
-                    <input type="text" name="accion" class="form-control" placeholder="Ej: crear_cita"
-                        value="{{ filtros.get('accion', '') }}">
+                    <select name="accion" class="form-select">
+                        <option value="">Todas</option>
+                        {% set acciones = [
+                            ('crear_cita', 'Crear cita'),
+                            ('reprogramar_cita', 'Reprogramar cita'),
+                            ('cancelar_cita', 'Cancelar cita'),
+                            ('completar_cita', 'Completar cita'),
+                            ('marcar_pago', 'Marcar pago'),
+                            ('usar_sesion_paquete', 'Usar sesión de paquete'),
+                            ('crear_usuario', 'Crear usuario'),
+                            ('desactivar_usuario', 'Desactivar usuario'),
+                        ] %}
+                        {% for value, label in acciones %}
+                        <option value="{{ value }}" {% if filtros.get('accion') == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label">Relacionado con</label>
+                    <select name="entidad_tipo" class="form-select">
+                        <option value="">Cualquiera</option>
+                        <option value="paciente" {% if filtros.get('entidad_tipo') == 'paciente' %}selected{% endif %}>Paciente</option>
+                        <option value="medico" disabled title="Próximamente">Médico (próximamente)</option>
+                    </select>
                 </div>
                 <div class="col-6 col-md-3">
                     <label class="form-label">Desde</label>
@@ -103,6 +136,7 @@
                         <th>Usuario</th>
                         <th>Tipo</th>
                         <th>Acción</th>
+                        <th>Relacionado con</th>
                         <th>Detalles</th>
                         <th>IP</th>
                     </tr>
@@ -115,13 +149,14 @@
                             <td>{{ l.usuario_nombre or '—' }}</td>
                             <td><span class="badge text-bg-light">{{ l.usuario_tipo|capitalize }}</span></td>
                             <td class="text-nowrap">{{ l.accion }}</td>
+                            <td>{{ l.entidad_nombre or '—' }}</td>
                             <td style="min-width:240px;">{{ l.detalles or '—' }}</td>
                             <td class="text-nowrap">{{ l.ip_origen or '—' }}</td>
                         </tr>
                         {% endfor %}
                     {% else %}
                         <tr>
-                            <td colspan="6" class="text-center text-muted py-4">
+                            <td colspan="7" class="text-center text-muted py-4">
                                 <i class="bi bi-inbox me-2"></i> No hay registros de auditoría.
                             </td>
                         </tr>

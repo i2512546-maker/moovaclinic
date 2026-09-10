@@ -731,7 +731,7 @@ def create_app():
             return redirect(url_for("login"))
 
         filtros = {}
-        for key in ("usuario_tipo", "accion", "fecha_desde", "fecha_hasta"):
+        for key in ("usuario_id", "usuario_tipo", "accion", "fecha_desde", "fecha_hasta", "entidad_tipo"):
             valor = (request.args.get(key) or "").strip()
             if valor:
                 filtros[key] = valor
@@ -748,7 +748,18 @@ def create_app():
         except Exception:
             logs = []
 
-        return render_template("auditoria.html", logs=logs, filtros=filtros)
+        usuarios_filtro = []
+        try:
+            udata, _ustatus = auth_client.get("/api/auth/usuarios")
+            usuarios_filtro = [
+                u for u in (udata.get("usuarios") or [])
+                if u.get("rol") in ("admin", "terapeuta")
+            ]
+        except Exception:
+            usuarios_filtro = []
+
+        return render_template("auditoria.html", logs=logs, filtros=filtros,
+                               usuarios_filtro=usuarios_filtro)
 
     @app.route("/panel_admin/cancelar_cita/<int:cita_id>", methods=["POST"])
     def admin_cancelar_cita(cita_id):

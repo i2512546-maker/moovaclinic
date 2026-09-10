@@ -41,6 +41,9 @@ CREATE TABLE `logs_auditoria` (
   `accion` varchar(255) NOT NULL,
   `detalles` text DEFAULT NULL,
   `ip_origen` varchar(45) DEFAULT NULL,
+  `entidad_tipo` varchar(20) DEFAULT NULL,
+  `entidad_id` int(11) DEFAULT NULL,
+  `entidad_nombre` varchar(150) DEFAULT NULL,
   `fecha_creacion` timestamp NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -73,11 +76,16 @@ CREATE PROCEDURE `sp_insertar_log_auditoria`(
     IN p_usuario_nombre VARCHAR(100),
     IN p_accion VARCHAR(255),
     IN p_detalles TEXT,
-    IN p_ip_origen VARCHAR(45)
+    IN p_ip_origen VARCHAR(45),
+    IN p_entidad_tipo VARCHAR(20),
+    IN p_entidad_id INT,
+    IN p_entidad_nombre VARCHAR(150)
 )
 BEGIN
-    INSERT INTO logs_auditoria (usuario_id, usuario_tipo, usuario_nombre, accion, detalles, ip_origen)
-    VALUES (p_usuario_id, p_usuario_tipo, p_usuario_nombre, p_accion, p_detalles, p_ip_origen);
+    INSERT INTO logs_auditoria (usuario_id, usuario_tipo, usuario_nombre, accion, detalles, ip_origen,
+                                entidad_tipo, entidad_id, entidad_nombre)
+    VALUES (p_usuario_id, p_usuario_tipo, p_usuario_nombre, p_accion, p_detalles, p_ip_origen,
+            p_entidad_tipo, p_entidad_id, p_entidad_nombre);
 END$$
 
 -- --------------------------------------------------------
@@ -90,19 +98,24 @@ END$$
 
 DROP PROCEDURE IF EXISTS `sp_listar_auditoria`$$
 CREATE PROCEDURE `sp_listar_auditoria`(
+    IN p_usuario_id INT,
     IN p_usuario_tipo VARCHAR(20),
     IN p_accion VARCHAR(255),
     IN p_fecha_desde DATETIME,
-    IN p_fecha_hasta DATETIME
+    IN p_fecha_hasta DATETIME,
+    IN p_entidad_tipo VARCHAR(20)
 )
 BEGIN
     SELECT id, usuario_tipo, usuario_id, usuario_nombre,
-           accion, detalles, ip_origen, fecha_creacion
+           accion, detalles, ip_origen, fecha_creacion,
+           entidad_tipo, entidad_id, entidad_nombre
     FROM logs_auditoria
-    WHERE (p_usuario_tipo IS NULL OR usuario_tipo = p_usuario_tipo)
+    WHERE (p_usuario_id IS NULL OR usuario_id = p_usuario_id)
+      AND (p_usuario_tipo IS NULL OR usuario_tipo = p_usuario_tipo)
       AND (p_accion IS NULL OR accion LIKE CONCAT('%', p_accion, '%'))
       AND (p_fecha_desde IS NULL OR fecha_creacion >= p_fecha_desde)
       AND (p_fecha_hasta IS NULL OR fecha_creacion <= p_fecha_hasta)
+      AND (p_entidad_tipo IS NULL OR entidad_tipo = p_entidad_tipo)
     ORDER BY fecha_creacion DESC
     LIMIT 200;
 END$$

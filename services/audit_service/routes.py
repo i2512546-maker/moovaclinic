@@ -26,15 +26,26 @@ def registrar_auditoria():
     usuario_id = data.get("usuario_id")
     usuario_tipo = data.get("usuario_tipo") or "sistema"
     usuario_nombre = data.get("usuario_nombre")
-    accion = data.get("accion", "").strip()
+    accion = (data.get("accion") or "").strip()
     detalles = data.get("detalles")
     ip_origen = data.get("ip_origen")
+
+    entidad_tipo = (data.get("entidad_tipo") or "").strip() or None
+    if entidad_tipo not in ("paciente", "medico"):
+        entidad_tipo = None
+    entidad_id = data.get("entidad_id")
+    try:
+        entidad_id = int(entidad_id) if entidad_id not in (None, "") else None
+    except (TypeError, ValueError):
+        entidad_id = None
+    entidad_nombre = (data.get("entidad_nombre") or "").strip() or None
 
     if not accion:
         return jsonify({"error": "accion requerida"}), 400
 
     call_proc_execute("sp_insertar_log_auditoria", (
         usuario_id, usuario_tipo, usuario_nombre, accion, detalles, ip_origen,
+        entidad_tipo, entidad_id, entidad_nombre,
     ))
     return jsonify({"success": True}), 201
 
@@ -43,18 +54,27 @@ def registrar_auditoria():
 def listar_auditoria():
     """Lista los logs de auditoria (solo lectura, sin paginacion).
 
-    Filtros opcionales por query string: usuario_tipo, accion (texto
-    parcial), fecha_desde, fecha_hasta. Ordena por fecha descendente
-    y limita a los ultimos 200 registros (sp_listar_auditoria).
+    Filtros opcionales por query string: usuario_id (exacto), usuario_tipo,
+    accion (texto parcial), fecha_desde, fecha_hasta y entidad_tipo.
+    Ordena por fecha descendente y limita a los ultimos 200 registros
+    (sp_listar_auditoria).
     """
+    usuario_id_raw = (request.args.get("usuario_id") or "").strip() or None
+    try:
+        usuario_id = int(usuario_id_raw) if usuario_id_raw else None
+    except (TypeError, ValueError):
+        usuario_id = None
     usuario_tipo = (request.args.get("usuario_tipo") or "").strip() or None
     accion = (request.args.get("accion") or "").strip() or None
     fecha_desde = _fecha_param("fecha_desde")
     fecha_hasta = _fecha_param("fecha_hasta")
+    entidad_tipo = (request.args.get("entidad_tipo") or "").strip() or None
+    if entidad_tipo not in ("paciente", "medico"):
+        entidad_tipo = None
 
     try:
         logs = call_proc("sp_listar_auditoria", (
-            usuario_tipo, accion, fecha_desde, fecha_hasta,
+            usuario_id, usuario_tipo, accion, fecha_desde, fecha_hasta, entidad_tipo,
         )) or []
     except Exception:
         logs = []
