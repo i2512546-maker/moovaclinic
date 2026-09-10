@@ -80,4 +80,31 @@ BEGIN
     VALUES (p_usuario_id, p_usuario_tipo, p_usuario_nombre, p_accion, p_detalles, p_ip_origen);
 END$$
 
+-- --------------------------------------------------------
+--
+-- Consulta/lista de logs de auditoria (solo lectura)
+-- Filtros opcionales por tipo de usuario, accion (parcial)
+-- y rango de fechas. Ordena por fecha descendente y limita
+-- a los ultimos 200 registros.
+--
+
+DROP PROCEDURE IF EXISTS `sp_listar_auditoria`$$
+CREATE PROCEDURE `sp_listar_auditoria`(
+    IN p_usuario_tipo VARCHAR(20),
+    IN p_accion VARCHAR(255),
+    IN p_fecha_desde DATETIME,
+    IN p_fecha_hasta DATETIME
+)
+BEGIN
+    SELECT id, usuario_tipo, usuario_id, usuario_nombre,
+           accion, detalles, ip_origen, fecha_creacion
+    FROM logs_auditoria
+    WHERE (p_usuario_tipo IS NULL OR usuario_tipo = p_usuario_tipo)
+      AND (p_accion IS NULL OR accion LIKE CONCAT('%', p_accion, '%'))
+      AND (p_fecha_desde IS NULL OR fecha_creacion >= p_fecha_desde)
+      AND (p_fecha_hasta IS NULL OR fecha_creacion <= p_fecha_hasta)
+    ORDER BY fecha_creacion DESC
+    LIMIT 200;
+END$$
+
 DELIMITER ;

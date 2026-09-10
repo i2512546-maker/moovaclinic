@@ -27,6 +27,11 @@
             <a href="{{ url_for('pacientes_page') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
                 <i class="bi bi-people"></i> Pacientes
             </a>
+            {% if current_user.es_admin %}
+            <a href="{{ url_for('panel_admin_auditoria') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+                <i class="bi bi-journal-text"></i> Auditoría
+            </a>
+            {% endif %}
             <a href="{{ url_for('index') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
                 <i class="bi bi-house"></i> Inicio
             </a>

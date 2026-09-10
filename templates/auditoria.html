@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auditoría - MOOVA Clinic</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Nunito:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap-style.css') }}">
+</head>
+<body>
+
+<nav class="navbar navbar-expand navbar-bubble border-bottom shadow-sm px-3 py-2">
+    <div class="container-fluid">
+        <span class="navbar-brand mb-0 h1 logo">MOOVA <span>Clinic</span></span>
+        <div class="d-flex align-items-center gap-2 ms-auto flex-wrap">
+            <span class="badge text-bg-light d-inline-flex align-items-center gap-1">
+                <i class="bi bi-shield-lock"></i>
+                {{ session.usuario_nombre }}
+            </span>
+            <a href="{{ url_for('panel_admin') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+                <i class="bi bi-person-gear"></i> Panel Admin
+            </a>
+            <a href="{{ url_for('interfaz') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+                <i class="bi bi-calendar3"></i> Ver Horarios
+            </a>
+            <a href="{{ url_for('pacientes_page') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+                <i class="bi bi-people"></i> Pacientes
+            </a>
+            <a href="{{ url_for('index') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+                <i class="bi bi-house"></i> Inicio
+            </a>
+            <a href="{{ url_for('logout') }}" class="btn btn-sm btn-danger-moova d-inline-flex align-items-center gap-1">
+                <i class="bi bi-box-arrow-right"></i> Salir
+            </a>
+        </div>
+    </div>
+</nav>
+
+<div class="container-fluid py-4">
+
+    <div class="mb-4">
+        <h1 class="h3 d-flex align-items-center gap-2">
+            <i class="bi bi-journal-text"></i> Registro de Auditoría
+        </h1>
+    </div>
+
+    <div class="card card-moova shadow-sm mb-4">
+        <div class="card-header panel-header d-flex align-items-center gap-2">
+            <i class="bi bi-funnel"></i>
+            <h2 class="h5 mb-0">Filtros</h2>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('panel_admin_auditoria') }}" class="row g-3">
+                <div class="col-12 col-md-3">
+                    <label class="form-label">Tipo de usuario</label>
+                    <select name="usuario_tipo" class="form-select">
+                        <option value="">Todos</option>
+                        <option value="admin" {% if filtros.get('usuario_tipo') == 'admin' %}selected{% endif %}>Admin</option>
+                        <option value="terapeuta" {% if filtros.get('usuario_tipo') == 'terapeuta' %}selected{% endif %}>Terapeuta</option>
+                        <option value="paciente" {% if filtros.get('usuario_tipo') == 'paciente' %}selected{% endif %}>Paciente</option>
+                        <option value="sistema" {% if filtros.get('usuario_tipo') == 'sistema' %}selected{% endif %}>Sistema</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-3">
+                    <label class="form-label">Acción</label>
+                    <input type="text" name="accion" class="form-control" placeholder="Ej: crear_cita"
+                        value="{{ filtros.get('accion', '') }}">
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label">Desde</label>
+                    <input type="date" name="fecha_desde" class="form-control"
+                        value="{{ filtros.get('fecha_desde', '') }}">
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label">Hasta</label>
+                    <input type="date" name="fecha_hasta" class="form-control"
+                        value="{{ filtros.get('fecha_hasta', '') }}">
+                </div>
+                <div class="col-12 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-moova d-inline-flex align-items-center gap-1">
+                        <i class="bi bi-search"></i> Filtrar
+                    </button>
+                    <a href="{{ url_for('panel_admin_auditoria') }}" class="btn btn-outline-secondary d-inline-flex align-items-center gap-1">
+                        <i class="bi bi-arrow-counterclockwise"></i> Limpiar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card card-moova shadow-sm">
+        <div class="card-header panel-header d-flex align-items-center gap-2">
+            <i class="bi bi-card-list"></i>
+            <h2 class="h5 mb-0">Historial de Actividad</h2>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover table-striped align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Fecha / Hora</th>
+                        <th>Usuario</th>
+                        <th>Tipo</th>
+                        <th>Acción</th>
+                        <th>Detalles</th>
+                        <th>IP</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if logs %}
+                        {% for l in logs %}
+                        <tr>
+                            <td class="text-nowrap">{{ l.fecha_creacion }}</td>
+                            <td>{{ l.usuario_nombre or '—' }}</td>
+                            <td><span class="badge text-bg-light">{{ l.usuario_tipo|capitalize }}</span></td>
+                            <td class="text-nowrap">{{ l.accion }}</td>
+                            <td style="min-width:240px;">{{ l.detalles or '—' }}</td>
+                            <td class="text-nowrap">{{ l.ip_origen or '—' }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">
+                                <i class="bi bi-inbox me-2"></i> No hay registros de auditoría.
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
