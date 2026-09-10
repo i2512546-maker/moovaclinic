@@ -263,7 +263,7 @@ BEGIN
            h.descripcion, h.paciente_id, h.terapeuta_id, h.servicio_id
     FROM historial_citas h
     WHERE h.estado = p_estado
-      AND (p_fecha IS NULL OR h.fecha_cita = p_fecha)
+      AND (p_fecha IS NULL OR h.fecha_cita >= p_fecha)
       AND (p_medico_id IS NULL OR h.terapeuta_id = p_medico_id)
     ORDER BY h.fecha_cita ASC;
 END$$

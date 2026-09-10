@@ -187,7 +187,7 @@ BEGIN
     LEFT JOIN especialidades e ON t.especialidad_id = e.id
     WHERE h.estado = p_estado
       AND (p_dni IS NULL OR p.dni = p_dni)
-      AND (p_fecha IS NULL OR h.fecha_cita = p_fecha)
+      AND (p_fecha IS NULL OR h.fecha_cita >= p_fecha)
       AND (p_medico_id IS NULL OR h.terapeuta_id = p_medico_id)
     ORDER BY h.fecha_cita ASC;
 END$$
