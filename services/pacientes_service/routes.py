@@ -3,12 +3,93 @@ from flask import request, jsonify
 from services.pacientes_service import pacientes_bp
 from shared.config import APIPERU_TOKEN, APIPERU_URL
 from shared.proc import call_proc, call_proc_one, call_proc_execute
+from shared.service_client import auth_client, citas_client, pagos_client
 
+
+def _mapa_usuarios():
+    """{usuario_id: {nombre, correo, rol, activo}} via auth_service."""
+    try:
+        data, _ = auth_client.get("/api/auth/usuarios")
+        usuarios = data.get("usuarios") or []
+        return {u["id"]: u for u in usuarios}
+    except Exception:
+        return {}
+
+
+def _mapa_especialidades():
+    especialidades = call_proc("sp_listar_especialidades") or []
+    return {e["id"]: e["nombre"] for e in especialidades}
+
+
+def _mapa_terapeutas(usuarios=None, especialidades=None):
+    """{terapeuta_id: {te_name: Nombre, Especialidad}} para enriquecer
+    citas/historial sin tocar tablas de otras bases."""
+    usuarios = usuarios if usuarios is not None else _mapa_usuarios()
+    especialidades = especialidades if especialidades is not None else _mapa_especialidades()
+    terapeutas = call_proc("sp_listar_terapeutas") or []
+    mapa = {}
+    for t in terapeutas:
+        u = usuarios.get(t.get("usuario_id"))
+        mapa[t["ID"]] = {
+            "terapeuta_nombre": (u or {}).get("nombre"),
+            "especialidad": especialidades.get(t.get("especialidad_id")),
+            "precio": t.get("precio"),
+        }
+    return mapa
+
+
+# ============================================================
+# Pacientes
+# ============================================================
 
 @pacientes_bp.route("/api/pacientes", methods=["GET"])
 def listar_pacientes():
     pacientes = call_proc("sp_listar_pacientes")
+
+    resumen = {}
+    try:
+        data, _ = citas_client.get("/api/citas/resumen_pacientes")
+        resumen = {r["paciente_id"]: r for r in (data.get("resumen") or [])}
+    except Exception:
+        pass
+
+    for p in pacientes:
+        info = resumen.get(p["id"]) or {}
+        p["total_citas"] = info.get("total", 0)
+        p["ultima_cita"] = info.get("ultima")
+
     return jsonify({"success": True, "pacientes": pacientes})
+
+
+@pacientes_bp.route("/api/pacientes/dni/<dni>", methods=["GET"])
+def obtener_paciente_id_por_dni(dni):
+    """Resuelve el id de un paciente segun dni. Usado por
+    citas_service/pagos_service (antes era un JOIN CROSS-DB)."""
+    paciente = call_proc_one("sp_obtener_paciente_id_dni", (dni,))
+    if not paciente:
+        return jsonify({"error": "Paciente no encontrado"}), 404
+    return jsonify({"success": True, "id": paciente["id"]})
+
+
+@pacientes_bp.route("/api/pacientes/min", methods=["POST"])
+def crear_paciente_min():
+    """Crea un paciente con datos minimos. Usado por citas_service
+    cuando la reserva trae un dni que no existe aun."""
+    data = request.get_json() or {}
+    nombre = data.get("nombre", "").strip()
+    apellido = data.get("apellido", "").strip()
+    dni = data.get("dni", "").strip()
+    telefono = data.get("telefono", "").strip()
+
+    if not all([nombre, apellido, dni, telefono]):
+        return jsonify({"error": "Todos los campos son requeridos."}), 400
+
+    existente = call_proc_one("sp_existe_paciente_por_dni", (dni,))
+    if existente:
+        return jsonify({"error": "Ya existe un paciente con ese DNI.", "dni": existente["dni"]}), 409
+
+    result = call_proc_one("sp_crear_paciente_min", (nombre, apellido, dni, telefono))
+    return jsonify({"success": True, "id": result["id"] if result else None}), 201
 
 
 @pacientes_bp.route("/api/pacientes/<dni>", methods=["GET"])
@@ -17,7 +98,35 @@ def detalle_paciente(dni):
     if not paciente:
         return jsonify({"error": "Paciente no encontrado"}), 404
 
-    historial = call_proc("sp_obtener_historial_paciente", (paciente["id"],))
+    paciente_id = paciente["id"]
+
+    historial = []
+    try:
+        citas_data, _ = citas_client.get(f"/api/citas/paciente/{paciente_id}")
+        historial = citas_data.get("citas") or []
+    except Exception:
+        pass
+
+    pagos = {}
+    try:
+        pagos_data, _ = pagos_client.get(f"/api/pagos/pacientes/{paciente_id}")
+        for pg in (pagos_data.get("pagos") or []):
+            if pg.get("cita_id") not in pagos:
+                pagos[pg["cita_id"]] = pg
+    except Exception:
+        pass
+
+    mapa = _mapa_terapeutas()
+    for c in historial:
+        te = mapa.get(c.get("terapeuta_id")) or {}
+        c["terapeuta"] = te.get("terapeuta_nombre")
+        c["Especialidad"] = te.get("especialidad")
+        pg = pagos.get(c.get("id"))
+        if pg:
+            c["monto"] = pg.get("monto")
+            c["metodo_pago"] = pg.get("metodo_pago")
+            c["estado_pago"] = pg.get("estado_pago")
+
     return jsonify({"success": True, "paciente": paciente, "historial": historial})
 
 
@@ -61,7 +170,7 @@ def actualizar_paciente(dni):
         return jsonify({"error": "Nada que actualizar."}), 400
 
     dni_nuevo = data["dni"] if ("dni" in data and data["dni"] != dni) else None
-    result = call_proc("sp_actualizar_paciente", (
+    call_proc("sp_actualizar_paciente", (
         dni,
         _val("nombre"), _val("apellido"), _val("telefono"), _val("email"),
         _val("estado"), _val("fecha_nacimiento"), _val("sexo"),
@@ -101,31 +210,124 @@ def listar_servicios():
 
 
 # ============================================================
-# Paquetes de sesiones
+# Terapeutas (antes consumidos por el gateway via CROSS-DB)
+# ============================================================
+
+@pacientes_bp.route("/api/terapeutas", methods=["GET"])
+def listar_terapeutas():
+    terapeutas = call_proc("sp_listar_terapeutas") or []
+    usuarios = _mapa_usuarios()
+    especialidades = _mapa_especialidades()
+
+    for t in terapeutas:
+        u = usuarios.get(t.get("usuario_id")) or {}
+        t["Nombre"] = u.get("nombre")
+        t["Telefono"] = u.get("telefono")
+        t["Especialidad"] = especialidades.get(t.get("especialidad_id"))
+
+    return jsonify({"success": True, "terapeutas": terapeutas})
+
+
+@pacientes_bp.route("/api/terapeutas/<int:medico_id>", methods=["GET"])
+def obtener_terapeuta(medico_id):
+    terapeuta = call_proc_one("sp_obtener_terapeuta", (medico_id,))
+    if not terapeuta:
+        return jsonify({"error": "Terapeuta no encontrado"}), 404
+
+    usuarios = _mapa_usuarios()
+    especialidades = _mapa_especialidades()
+    u = usuarios.get(terapeuta.get("usuario_id")) or {}
+    terapeuta["Nombre"] = u.get("nombre")
+    terapeuta["Especialidad"] = especialidades.get(terapeuta.get("especialidad_id"))
+
+    return jsonify({"success": True, "terapeuta": terapeuta})
+
+
+@pacientes_bp.route("/api/terapeutas", methods=["POST"])
+def crear_terapeuta():
+    data = request.get_json() or {}
+    usuario_id = data.get("usuario_id")
+    especialidad_id = data.get("especialidad_id")
+    precio = data.get("precio")
+
+    if not usuario_id:
+        return jsonify({"error": "usuario_id requerido."}), 400
+
+    result = call_proc_one("sp_crear_terapeuta", (usuario_id, especialidad_id, precio))
+    return jsonify({"success": True, "id": result["id"] if result else None}), 201
+
+
+@pacientes_bp.route("/api/terapeutas/<int:medico_id>/precio", methods=["PUT"])
+def actualizar_precio_terapeuta(medico_id):
+    data = request.get_json() or {}
+    precio = data.get("precio")
+    if precio is None:
+        return jsonify({"error": "precio requerido."}), 400
+    call_proc_execute("sp_actualizar_precio", (medico_id, precio))
+    return jsonify({"success": True})
+
+
+@pacientes_bp.route("/api/terapeutas/<int:medico_id>/activo", methods=["PUT"])
+def set_terapeuta_activo(medico_id):
+    data = request.get_json() or {}
+    activo = data.get("activo")
+    if activo is None:
+        return jsonify({"error": "activo requerido."}), 400
+    call_proc_execute("sp_set_terapeuta_activo", (medico_id, 1 if activo else 0))
+    return jsonify({"success": True})
+
+
+# ============================================================
+# Especialidades
+# ============================================================
+
+@pacientes_bp.route("/api/especialidades", methods=["GET"])
+def listar_especialidades():
+    especialidades = call_proc("sp_listar_especialidades")
+    return jsonify({"success": True, "especialidades": especialidades})
+
+
+@pacientes_bp.route("/api/especialidades/por-nombre/<path:nombre>", methods=["GET"])
+def obtener_especialidad_id(nombre):
+    if not nombre:
+        return jsonify({"error": "nombre requerido"}), 400
+    esp = call_proc_one("sp_obtener_especialidad_id", (nombre,))
+    if not esp:
+        return jsonify({"error": "Especialidad no encontrada."}), 404
+    return jsonify({"success": True, "id": esp["id"]})
+
+
+# ============================================================
+# Estadisticas
+# ============================================================
+
+@pacientes_bp.route("/api/estadisticas/especialistas", methods=["GET"])
+def estadisticas_especialistas():
+    data = call_proc_one("sp_estadisticas_especialistas") or {}
+    return jsonify({"success": True, "total": data.get("total", 0)})
+
+
+@pacientes_bp.route("/api/estadisticas/opiniones", methods=["GET"])
+def estadisticas_opiniones():
+    data = call_proc_one("sp_estadisticas_opiniones") or {}
+    return jsonify({"success": True, "total": data.get("total", 0), "buenas": data.get("buenas", 0)})
+
+
+# ============================================================
+# Paquetes de sesiones (delegados a pagos_service)
 # ============================================================
 
 @pacientes_bp.route("/api/pacientes/<int:paciente_id>/paquetes", methods=["GET"])
 def listar_paquetes(paciente_id):
-    paquetes = call_proc("sp_listar_paquetes", (paciente_id,))
-    return jsonify({"success": True, "paquetes": paquetes})
+    data, status = pagos_client.get(f"/api/pagos/pacientes/{paciente_id}/paquetes")
+    return jsonify(data), status
 
 
 @pacientes_bp.route("/api/pacientes/<int:paciente_id>/paquetes", methods=["POST"])
 def crear_paquete(paciente_id):
-    data = request.get_json() or {}
-    servicio_id = data.get("servicio_id")
-    total_sesiones = data.get("total_sesiones")
-    fecha_compra = data.get("fecha_compra")
-    fecha_vencimiento = data.get("fecha_vencimiento")
-
-    if not servicio_id or not total_sesiones or not fecha_compra:
-        return jsonify({"error": "servicio_id, total_sesiones y fecha_compra son requeridos."}), 400
-
-    result = call_proc_one("sp_crear_paquete", (
-        paciente_id, servicio_id, total_sesiones, fecha_compra, fecha_vencimiento,
-    ))
-    paquete_id = result["id"] if result else None
-    return jsonify({"success": True, "paquete_id": paquete_id}), 201
+    payload = request.get_json() or {}
+    data, status = pagos_client.post(f"/api/pagos/pacientes/{paciente_id}/paquetes", payload)
+    return jsonify(data), status
 
 
 # ============================================================
@@ -134,7 +336,10 @@ def crear_paquete(paciente_id):
 
 @pacientes_bp.route("/api/pacientes/<int:paciente_id>/evaluaciones", methods=["GET"])
 def listar_evaluaciones(paciente_id):
-    evaluaciones = call_proc("sp_listar_evaluaciones", (paciente_id,))
+    evaluaciones = call_proc("sp_listar_evaluaciones", (paciente_id,)) or []
+    mapa = _mapa_terapeutas()
+    for e in evaluaciones:
+        e["terapeuta_nombre"] = (mapa.get(e.get("terapeuta_id")) or {}).get("terapeuta_nombre")
     return jsonify({"success": True, "evaluaciones": evaluaciones})
 
 

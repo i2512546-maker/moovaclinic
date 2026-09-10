@@ -1,9 +1,14 @@
 # ============================================================
 # Auditoria centralizada (Punto 5)
-# Como todos los servicios Flask comparten la misma BD
-# (moovacloud_db) y ya importan desde `shared/`, esta funcion
-# reutilizable se centraliza aqui. No hace falta un servicio
-# HTTP de auditoria aparte para esta escala.
+#
+# FASE 2: cada servicio usa su propia base de datos; logs_auditoria
+# vive en la BD del audit_service (audit_db). Esta funcion ya NO toca
+# la BD directamente: delega la insercion por HTTP al audit_service
+# (POST /api/auditoria), que invoca sp_insertar_log_auditoria.
+#
+# La firma publica se conserva (usuario_id, accion, tabla_afectada,
+# registro_id, detalle, ip_origen) para no tocar los callers; aqui se
+# mapea al esquema de audit_db (usuario_tipo, usuario_nombre, detalles).
 #
 # USO (desde cualquier servicio):
 #   from shared.audit import log_accion
@@ -13,28 +18,46 @@
 #              registro_id=cita_id,
 #              detalle="Cita creada para paciente X")
 #
-# La tabla logs_auditoria debe existir (ver migration_v2.sql
-# PARTE 6). La FK hacia usuarios.id es ON DELETE SET NULL, asi
-# que el log sobrevive aunque se borre el usuario.
-#
-# La insercion se delega al procedimiento sp_insertar_log_auditoria
-# (procedures.sql), por lo que este modulo no contiene SQL crudo.
+# La escritura jamas debe romper el flujo principal del negocio:
+# cualquier error (servicio caido, timeout) se ignora silenciosamente.
 # ============================================================
 
-from shared.proc import call_proc_execute
+from shared.service_client import audit_client
+
+
+def _sesion_valor(clave, por_defecto=None):
+    """Lee una clave de session si estamos en contexto Flask de request.
+    Fuera de request_context devuelve el valor por defecto."""
+    try:
+        from flask import session
+        return session.get(clave, por_defecto)
+    except Exception:
+        return por_defecto
 
 
 def log_accion(usuario_id=None, accion="", tabla_afectada=None,
                registro_id=None, detalle=None, ip_origen=None):
-    """Registra una accion en logs_auditoria sin lanzar excepciones.
-
-    Si la tabla no existe o la escritura falla, el error se ignora
-    para no interrumpir el flujo principal del negocio.
-    """
+    """Registra una accion en logs_auditoria (via audit_service)
+    sin lanzar excepciones."""
     try:
-        call_proc_execute("sp_insertar_log_auditoria", (
-            usuario_id, accion, tabla_afectada, registro_id, detalle, ip_origen,
-        ))
+        partes = []
+        if tabla_afectada:
+            partes.append(f"tabla={tabla_afectada}")
+        if registro_id is not None:
+            partes.append(f"registro_id={registro_id}")
+        if detalle:
+            partes.append(str(detalle))
+        detalles = " | ".join(partes) or None
+
+        payload = {
+            "usuario_id": usuario_id,
+            "usuario_tipo": _sesion_valor("rol", "sistema"),
+            "usuario_nombre": _sesion_valor("usuario_nombre"),
+            "accion": accion,
+            "detalles": detalles,
+            "ip_origen": ip_origen,
+        }
+        audit_client.post("/api/auditoria", payload)
     except Exception:
         # La auditoria jamas debe romper el flujo principal.
         pass
