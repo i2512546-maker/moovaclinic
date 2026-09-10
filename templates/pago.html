@@ -231,7 +231,7 @@
 
     <!-- ============ MODAL YAPE ============ -->
     <div class="modal-overlay" id="modalYape" style="display:none;">
-        <div class="modal">
+        <div class="modal-box">
             <button type="button" class="modal-close" onclick="cerrarModal('modalYape')">&times;</button>
             <h3 class="fs-5 fw-bold text-navy"><i class="fa-solid fa-wallet me-1"></i> Paga con Yape</h3>
             <div class="modal-monto">S/ {{ monto_txt }}</div>
@@ -250,7 +250,7 @@
 
     <!-- ============ MODAL PLIN ============ -->
     <div class="modal-overlay" id="modalPlin" style="display:none;">
-        <div class="modal">
+        <div class="modal-box">
             <button type="button" class="modal-close" onclick="cerrarModal('modalPlin')">&times;</button>
             <h3 class="fs-5 fw-bold text-navy"><i class="fa-solid fa-mobile-screen-button me-1"></i> Paga con Plin</h3>
             <div class="modal-monto">S/ {{ monto_txt }}</div>
@@ -269,7 +269,7 @@
 
     <!-- ============ OVERLAY PAGO EXITOSO ============ -->
     <div class="modal-overlay" id="overlayExito" style="display:none;">
-        <div class="modal modal-exito">
+        <div class="modal-box modal-exito">
             <i class="fas fa-check-circle exito-icon"></i>
             <h3 class="fs-5 fw-bold">Pago realizado correctamente</h3>
             <p>Tu cita quedó registrada como pagada. Redirigiendo a tu confirmación...</p>
