@@ -22,6 +22,19 @@ def _num(data, key, cast):
         return None
 
 
+AREAS_REHABILITACION = [
+    "Fisioterapia",
+    "Rehabilitación Neurológica",
+    "Rehabilitación Deportiva",
+    "Terapia Ocupacional",
+    "Rehabilitación Cardiopulmonar",
+    "Hidroterapia",
+    "Rehabilitación Geriátrica",
+    "Terapia del Habla",
+    "Rehabilitación Pediátrica",
+]
+
+
 @pacientes_bp.route("/api/pacientes", methods=["GET"])
 def listar_pacientes():
     pacientes = call_proc("sp_listar_pacientes")
@@ -175,8 +188,27 @@ def listar_rehabilitaciones(dni):
         resumen = r or {}
     except Exception:
         resumen = {}
-    terapeutas = _seguro("sp_listar_terapeutas_activos")
-    areas = _seguro("sp_listar_areas_rehabilitacion")
+    terapeutas = _seguro("sp_listar_terapeutas")
+    terapeutas = [
+        {
+            "terapeuta_id": t.get("ID"),
+            "terapeuta_nombre": t.get("Nombre") or "",
+            "especialidad": t.get("Especialidad") or "",
+        }
+        for t in terapeutas
+        if t.get("Nombre")
+    ]
+
+    areas_db = _seguro("sp_listar_areas_rehabilitacion")
+    areas = [{"nombre": nombre} for nombre in AREAS_REHABILITACION]
+    vistos = set()
+    for a in areas:
+        vistos.add(a["nombre"].lower())
+    for a in areas_db:
+        nombre = (a.get("nombre") or "").strip()
+        if nombre and nombre.lower() not in vistos:
+            areas.append({"nombre": nombre})
+            vistos.add(nombre.lower())
 
     return jsonify({
         "success": True,
@@ -227,7 +259,10 @@ def crear_rehabilitacion(dni):
 
     # Validacion extra (ademas de la UNIQUE constraint): verificar
     # que no haya intento de registrar fuera de secuencia.
-    proxima = call_proc_one("sp_proxima_cita_rehab", (paciente_id,))
+    try:
+        proxima = call_proc_one("sp_proxima_cita_rehab", (paciente_id,))
+    except Exception as exc:
+        return jsonify({"error": "Error de BD al consultar proxima cita: {}".format(exc)}), 500
     prox = proxima["proxima_cita"] if proxima else 1
     numero_solicitado = data.get("numero_cita")
     if numero_solicitado is not None and int(numero_solicitado) != int(prox):
@@ -295,8 +330,8 @@ def crear_rehabilitacion(dni):
             "error": "La cita fue registrada en otra ventana. La siguiente disponible es la Cita {}.".format(prox),
             "proxima_cita": prox,
         }), 409
-    except Exception:
-        return jsonify({"error": "No se pudo registrar la rehabilitacion."}), 500
+    except Exception as exc:
+        return jsonify({"error": "Error de BD al registrar la rehabilitacion: {}".format(exc)}), 500
 
     if result and result[0]:
         numero = result[0].get("numero_cita")

@@ -57,6 +57,8 @@
                     <div class="alert alert-warning d-flex align-items-center gap-2" id="alerta-top" role="alert"><i class="fas fa-info-circle"></i> Ya existe un registro con ese DNI.</div>
                     {% elif msg == 'fecha_pasada' %}
                     <div class="alert alert-danger d-flex align-items-center gap-2" id="alerta-top" role="alert"><i class="fas fa-calendar-times"></i> La fecha no puede ser en el pasado.</div>
+                    {% elif msg == 'cita_agendada' %}
+                    <div class="alert alert-success d-flex align-items-center gap-2" id="alerta-top" role="alert"><i class="fas fa-check-circle"></i> ¡Tu cita ha sido agendada con éxito!</div>
                     {% else %}
                     <div class="alert alert-danger d-flex align-items-center gap-2" id="alerta-top" role="alert"><i class="fas fa-times-circle"></i> {{ msg }}</div>
                     {% endif %}
@@ -219,6 +221,45 @@
         </div>
     </div>
 
+<!-- Modal: paso de pago (versión de prueba) -->
+<div class="modal fade" id="modalPago" tabindex="-1" aria-labelledby="modalPagoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content card-moova border-0 shadow">
+            <div class="modal-body text-center p-4 p-md-5">
+                <div class="mx-auto mb-3 rounded-circle d-flex align-items-center justify-content-center text-white" style="width:72px;height:72px;background:var(--moova-primary);">
+                    <i class="fas fa-cash-register fs-3"></i>
+                </div>
+                <h2 class="h4 fw-bold mb-1" id="modalPagoLabel">Realiza tu pago</h2>
+                <p class="text-muted small mb-4">Confirmación de tu cita</p>
+
+                <div class="text-start">
+                    <div class="d-flex justify-content-between py-2 border-bottom">
+                        <span class="text-muted"><i class="fas fa-tags me-1"></i> Costo de la cita</span>
+                        <span class="fw-semibold" id="modal-costo">S/ —</span>
+                    </div>
+                    <div class="d-flex justify-content-between py-2 border-bottom">
+                        <span class="text-muted"><i class="fas fa-hand-holding-usd me-1"></i> Anticipo (50%)</span>
+                        <span class="fw-semibold text-success" id="modal-anticipo">S/ —</span>
+                    </div>
+                    <div class="d-flex justify-content-between py-2">
+                        <span class="text-muted"><i class="fas fa-money-check-alt me-1"></i> Método de pago</span>
+                        <span class="fw-semibold" id="modal-metodo">—</span>
+                    </div>
+                </div>
+
+                <div class="alert alert-info small text-start mt-4 mb-4 d-flex align-items-start gap-2">
+                    <i class="fas fa-info-circle mt-1"></i>
+                    <div class="text-start">Versión de prueba: no se realizará ningún cobro real. Tu cita se confirmará al presionar <strong>Agendar</strong>.</div>
+                </div>
+
+                <button type="button" class="btn btn-moova btn-lg w-100 d-inline-flex align-items-center justify-content-center gap-2" onclick="confirmarAgendar()">
+                    <i class="fas fa-calendar-check"></i> Agendar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     // Ocultar alertas automáticamente después de 4 segundos
@@ -330,6 +371,25 @@
         if (el) el.addEventListener('change', actualizarBoton);
     });
     document.querySelector('input[name="telefono"]').addEventListener('input', actualizarBoton);
+
+    // Primer clic: mostrar "Realiza tu pago" sin guardar la cita
+    const formCita = document.getElementById('formCita');
+    formCita.addEventListener('submit', function (e) {
+        e.preventDefault();
+        document.getElementById('modal-costo').textContent = document.getElementById('costo-cita').textContent;
+        document.getElementById('modal-anticipo').textContent = document.getElementById('anticipo-cita').textContent;
+        const mp = document.getElementById('metodo_pago');
+        document.getElementById('modal-metodo').textContent =
+            mp.selectedIndex > 0 ? mp.options[mp.selectedIndex].textContent : mp.value;
+        new bootstrap.Modal(document.getElementById('modalPago')).show();
+    });
+
+    // Segundo clic: recién aquí se guarda la cita
+    function confirmarAgendar() {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('modalPago'));
+        if (modal) modal.hide();
+        document.getElementById('formCita').submit();
+    }
 </script>
 
 <script>

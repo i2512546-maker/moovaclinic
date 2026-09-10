@@ -207,7 +207,8 @@ def create_app():
 
             result, status = citas_client.post("/api/citas", form_data)
             if status == 201 and result.get("success"):
-                return redirect(url_for("pago_page", cita_id=result["cita_id"]))
+                flash("cita_agendada")
+                return redirect(url_for("citas_page"))
             else:
                 flash(result.get("error", "Error al crear cita"))
 
