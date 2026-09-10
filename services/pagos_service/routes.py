@@ -188,6 +188,35 @@ def crear_paquete_paciente(paciente_id):
     return jsonify({"success": True, "paquete_id": result["id"] if result else None}), 201
 
 
+@pagos_bp.route("/api/pagos/paquetes/<int:paquete_id>/usar", methods=["POST"])
+def usar_sesion_paquete(paquete_id):
+    """Vincula una cita a un paquete e incrementa sesiones_usadas.
+    Lo invoca el gateway tras crear la cita en el flujo /tratamiento
+    (continuar tratamiento), como paso ADICIONAL posterior a la
+    creacion de la cita (sp_usar_sesion_paquete)."""
+    data = request.get_json() or {}
+    cita_id = data.get("cita_id")
+    if not cita_id:
+        return jsonify({"error": "cita_id requerido."}), 400
+
+    result = call_proc_one("sp_usar_sesion_paquete", (paquete_id, cita_id))
+    usadas = int((result or {}).get("usadas") or 0)
+    if usadas == 0:
+        return jsonify({"error": "El paquete no esta activo o no tiene sesiones disponibles."}), 409
+
+    try:
+        log_accion(
+            accion="usar_sesion_paquete",
+            tabla_afectada="paquetes_sesiones",
+            registro_id=paquete_id,
+            detalle=f"Sesion del paquete {paquete_id} usada por cita_id={cita_id}",
+            ip_origen=request.remote_addr,
+        )
+    except Exception:
+        pass
+    return jsonify({"success": True, "usadas": usadas})
+
+
 @pagos_bp.route("/api/pagos/configuracion/anio", methods=["GET"])
 def obtener_anio_inicio():
     cfg = call_proc_one("sp_obtener_configuracion_anio")

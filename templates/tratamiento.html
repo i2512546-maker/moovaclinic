@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Continuar Tratamiento - MOOVA Clinic</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Nunito:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap-style.css') }}">
+    <!-- Contentsquare - UX & Usability Testing -->
+    <script src="https://t.contentsquare.com/uxa/6897c7b83eb5.js"></script>
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-light navbar-bubble shadow-sm">
+        <div class="container">
+            <a class="navbar-brand logo fw-bold" href="{{ url_for('index') }}">MOOVA <span>Clinic</span></a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCitas" aria-controls="navbarCitas" aria-expanded="false" aria-label="Abrir menú">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarCitas">
+                <ul class="navbar-nav ms-auto align-items-lg-center">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('index') }}"><i class="fas fa-home"></i> Inicio</a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="citasDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-calendar-check"></i> Citas
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="citasDropdown">
+                            <li><a class="dropdown-item" href="{{ url_for('citas_page') }}"><i class="fas fa-calendar-plus"></i> Agendar cita</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('tratamiento_page') }}"><i class="fas fa-calendar-check"></i> Continuar tratamiento</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('modificar_cita_page') }}"><i class="fas fa-edit"></i> Modificar cita</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('cancelar_cita_page') }}"><i class="fas fa-times-circle"></i> Cancelar cita</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-4">
+
+        <div class="text-center mb-4">
+            <span class="text-uppercase text-muted small fw-semibold">Tu tratamiento continúa</span>
+            <h1 class="fw-bold mb-1"><i class="fas fa-calendar-check"></i> Continuar tratamiento</h1>
+            <p class="text-muted mb-0">Verifica tu identidad y agenda tu siguiente sesión sin repetir tus datos</p>
+        </div>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for msg in messages %}
+                    {% if msg.startswith('exito:') %}
+                    <div class="alert alert-success d-flex align-items-center gap-2"><i class="fas fa-check-circle"></i> {{ msg[6:] }}</div>
+                    {% else %}
+                    <div class="alert alert-danger d-flex align-items-center gap-2"><i class="fas fa-exclamation-circle"></i> {{ msg }}</div>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% if not paso and not paquetes %}
+        <!-- PASO 1: Ingresar DNI -->
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-5">
+                <div class="card card-moova border-0 shadow">
+                    <div class="card-header bg-white border-0 pt-4 pb-0 text-center">
+                        <div class="rounded-circle bg-success bg-opacity-10 text-success d-inline-flex align-items-center justify-content-center mb-2" style="width:56px; height:56px;">
+                            <i class="fas fa-mobile-alt fs-4"></i>
+                        </div>
+                        <h2 class="h5 mb-1">Verificación por SMS</h2>
+                        <p class="text-muted small mb-0">Te enviaremos un código de 6 dígitos al teléfono que registraste en la clínica.</p>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST">
+                            <input type="hidden" name="accion" value="solicitar">
+                            <div class="mb-3">
+                                <label class="form-label"><i class="fas fa-id-card"></i> Tu DNI</label>
+                                <input type="text" name="dni" class="form-control" placeholder="12345678" maxlength="8" pattern="[0-9]{8}" required autofocus>
+                            </div>
+                            <button type="submit" class="btn btn-moova w-100">
+                                <i class="fas fa-paper-plane"></i> Enviar código SMS
+                            </button>
+                        </form>
+                        {% if error %}
+                        <div class="alert alert-danger mt-3 d-flex align-items-center gap-2"><i class="fas fa-exclamation-circle"></i> {{ error }}</div>
+                        {% endif %}
+                        <p class="text-center mt-3 small text-muted mb-0">
+                            ¿Es tu primera consulta?
+                            <a href="{{ url_for('citas_page') }}" class="fw-semibold text-decoration-none">Agenda una cita nueva aquí</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if paso == 'verificar' %}
+        <!-- PASO 2: Ingresar OTP -->
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-5">
+                <div class="card card-moova border-0 shadow">
+                    <div class="card-header bg-white border-0 pt-4 pb-0 text-center">
+                        <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-2 text-white" style="width:56px; height:56px; background:linear-gradient(135deg,#10b981,#059669);">
+                            <i class="fas fa-shield-alt fs-4"></i>
+                        </div>
+                        <h2 class="h5 mb-1">Ingresa tu código</h2>
+                        <p class="text-muted small mb-0">Enviamos un código SMS al número <strong>{{ tel_mask }}</strong>.<br>Válido por 10 minutos.</p>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST">
+                            <input type="hidden" name="accion" value="verificar">
+                            <input type="hidden" name="dni" value="{{ dni }}">
+                            <div class="mb-3">
+                                <label class="form-label"><i class="fas fa-key"></i> Código de 6 dígitos</label>
+                                <input type="text" name="otp" placeholder="_ _ _ _ _ _" class="form-control form-control-lg text-center"
+                                       maxlength="6" pattern="[0-9]{6}" required autofocus
+                                       style="font-family:'Fredoka',sans-serif; font-weight:600; letter-spacing:0.5rem; font-size:1.6rem;">
+                            </div>
+                            <button type="submit" class="btn btn-moova w-100">
+                                <i class="fas fa-check-circle"></i> Verificar código
+                            </button>
+                        </form>
+                        {% if error %}
+                        <div class="alert alert-danger mt-3 d-flex align-items-center gap-2"><i class="fas fa-exclamation-circle"></i> {{ error }}</div>
+                        {% endif %}
+                        <p class="text-center mt-3 small text-muted mb-0">
+                            ¿No recibiste el SMS?
+                            <a href="{{ url_for('tratamiento_page') }}" class="fw-semibold text-decoration-none">Intentar de nuevo</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if paso == 'sin_paquetes' %}
+        <!-- SIN PAQUETES ACTIVOS -->
+        <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-6">
+                <div class="card card-moova border-0 shadow text-center">
+                    <div class="card-body p-4 p-md-5">
+                        <div class="rounded-circle bg-warning bg-opacity-10 text-warning d-inline-flex align-items-center justify-content-center mb-3" style="width:64px; height:64px;">
+                            <i class="fas fa-hourglass-half fs-3"></i>
+                        </div>
+                        <h2 class="h4 fw-bold">No tienes tratamientos activos</h2>
+                        <p class="text-muted mb-4">No encontramos paquetes de sesiones activos con sesiones pendientes para este DNI. Agenda una cita nueva normal si deseas comenzar una nueva atención.</p>
+                        <a href="{{ url_for('citas_page') }}" class="btn btn-moova d-inline-flex align-items-center gap-2">
+                            <i class="fas fa-calendar-plus"></i> Agendar cita nueva
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if paso == 'menu' and paquetes %}
+        <!-- MENU: paquetes activos + mini-formulario -->
+        <div class="d-flex flex-column align-items-center mb-4">
+            <div class="d-flex align-items-center gap-3">
+                <span class="badge rounded-pill bg-success-subtle text-success-emphasis"><i class="fas fa-shield-alt"></i> Identidad verificada</span>
+                <h3 class="h5 mb-0">Selecciona tu tratamiento</h3>
+            </div>
+        </div>
+
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                {% if error %}
+                <div class="alert alert-danger d-flex align-items-center gap-2 mb-4"><i class="fas fa-exclamation-circle"></i> {{ error }}</div>
+                {% endif %}
+
+                {% for paq in paquetes %}
+                <div class="card card-moova border-0 shadow mb-4" id="paquete-{{ paq.id }}">
+                    <div class="card-body">
+                        <div class="row g-3 align-items-center">
+                            <div class="col-md-7">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="rounded-circle bg-success bg-opacity-10 text-success d-flex align-items-center justify-content-center" style="width:48px; height:48px;">
+                                        <i class="fas fa-clipboard-check fs-5"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="h6 fw-bold mb-1">{{ paq.servicio_nombre or ('Servicio #' ~ paq.servicio_id) }}</h4>
+                                        <span class="badge bg-success-subtle text-success-emphasis"><i class="fas fa-check-circle"></i> Activo</span>
+                                        {% if paq.fecha_vencimiento %}
+                                        <span class="text-muted small ms-2"><i class="fas fa-calendar-alt"></i> Vence: {{ paq.fecha_vencimiento }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <div class="d-flex justify-content-between small mb-1">
+                                        <span class="text-muted">Sesiones usadas</span>
+                                        <span class="fw-semibold">{{ paq.sesiones_usadas }} / {{ paq.total_sesiones }}</span>
+                                    </div>
+                                    <div class="progress" style="height:8px;">
+                                        <div class="progress-bar bg-success" role="progressbar"
+                                             style="width: {{ (paq.sesiones_usadas / paq.total_sesiones * 100) if paq.total_sesiones else 0 }}%;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-5 text-md-end">
+                                <button type="button" class="btn btn-moova"
+                                        onclick="elegirPaquete('{{ paq.id }}', '{{ (paq.servicio_nombre or ('Servicio #' ~ paq.servicio_id)) | forceescape }}')">
+                                    <i class="fas fa-calendar-plus"></i> Agendar siguiente sesión
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+
+                <!-- Mini-formulario: SOLO fecha, especialista y método de pago -->
+                <div class="card card-moova border-0 shadow mb-4" id="panel-sesion" style="display:none;">
+                    <div class="card-header bg-white border-0 pt-4 pb-0">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="rounded-circle d-inline-flex align-items-center justify-content-center text-white" style="width:48px; height:48px; background:linear-gradient(135deg,#2271b3,#5aacdf);">
+                                <i class="fas fa-user-md"></i>
+                            </div>
+                            <div>
+                                <h2 class="h5 mb-0">Agenda tu siguiente sesión</h2>
+                                <p class="text-muted small mb-0"><span id="servicio-elegido">Tratamiento</span></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" id="formSesion">
+                            <input type="hidden" name="accion" value="agendar">
+                            <input type="hidden" name="paquete_id" id="paquete_id">
+                            <div class="mb-3">
+                                <label for="fecha_cita" class="form-label"><i class="fas fa-calendar-alt"></i> Fecha de la sesión</label>
+                                <input type="date" name="fecha_cita" id="fecha_cita" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="medico_id" class="form-label"><i class="fas fa-user-md"></i> Especialista</label>
+                                <select name="medico_id" id="medico_id" class="form-select" required>
+                                    <option value="" disabled selected>Selecciona un especialista</option>
+                                    {% for t in terapeutas %}
+                                    <option value="{{ t.ID }}">{{ t.Nombre }} — {{ t.Especialidad }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="metodo_pago" class="form-label"><i class="fas fa-money-check-alt"></i> Método de pago del anticipo</label>
+                                <select name="metodo_pago" id="metodo_pago" class="form-select" required>
+                                    <option value="" disabled selected>Selecciona un método</option>
+                                    <option value="yape">Yape</option>
+                                    <option value="plin">Plin</option>
+                                    <option value="tarjeta">Tarjeta</option>
+                                    <option value="transferencia">Transferencia bancaria</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-moova btn-lg w-100 d-inline-flex align-items-center justify-content-center gap-2" id="btn-agendar">
+                                <i class="fas fa-calendar-check"></i> Agendar sesión y continuar al pago
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Popup (modal) de resultados AJAX -->
+    <div class="modal fade" id="popupModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-body text-center p-4">
+                    <div id="popupIcono" class="mb-3"></div>
+                    <h5 id="popupTitulo" class="fw-bold mb-2"></h5>
+                    <p id="popupMensaje" class="text-muted mb-4"></p>
+                    <button type="button" class="btn w-100" id="popupOk" data-bs-dismiss="modal">Aceptar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function mostrarPopup(mensaje, tipo, onCerrar) {
+            const modalEl = document.getElementById('popupModal');
+            const icono = document.getElementById('popupIcono');
+            const titulo = document.getElementById('popupTitulo');
+            const okBtn = document.getElementById('popupOk');
+            if (tipo === 'success') {
+                titulo.textContent = '¡Listo!';
+                icono.innerHTML = '<i class="bi bi-check-circle-fill text-success" style="font-size:2.6rem;"></i>';
+                okBtn.className = 'btn btn-success w-100';
+            } else {
+                titulo.textContent = 'Atención';
+                icono.innerHTML = '<i class="bi bi-exclamation-circle-fill text-danger" style="font-size:2.6rem;"></i>';
+                okBtn.className = 'btn btn-danger w-100';
+            }
+            document.getElementById('popupMensaje').textContent = mensaje;
+            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            if (onCerrar) {
+                modalEl.addEventListener('hidden.bs.modal', function handler() {
+                    modalEl.removeEventListener('hidden.bs.modal', handler);
+                    onCerrar();
+                });
+            }
+            modal.show();
+            return modal;
+        }
+
+        function enviarFormAjax(form, boton, onSuccess) {
+            const btn = boton || form.querySelector('button[type="submit"]');
+            const originalHTML = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Procesando...';
+
+            const formData = new FormData(form);
+            fetch(form.action || window.location.href, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                },
+                body: formData,
+                credentials: 'same-origin',
+            })
+            .then(async function (resp) {
+                let data = {};
+                try { data = await resp.json(); } catch (e) { }
+                if (data.success) {
+                    if (data.redirect) {
+                        mostrarPopup(data.mensaje || 'Operación exitosa.', 'success', function () {
+                            window.location.href = data.redirect;
+                        });
+                        setTimeout(function () {
+                            const m = bootstrap.Modal.getInstance(document.getElementById('popupModal'));
+                            if (m) m.hide();
+                        }, 1400);
+                        return;
+                    }
+                    mostrarPopup(data.mensaje || 'Operación exitosa.', 'success');
+                    if (onSuccess) onSuccess(data);
+                } else {
+                    mostrarPopup(data.error || 'Ocurrió un error, intenta de nuevo.', 'error');
+                }
+                if (!data.redirect) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHTML;
+                }
+            })
+            .catch(function () {
+                mostrarPopup('No se pudo conectar con el servidor, intenta de nuevo.', 'error');
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+            });
+        }
+
+        document.querySelectorAll('form').forEach(function (form) {
+            if (form.__ajaxBindado) return;
+            form.__ajaxBindado = true;
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                if (!form.checkValidity()) {
+                    form.reportValidity();
+                    return;
+                }
+                enviarFormAjax(form, null, null);
+            });
+        });
+    </script>
+    <script>
+        const hoy = new Date().toISOString().split('T')[0];
+        document.querySelectorAll('input[type="date"]').forEach(i => i.setAttribute('min', hoy));
+
+        function elegirPaquete(paqueteId, nombre) {
+            document.getElementById('paquete_id').value = paqueteId;
+            document.getElementById('servicio-elegido').textContent = nombre;
+            const panel = document.getElementById('panel-sesion');
+            panel.style.display = '';
+            panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    </script>
+    <script>
+    // Dropdown citas
+    document.querySelectorAll('.dropdown-wrap').forEach(function(wrap) {
+        var toggle = wrap.querySelector('.dropdown-toggle');
+        toggle.addEventListener('click', function(e) {
+            e.stopPropagation();
+            wrap.classList.toggle('open');
+        });
+    });
+    document.addEventListener('click', function() {
+        document.querySelectorAll('.dropdown-wrap.open').forEach(function(w) { w.classList.remove('open'); });
+    });
+    </script>
+</body>
+</html>

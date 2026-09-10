@@ -343,6 +343,40 @@ BEGIN
     ORDER BY creado_en DESC;
 END$$
 
+--
+-- sp_usar_sesion_paquete  |  LOCAL (FASE 2)
+--   Vincula una cita a un paquete de sesiones (inserta en
+--   paquete_sesiones_uso) e incrementa sesiones_usadas del paquete.
+--   Solo actua si el paquete esta 'activo' y aun tiene sesiones
+--   disponibles; al llegar a total_sesiones lo marca 'agotado'.
+--   Lo invoca pagos_service (POST /api/pagos/paquetes/<id>/usar)
+--   desde el flujo publico /tratamiento, justo despues de crear la
+--   cita de la siguiente sesion del tratamiento.
+--
+DROP PROCEDURE IF EXISTS `sp_usar_sesion_paquete`$$
+CREATE PROCEDURE `sp_usar_sesion_paquete`(
+    IN p_paquete_id INT, IN p_cita_id INT
+)
+BEGIN
+    DECLARE v_actualizadas INT DEFAULT 0;
+
+    UPDATE paquetes_sesiones
+    SET sesiones_usadas = sesiones_usadas + 1,
+        estado = IF(sesiones_usadas + 1 >= total_sesiones, 'agotado', estado)
+    WHERE id = p_paquete_id
+      AND estado = 'activo'
+      AND sesiones_usadas < total_sesiones;
+
+    SET v_actualizadas = ROW_COUNT();
+
+    IF v_actualizadas > 0 THEN
+        INSERT IGNORE INTO paquete_sesiones_uso (paquete_id, cita_id)
+        VALUES (p_paquete_id, p_cita_id);
+    END IF;
+
+    SELECT v_actualizadas AS usadas;
+END$$
+
 DELIMITER ;
 
 -- ============================================================

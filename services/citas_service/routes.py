@@ -415,8 +415,24 @@ def solicitar_otp():
     if not pac_data or not paciente:
         return jsonify({"error": "No se encontraron citas programadas para ese DNI."}), 404
 
-    if not call_proc_one("sp_existe_cita_programada_paciente", (paciente["id"],)):
-        return jsonify({"error": "No se encontraron citas programadas para ese DNI."}), 404
+    if accion == "tratamiento":
+        # Los pacientes que continuan un tratamiento NO necesitan una
+        # cita programada previa: se valida que tengan al menos un
+        # paquete activo con sesiones disponibles (via pagos_service).
+        try:
+            paq_data, _ = pagos_client.get(f"/api/pagos/pacientes/{paciente['id']}/paquetes")
+            tiene_paquete_activo = any(
+                p.get("estado") == "activo"
+                and int(p.get("sesiones_usadas") or 0) < int(p.get("total_sesiones") or 0)
+                for p in ((paq_data or {}).get("paquetes") or [])
+            )
+        except Exception:
+            tiene_paquete_activo = False
+        if not tiene_paquete_activo:
+            return jsonify({"error": "No tienes tratamientos activos pendientes de pago."}), 404
+    else:
+        if not call_proc_one("sp_existe_cita_programada_paciente", (paciente["id"],)):
+            return jsonify({"error": "No se encontraron citas programadas para ese DNI."}), 404
 
     codigo = str(random.randint(100000, 999999))
     expira = datetime.now() + timedelta(minutes=OTP_EXPIRA_MIN)
@@ -424,8 +440,12 @@ def solicitar_otp():
     call_proc_execute("sp_invalidar_otps_previos", (dni, accion))
     call_proc_execute("sp_insertar_otp", (dni, codigo, accion, expira))
 
-    verbo = "modificar" if accion == "modificar" else "cancelar"
-    mensaje = f"MOOVA Clinic: Tu codigo para {verbo} tu cita es {codigo}. Valido por {OTP_EXPIRA_MIN} min."
+    verbo = {
+        "modificar": "modificar tu cita",
+        "cancelar": "cancelar tu cita",
+        "tratamiento": "continuar tu tratamiento",
+    }.get(accion, "continuar tu tratamiento")
+    mensaje = f"MOOVA Clinic: Tu codigo para {verbo} es {codigo}. Valido por {OTP_EXPIRA_MIN} min."
     enviado = _enviar_sms(paciente["telefono"], mensaje)
 
     if not enviado:
