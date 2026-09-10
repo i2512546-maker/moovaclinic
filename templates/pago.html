@@ -42,9 +42,31 @@
     <div class="container py-4">
 
         <div class="text-center mb-4">
-            <span class="badge bg-secondary-subtle text-secondary mb-2">Paso 2 de 3</span>
             <h1 class="display-6"><i class="fas fa-credit-card me-2"></i> Realiza tu pago</h1>
             <p class="text-muted">Tu cita aún no está confirmada. Completa el anticipo para agendarla.</p>
+        </div>
+
+        <!-- ══════════════ WIZARD PROGRESS ══════════════ -->
+        <div class="wizard-steps">
+            <div class="wizard-step completed" data-step="1">
+                <div class="wizard-dot"><i class="bi bi-check-lg"></i></div>
+                <span class="wizard-label">Datos</span>
+            </div>
+            <div class="wizard-connector completed"></div>
+            <div class="wizard-step completed" data-step="2">
+                <div class="wizard-dot"><i class="bi bi-check-lg"></i></div>
+                <span class="wizard-label">Especialidad</span>
+            </div>
+            <div class="wizard-connector completed"></div>
+            <div class="wizard-step active" data-step="3">
+                <div class="wizard-dot">3</div>
+                <span class="wizard-label">Pago</span>
+            </div>
+            <div class="wizard-connector" id="connector-3"></div>
+            <div class="wizard-step" data-step="4">
+                <div class="wizard-dot">4</div>
+                <span class="wizard-label">Confirmación</span>
+            </div>
         </div>
 
         <div class="row justify-content-center">
