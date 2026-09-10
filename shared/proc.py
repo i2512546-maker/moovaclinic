@@ -16,9 +16,9 @@
 from shared.db import db_connection
 
 
-def _run(proc_name, params, dictionary, fetch, commit, drain=False):
+def _run(proc_name, params, dictionary, fetch, commit, drain=False, db_name=None):
     params = list(params or ())
-    with db_connection() as conn:
+    with db_connection(db_name=db_name) as conn:
         cursor = conn.cursor(dictionary=dictionary)
         cursor.callproc(proc_name, params)
         rows = []
@@ -40,22 +40,22 @@ def _run(proc_name, params, dictionary, fetch, commit, drain=False):
     return rows
 
 
-def call_proc(proc_name, params=(), dictionary=True, fetch=True, commit=True):
+def call_proc(proc_name, params=(), dictionary=True, fetch=True, commit=True, db_name=None):
     """Ejecuta un procedimiento y devuelve la primera (y unica)
     serie de filas resultantes como lista de dict/listas."""
-    return _run(proc_name, params, dictionary, fetch, commit)
+    return _run(proc_name, params, dictionary, fetch, commit, db_name=db_name)
 
 
-def call_proc_one(proc_name, params=(), dictionary=True):
+def call_proc_one(proc_name, params=(), dictionary=True, db_name=None):
     """Ejecuta y devuelve la primera fila del resultado (o None)."""
-    rows = _run(proc_name, params, dictionary, fetch=True, commit=True)
+    rows = _run(proc_name, params, dictionary, fetch=True, commit=True, db_name=db_name)
     return rows[0] if rows else None
 
 
-def call_proc_execute(proc_name, params=()):
+def call_proc_execute(proc_name, params=(), db_name=None):
     """Ejecuta un procedimiento de DML (INSERT/UPDATE/DELETE) que
     no necesita devolver filas. Consume (y descarta) cualquier result
     set que el procedimiento haya dejado para evitar "Unread result
     found" en mysql-connector cuando el SP termina con un SELECT de
     control (ej: LAST_INSERT_ID(), ROW_COUNT()). Igual commit."""
-    return _run(proc_name, params, dictionary=False, fetch=False, commit=True, drain=True)
+    return _run(proc_name, params, dictionary=False, fetch=False, commit=True, drain=True, db_name=db_name)
