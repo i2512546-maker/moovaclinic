@@ -123,7 +123,7 @@ def detalle_paciente(dni):
         c["Especialidad"] = te.get("especialidad")
         pg = pagos.get(c.get("id"))
         if pg:
-            c["monto"] = pg.get("monto")
+            c["monto"] = float(pg.get("monto") or 0)
             c["metodo_pago"] = pg.get("metodo_pago")
             c["estado_pago"] = pg.get("estado_pago")
 
