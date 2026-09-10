@@ -514,6 +514,24 @@
         var el = document.getElementById(id);
         if (el) el.addEventListener('change', actualizarBoton);
     });
+
+    /* Al volver atras (bfcache) el boton de enviar puede quedar en
+       "Procesando..." tras haberse enviado el formulario. Se restaura
+       su estado y texto original y se re-habilita segun lo seleccionado. */
+    var btnSubmitOriginalHTML = document.getElementById('btn-submit') ? document.getElementById('btn-submit').innerHTML : '';
+    window.addEventListener('pageshow', function (e) {
+        var volviendoAtras = false;
+        try {
+            var nav = performance.getEntriesByType('navigation');
+            volviendoAtras = nav.length && nav[0].type === 'back_forward';
+        } catch (err) {}
+        if (!e.persisted && !volviendoAtras) return;
+        var btn = document.getElementById('btn-submit');
+        if (btn) {
+            btn.innerHTML = btnSubmitOriginalHTML;
+            actualizarBoton();
+        }
+    });
 </script>
 <script>
 document.querySelectorAll('.dropdown-wrap').forEach(function(wrap) {
