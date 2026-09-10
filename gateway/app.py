@@ -5,6 +5,7 @@ import yaml
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_bcrypt import Bcrypt
 from datetime import datetime, timedelta
+from urllib.parse import urlencode
 from shared.config import REDES_SOCIALES
 from shared.service_client import auth_client, pacientes_client, citas_client, pagos_client, notas_client
 from shared.audit import log_accion
@@ -543,6 +544,31 @@ def create_app():
 
         return render_template("paneladmin.html", medicos=medicos, proximas_citas=proximas_citas,
                                especialidades=especialidades, usuarios=usuarios)
+
+    @app.route("/panel_admin/auditoria")
+    def panel_admin_auditoria():
+        if "usuario_id" not in session or session.get("rol") != "admin":
+            return redirect(url_for("login"))
+
+        filtros = {}
+        for key in ("usuario_tipo", "accion", "fecha_desde", "fecha_hasta"):
+            valor = (request.args.get(key) or "").strip()
+            if valor:
+                filtros[key] = valor
+
+        params = ""
+        if filtros:
+            params = "?" + urlencode(filtros)
+
+        logs = []
+        try:
+            data, _status = audit_client.get(f"/api/auditoria{params}")
+            if isinstance(data, dict):
+                logs = data.get("logs") or []
+        except Exception:
+            logs = []
+
+        return render_template("auditoria.html", logs=logs, filtros=filtros)
 
     @app.route("/panel_admin/cancelar_cita/<int:cita_id>", methods=["POST"])
     def admin_cancelar_cita(cita_id):

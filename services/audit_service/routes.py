@@ -1,6 +1,16 @@
+import re
 from flask import request, jsonify
 from services.audit_service import audit_bp
-from shared.proc import call_proc_execute
+from shared.proc import call_proc, call_proc_execute
+
+_FECHA_RE = re.compile(r"^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}(:\d{2})?)?")
+
+
+def _fecha_param(key):
+    """Normaliza un query param de fecha (YYYY-MM-DD o con hora).
+    Devuelve None si falta o no tiene formato valido."""
+    valor = (request.args.get(key) or "").strip()
+    return valor if valor and _FECHA_RE.match(valor) else None
 
 
 @audit_bp.route("/api/auditoria", methods=["POST"])
@@ -27,3 +37,26 @@ def registrar_auditoria():
         usuario_id, usuario_tipo, usuario_nombre, accion, detalles, ip_origen,
     ))
     return jsonify({"success": True}), 201
+
+
+@audit_bp.route("/api/auditoria", methods=["GET"])
+def listar_auditoria():
+    """Lista los logs de auditoria (solo lectura, sin paginacion).
+
+    Filtros opcionales por query string: usuario_tipo, accion (texto
+    parcial), fecha_desde, fecha_hasta. Ordena por fecha descendente
+    y limita a los ultimos 200 registros (sp_listar_auditoria).
+    """
+    usuario_tipo = (request.args.get("usuario_tipo") or "").strip() or None
+    accion = (request.args.get("accion") or "").strip() or None
+    fecha_desde = _fecha_param("fecha_desde")
+    fecha_hasta = _fecha_param("fecha_hasta")
+
+    try:
+        logs = call_proc("sp_listar_auditoria", (
+            usuario_tipo, accion, fecha_desde, fecha_hasta,
+        )) or []
+    except Exception:
+        logs = []
+
+    return jsonify({"success": True, "logs": logs})
