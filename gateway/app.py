@@ -46,6 +46,27 @@ def _validar_datos_cita_rapida(nombre, apellido, dni, telefono):
     return None
 
 
+def _paquetes_activos_dni(dni):
+    """Resuelve el paciente por DNI y su listado de paquetes de sesiones.
+    Devuelve (paciente, paquetes) con solo los paquetes activos que aun
+    tienen sesiones disponibles (estado='activo' y sesiones_usadas < total)."""
+    data, status = pacientes_client.get(f"/api/pacientes/{dni}")
+    if status != 200 or not (data or {}).get("paciente"):
+        return None, []
+    paciente = data["paciente"]
+    try:
+        paq_data, _ = pacientes_client.get(f"/api/pacientes/{paciente['id']}/paquetes")
+        paquetes = (paq_data or {}).get("paquetes") or []
+    except Exception:
+        paquetes = []
+    activos = [
+        p for p in paquetes
+        if p.get("estado") == "activo"
+        and int(p.get("sesiones_usadas") or 0) < int(p.get("total_sesiones") or 0)
+    ]
+    return paciente, activos
+
+
 def _load_swagger():
     path = os.path.join(os.path.dirname(__file__), "..", "swagger.yaml")
     try:
@@ -379,6 +400,151 @@ def create_app():
 
         return render_template("cancelar_cita.html", citas=citas_encontradas,
                                paso=paso, dni=dni_val, tel_mask=tel_mask, error=error_msg)
+
+    @app.route("/tratamiento", methods=["GET", "POST"])
+    def tratamiento_page():
+        """Continuar tratamiento: el paciente recurrente con un paquete
+        activo agenda la siguiente sesion sin repetir sus datos.
+        1) OTP por SMS (reusa el flujo de /citas/modificar y /citas/cancelar).
+        2) Lista sus paquetes activos y agenda fecha+medico (y metodo de pago).
+        La cita se crea con el MISMO POST /api/citas y luego se vincula al
+        paquete (incrementa sesiones_usadas) via pagos_service."""
+        data, _ = citas_client.get("/api/citas/terapeutas")
+        terapeutas = data.get("terapeutas", [])
+
+        paso = None
+        dni_val = ""
+        tel_mask = ""
+        error_msg = None
+        paquetes = []
+        paciente = None
+
+        # Reproducir pasos de la cadena AJAX cuando llegan por query.
+        if request.method == "GET":
+            q_paso = request.args.get("paso")
+            q_dni = request.args.get("dni", "").strip()
+            if q_paso == "verificar" and _dni_ok(q_dni):
+                paso, dni_val = "verificar", q_dni
+                tel_mask = session.get("otp_tel_mask", "")
+            elif q_paso in ("menu", "sin_paquetes") and _dni_ok(q_dni):
+                paso, dni_val = q_paso, q_dni
+                paciente, paquetes = _paquetes_activos_dni(q_dni)
+                if paso == "menu" and not paquetes:
+                    paso = "sin_paquetes"
+
+        if request.method == "POST":
+            accion = request.form.get("accion")
+            if accion == "solicitar":
+                dni = request.form.get("dni", "").strip()
+                if not _dni_ok(dni):
+                    msg = "DNI inválido, debe tener 8 dígitos"
+                    if _is_ajax():
+                        return jsonify({"error": msg}), 400
+                    error_msg = msg
+                else:
+                    result, status = citas_client.post("/api/citas/otp/solicitar", {"dni": dni, "accion": "tratamiento"})
+                    if status == 200 and result.get("success"):
+                        session["otp_tel_mask"] = result.get("tel_mask", "")
+                        if _is_ajax():
+                            return jsonify({
+                                "success": True,
+                                "mensaje": "Código enviado por SMS.",
+                                "redirect": f"/tratamiento?paso=verificar&dni={dni}",
+                            }), 200
+                        paso, dni_val, tel_mask = "verificar", dni, result.get("tel_mask", "")
+                    else:
+                        msg = result.get("error", "Error.")
+                        if _is_ajax():
+                            return jsonify({"error": msg}), status
+                        error_msg = msg
+            elif accion == "verificar":
+                dni = request.form.get("dni", "").strip()
+                otp = request.form.get("otp", "").strip()
+                result, _ = citas_client.post("/api/citas/otp/verificar", {"dni": dni, "otp": otp, "accion": "tratamiento"})
+                r = result.get("resultado", "")
+                if r == "ok":
+                    paciente, paquetes = _paquetes_activos_dni(dni)
+                    if not paciente:
+                        msg = "No se encontró el paciente asociado a ese DNI."
+                        if _is_ajax():
+                            return jsonify({"error": msg}), 404
+                        error_msg = msg
+                        paso, dni_val = "verificar", dni
+                    else:
+                        session["tratamiento_paciente"] = paciente
+                        target = "sin_paquetes" if not paquetes else "menu"
+                        if _is_ajax():
+                            return jsonify({
+                                "success": True,
+                                "mensaje": "Identidad verificada.",
+                                "redirect": f"/tratamiento?paso={target}&dni={dni}",
+                            }), 200
+                        paso, dni_val = target, dni
+                else:
+                    mensajes = {"expirado": "El codigo expiro.", "agotado": "Intentos agotados.", "no_existe": "Solicita uno nuevo."}
+                    msg = mensajes.get(r, f"Codigo incorrecto. Quedan {result.get('restantes', '?')} intento(s).")
+                    if _is_ajax():
+                        return jsonify({"error": msg}), 400
+                    error_msg = msg
+                    paso, dni_val = "verificar", dni
+            elif accion == "agendar":
+                paquete_id = request.form.get("paquete_id", "").strip()
+                fecha = request.form.get("fecha_cita", "").strip()
+                medico = request.form.get("medico_id", "").strip()
+                metodo = request.form.get("metodo_pago", "").strip()
+                paciente = session.get("tratamiento_paciente")
+
+                msg = None
+                if not paciente:
+                    msg = "Tu sesión ha expirado. Vuelve a verificar tu identidad."
+                elif not paquete_id or not fecha or not medico or not metodo:
+                    msg = "Selecciona el tratamiento, la fecha, el especialista y el método de pago."
+                else:
+                    # Revalida que el paquete siga activo y pertenezca al paciente.
+                    _, activos = _paquetes_activos_dni(paciente["dni"])
+                    paquete = next((p for p in activos if str(p.get("id")) == str(paquete_id)), None)
+                    if not paquete:
+                        msg = "El tratamiento ya no tiene sesiones disponibles o expiró."
+                    else:
+                        cita_data = {
+                            "nombre": paciente["nombre"],
+                            "apellido": paciente["apellido"],
+                            "dni": paciente["dni"],
+                            "telefono": paciente["telefono"],
+                            "medico_id": medico,
+                            "fecha_cita": fecha,
+                            "metodo_pago": metodo,
+                            "servicio_id": paquete["servicio_id"],
+                        }
+                        result, status = citas_client.post("/api/citas", cita_data)
+                        if status == 201 and result.get("success"):
+                            cita_id = result["cita_id"]
+                            # Vinculacion ADICIONAL de la cita al paquete
+                            # (paso posterior a la creacion de la cita).
+                            try:
+                                pagos_client.post(f"/api/pagos/paquetes/{paquete_id}/usar", {"cita_id": cita_id})
+                            except Exception:
+                                pass
+                            redirect_to = url_for("pago_page", cita_id=cita_id)
+                            if _is_ajax():
+                                return jsonify({
+                                    "success": True,
+                                    "mensaje": "Sesión agendada correctamente.",
+                                    "redirect": redirect_to,
+                                }), 201
+                            return redirect(redirect_to)
+                        msg = result.get("error", "No se pudo agendar la sesión del tratamiento.")
+                if _is_ajax():
+                    return jsonify({"error": msg}), 400
+                error_msg = msg
+                if paciente:
+                    dni_val = paciente["dni"]
+                    paciente, paquetes = _paquetes_activos_dni(dni_val)
+                    paso = "menu" if paquetes else "sin_paquetes"
+
+        return render_template("tratamiento.html", terapeutas=terapeutas, paquetes=paquetes,
+                               paciente=paciente, paso=paso, dni=dni_val,
+                               tel_mask=tel_mask, error=error_msg)
 
     @app.route("/pago")
     def pago_page():

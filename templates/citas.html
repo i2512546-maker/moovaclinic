@@ -30,6 +30,7 @@
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="citasDropdown">
                             <li><a class="dropdown-item" href="{{ url_for('citas_page') }}"><i class="fas fa-calendar-plus"></i> Agendar cita</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('tratamiento_page') }}"><i class="fas fa-calendar-check"></i> Continuar tratamiento</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('modificar_cita_page') }}"><i class="fas fa-edit"></i> Modificar cita</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('cancelar_cita_page') }}"><i class="fas fa-times-circle"></i> Cancelar cita</a></li>
                         </ul>
@@ -45,6 +46,17 @@
             <span class="text-uppercase text-muted small fw-semibold">Reserva tu espacio</span>
             <h1 class="fw-bold mb-1">Agendar Cita</h1>
             <p class="text-muted mb-0">Completa tus datos, elige fecha y selecciona el especialista</p>
+        </div>
+
+        <!-- ¿Ya tienes un tratamiento? -->
+        <div class="alert alert-success d-flex flex-wrap align-items-center justify-content-between gap-2 border-0 shadow-sm" role="alert">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-calendar-check fs-5"></i>
+                <span>¿Ya tienes un tratamiento? Continúa tu pago aquí.</span>
+            </div>
+            <a href="{{ url_for('tratamiento_page') }}" class="btn btn-moova btn-sm rounded-pill px-3">
+                <i class="fas fa-arrow-right me-1"></i> Continuar tratamiento
+            </a>
         </div>
 
         <!-- ══════════════ WIZARD PROGRESS ══════════════ -->
