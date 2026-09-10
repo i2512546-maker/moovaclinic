@@ -54,51 +54,34 @@
         <div class="card-body">
             <form method="GET" action="{{ url_for('panel_admin_auditoria') }}" class="row g-3">
                 <div class="col-12 col-md-3">
-                    <label class="form-label">Tipo de usuario</label>
-                    <select name="usuario_tipo" class="form-select">
-                        <option value="">Todos</option>
-                        <option value="admin" {% if filtros.get('usuario_tipo') == 'admin' %}selected{% endif %}>Admin</option>
-                        <option value="terapeuta" {% if filtros.get('usuario_tipo') == 'terapeuta' %}selected{% endif %}>Terapeuta</option>
-                        <option value="paciente" {% if filtros.get('usuario_tipo') == 'paciente' %}selected{% endif %}>Paciente</option>
-                        <option value="sistema" {% if filtros.get('usuario_tipo') == 'sistema' %}selected{% endif %}>Sistema</option>
-                    </select>
-                </div>
-                <div class="col-12 col-md-3">
                     <label class="form-label">Usuario</label>
                     <select name="usuario_id" class="form-select">
-                        <option value="">Todos los usuarios</option>
+                        <option value="">Todos</option>
                         {% for u in usuarios_filtro %}
                         <option value="{{ u.id }}" {% if filtros.get('usuario_id')|string == u.id|string %}selected{% endif %}>
-                            {{ u.nombre }} ({{ u.rol }})
+                            {{ u.nombre }} ({{ u.rol|capitalize }})
                         </option>
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-6 col-md-3">
+                <div class="col-12 col-md-3">
                     <label class="form-label">Acción</label>
                     <select name="accion" class="form-select">
                         <option value="">Todas</option>
-                        {% set acciones = [
-                            ('crear_cita', 'Crear cita'),
-                            ('reprogramar_cita', 'Reprogramar cita'),
-                            ('cancelar_cita', 'Cancelar cita'),
-                            ('completar_cita', 'Completar cita'),
-                            ('marcar_pago', 'Marcar pago'),
-                            ('usar_sesion_paquete', 'Usar sesión de paquete'),
-                            ('crear_usuario', 'Crear usuario'),
-                            ('desactivar_usuario', 'Desactivar usuario'),
-                        ] %}
-                        {% for value, label in acciones %}
-                        <option value="{{ value }}" {% if filtros.get('accion') == value %}selected{% endif %}>{{ label }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-6 col-md-3">
-                    <label class="form-label">Relacionado con</label>
-                    <select name="entidad_tipo" class="form-select">
-                        <option value="">Cualquiera</option>
-                        <option value="paciente" {% if filtros.get('entidad_tipo') == 'paciente' %}selected{% endif %}>Paciente</option>
-                        <option value="medico" disabled title="Próximamente">Médico (próximamente)</option>
+                        <optgroup label="Citas">
+                            <option value="crear_cita" {% if filtros.get('accion') == 'crear_cita' %}selected{% endif %}>Crear cita</option>
+                            <option value="reprogramar_cita" {% if filtros.get('accion') == 'reprogramar_cita' %}selected{% endif %}>Reprogramar cita</option>
+                            <option value="cancelar_cita" {% if filtros.get('accion') == 'cancelar_cita' %}selected{% endif %}>Cancelar cita</option>
+                            <option value="completar_cita" {% if filtros.get('accion') == 'completar_cita' %}selected{% endif %}>Completar cita</option>
+                        </optgroup>
+                        <optgroup label="Pagos">
+                            <option value="marcar_pago" {% if filtros.get('accion') == 'marcar_pago' %}selected{% endif %}>Registrar pago</option>
+                            <option value="usar_sesion_paquete" {% if filtros.get('accion') == 'usar_sesion_paquete' %}selected{% endif %}>Usar sesión de paquete</option>
+                        </optgroup>
+                        <optgroup label="Usuarios">
+                            <option value="crear_usuario" {% if filtros.get('accion') == 'crear_usuario' %}selected{% endif %}>Crear usuario</option>
+                            <option value="desactivar_usuario" {% if filtros.get('accion') == 'desactivar_usuario' %}selected{% endif %}>Desactivar usuario</option>
+                        </optgroup>
                     </select>
                 </div>
                 <div class="col-6 col-md-3">
@@ -111,13 +94,42 @@
                     <input type="date" name="fecha_hasta" class="form-control"
                         value="{{ filtros.get('fecha_hasta', '') }}">
                 </div>
-                <div class="col-12 d-flex align-items-end gap-2">
+                <div class="col-12 d-flex align-items-end gap-2 flex-wrap">
+                    <button type="button" class="btn btn-outline-secondary d-inline-flex align-items-center gap-1"
+                            data-bs-toggle="collapse" data-bs-target="#masFiltros" aria-expanded="false"
+                            aria-controls="masFiltros">
+                        <i class="bi bi-sliders"></i> Más filtros
+                    </button>
                     <button type="submit" class="btn btn-moova d-inline-flex align-items-center gap-1">
                         <i class="bi bi-search"></i> Filtrar
                     </button>
                     <a href="{{ url_for('panel_admin_auditoria') }}" class="btn btn-outline-secondary d-inline-flex align-items-center gap-1">
                         <i class="bi bi-arrow-counterclockwise"></i> Limpiar
                     </a>
+                </div>
+                <div class="col-12">
+                    <div class="collapse {% if filtros.get('entidad_tipo') or (filtros.get('usuario_tipo') and not filtros.get('usuario_id')) %}show{% endif %}" id="masFiltros">
+                        <div class="row g-3">
+                            <div class="col-6 col-md-4">
+                                <label class="form-label">Tipo de usuario</label>
+                                <select name="usuario_tipo" class="form-select">
+                                    <option value="">Todos</option>
+                                    <option value="admin" {% if filtros.get('usuario_tipo') == 'admin' %}selected{% endif %}>Admin</option>
+                                    <option value="terapeuta" {% if filtros.get('usuario_tipo') == 'terapeuta' %}selected{% endif %}>Terapeuta</option>
+                                    <option value="paciente" {% if filtros.get('usuario_tipo') == 'paciente' %}selected{% endif %}>Paciente</option>
+                                    <option value="sistema" {% if filtros.get('usuario_tipo') == 'sistema' %}selected{% endif %}>Sistema</option>
+                                </select>
+                            </div>
+                            <div class="col-6 col-md-4">
+                                <label class="form-label">Relacionado con</label>
+                                <select name="entidad_tipo" class="form-select">
+                                    <option value="">Cualquiera</option>
+                                    <option value="paciente" {% if filtros.get('entidad_tipo') == 'paciente' %}selected{% endif %}>Paciente</option>
+                                    <option value="medico" disabled title="Próximamente">Médico (próximamente)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </form>
         </div>

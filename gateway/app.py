@@ -730,11 +730,30 @@ def create_app():
         if "usuario_id" not in session or session.get("rol") != "admin":
             return redirect(url_for("login"))
 
+        usuarios_filtro = []
+        try:
+            udata, _ustatus = auth_client.get("/api/auth/usuarios")
+            usuarios_filtro = [
+                u for u in (udata.get("usuarios") or [])
+                if u.get("rol") in ("admin", "terapeuta")
+            ]
+        except Exception:
+            usuarios_filtro = []
+
         filtros = {}
         for key in ("usuario_id", "usuario_tipo", "accion", "fecha_desde", "fecha_hasta", "entidad_tipo"):
             valor = (request.args.get(key) or "").strip()
             if valor:
                 filtros[key] = valor
+
+        # El selector "Usuario" unificado solo envia usuario_id; se deriva el
+        # usuario_tipo del rol real del usuario elegido para no duplicar el
+        # control de tipo en la fila principal (los params no cambian).
+        if "usuario_id" in filtros and "usuario_tipo" not in filtros:
+            for u in usuarios_filtro:
+                if str(u.get("id")) == str(filtros["usuario_id"]):
+                    filtros["usuario_tipo"] = u.get("rol")
+                    break
 
         params = ""
         if filtros:
@@ -747,16 +766,6 @@ def create_app():
                 logs = data.get("logs") or []
         except Exception:
             logs = []
-
-        usuarios_filtro = []
-        try:
-            udata, _ustatus = auth_client.get("/api/auth/usuarios")
-            usuarios_filtro = [
-                u for u in (udata.get("usuarios") or [])
-                if u.get("rol") in ("admin", "terapeuta")
-            ]
-        except Exception:
-            usuarios_filtro = []
 
         return render_template("auditoria.html", logs=logs, filtros=filtros,
                                usuarios_filtro=usuarios_filtro)
