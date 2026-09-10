@@ -2,6 +2,7 @@ from flask import request, jsonify
 from services.notas_service import notas_bp
 from shared.proc import call_proc, call_proc_one, call_proc_execute
 from shared.service_client import citas_client, pacientes_client
+from shared.config import NOTAS_DB_NAME
 
 
 def _mapa_terapeutas():
@@ -18,7 +19,7 @@ def _mapa_terapeutas():
 
 @notas_bp.route("/api/notas/<int:cita_id>", methods=["GET"])
 def listar_notas(cita_id):
-    notas = call_proc("sp_listar_notas", (cita_id,)) or []
+    notas = call_proc("sp_listar_notas", (cita_id,), db_name=NOTAS_DB_NAME) or []
     mapa = _mapa_terapeutas()
     for n in notas:
         te = mapa.get(n.get("terapeuta_id")) or {}
@@ -55,6 +56,6 @@ def crear_nota(cita_id):
 
     result = call_proc_one("sp_crear_nota", (
         cita_id, paciente_id, terapeuta_id, nota, diagnostico or None,
-    ))
+    ), db_name=NOTAS_DB_NAME)
     nota_id = result["id"] if result else None
     return jsonify({"success": True, "nota_id": nota_id}), 201
