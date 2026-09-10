@@ -155,7 +155,9 @@ def create_app():
 
         params = f"?fecha={fecha_str}&estado=programada"
         data, _ = citas_client.get(f"/api/citas{params}")
-        pacientes = data.get("citas", [])
+        # sp_listar_citas ahora devuelve desde p_fecha en adelante (>=);
+        # la agenda diaria solo debe mostrar ese día exacto.
+        pacientes = [c for c in data.get("citas", []) if str(c.get("fecha_cita", ""))[:10] == fecha_str]
 
         return render_template(
             "interfaz.html", pacientes=pacientes,
@@ -718,7 +720,7 @@ def create_app():
 
         params = "?fecha=" + datetime.today().strftime("%Y-%m-%d") + "&estado=programada"
         cdata, _ = citas_client.get(f"/api/citas{params}")
-        proximas_citas = cdata.get("citas", [])
+        proximas_citas = cdata.get("citas", [])[:20]
 
         return render_template("paneladmin.html", medicos=medicos, proximas_citas=proximas_citas,
                                especialidades=especialidades, usuarios=usuarios)
