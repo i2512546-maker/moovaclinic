@@ -337,25 +337,12 @@ function verificarYape() {
     var btn = document.getElementById('btnVerificarYape');
     btn.disabled = true;
     document.getElementById('msgYape').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Consultando estado del pago...';
-        fetch('/api/pagos/yape/estado', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({cita_id: CITA_ID, cobro_id: yapeCobroId})
-    })
-    .then(function(r){ return r.json(); })
-    .then(function(res){
-        if (res.pagado) {
-            cerrarModal('modalYape');
-            mostrarOverlayExito();
-        } else {
-            document.getElementById('msgYape').innerHTML = res.mensaje || res.error || 'El pago aún no se registra en Yape. Intenta de nuevo.';
-            btn.disabled = false;
-        }
-    })
-    .catch(function(){
-        document.getElementById('msgYape').innerHTML = 'Error de conexión. Intenta de nuevo.';
-        btn.disabled = false;
-    });
+    // TODO-DEMO: simulación de pago exitoso, quitar y restaurar el fetch
+    // real a /api/pagos/yape|plin/estado antes de producción real.
+    setTimeout(function(){
+        cerrarModal('modalYape');
+        mostrarOverlayExito();
+    }, 800);
 }
 
 /* ---------- PLIN ---------- */
@@ -396,25 +383,12 @@ function verificarPlin() {
     var btn = document.getElementById('btnVerificarPlin');
     btn.disabled = true;
     document.getElementById('msgPlin').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Consultando estado del pago...';
-        fetch('/api/pagos/plin/estado', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({cita_id: CITA_ID, cobro_id: plinCobroId})
-    })
-    .then(function(r){ return r.json(); })
-    .then(function(res){
-        if (res.pagado) {
-            cerrarModal('modalPlin');
-            mostrarOverlayExito();
-        } else {
-            document.getElementById('msgPlin').innerHTML = res.mensaje || res.error || 'El pago aún no se registra en Plin. Intenta de nuevo.';
-            btn.disabled = false;
-        }
-    })
-    .catch(function(){
-        document.getElementById('msgPlin').innerHTML = 'Error de conexión. Intenta de nuevo.';
-        btn.disabled = false;
-    });
+    // TODO-DEMO: simulación de pago exitoso, quitar y restaurar el fetch
+    // real a /api/pagos/yape|plin/estado antes de producción real.
+    setTimeout(function(){
+        cerrarModal('modalPlin');
+        mostrarOverlayExito();
+    }, 800);
 }
 
 /* ---------- TARJETA ---------- */
