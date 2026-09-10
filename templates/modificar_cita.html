@@ -181,6 +181,108 @@
     </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Popup (modal) de resultados AJAX -->
+<div class="modal fade" id="popupModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-body text-center p-4">
+                <div id="popupIcono" class="mb-3"></div>
+                <h5 id="popupTitulo" class="fw-bold mb-2"></h5>
+                <p id="popupMensaje" class="text-muted mb-4"></p>
+                <button type="button" class="btn w-100" id="popupOk" data-bs-dismiss="modal">Aceptar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function mostrarPopup(mensaje, tipo, onCerrar) {
+        const modalEl = document.getElementById('popupModal');
+        const icono = document.getElementById('popupIcono');
+        const titulo = document.getElementById('popupTitulo');
+        const okBtn = document.getElementById('popupOk');
+        if (tipo === 'success') {
+            titulo.textContent = '¡Listo!';
+            icono.innerHTML = '<i class="bi bi-check-circle-fill text-success" style="font-size:2.6rem;"></i>';
+            okBtn.className = 'btn btn-success w-100';
+        } else {
+            titulo.textContent = 'Atención';
+            icono.innerHTML = '<i class="bi bi-exclamation-circle-fill text-danger" style="font-size:2.6rem;"></i>';
+            okBtn.className = 'btn btn-danger w-100';
+        }
+        document.getElementById('popupMensaje').textContent = mensaje;
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        if (onCerrar) {
+            modalEl.addEventListener('hidden.bs.modal', function handler() {
+                modalEl.removeEventListener('hidden.bs.modal', handler);
+                onCerrar();
+            });
+        }
+        modal.show();
+        return modal;
+    }
+
+    function enviarFormAjax(form, boton, onSuccess) {
+        const btn = boton || form.querySelector('button[type="submit"]');
+        const originalHTML = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Procesando...';
+
+        const formData = new FormData(form);
+        fetch(form.action || window.location.href, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+            },
+            body: formData,
+            credentials: 'same-origin',
+        })
+        .then(async function (resp) {
+            let data = {};
+            try { data = await resp.json(); } catch (e) { }
+            if (data.success) {
+                if (data.redirect) {
+                    mostrarPopup(data.mensaje || 'Operación exitosa.', 'success', function () {
+                        window.location.href = data.redirect;
+                    });
+                    setTimeout(function () {
+                        const m = bootstrap.Modal.getInstance(document.getElementById('popupModal'));
+                        if (m) m.hide();
+                    }, 1400);
+                    return;
+                }
+                mostrarPopup(data.mensaje || 'Operación exitosa.', 'success');
+                if (onSuccess) onSuccess(data);
+            } else {
+                mostrarPopup(data.error || 'Ocurrió un error, intenta de nuevo.', 'error');
+            }
+            if (!data.redirect) {
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+            }
+        })
+        .catch(function () {
+            mostrarPopup('No se pudo conectar con el servidor, intenta de nuevo.', 'error');
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+        });
+    }
+
+    document.querySelectorAll('form').forEach(function (form) {
+        if (form.__ajaxBindado) return;
+        form.__ajaxBindado = true;
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+            enviarFormAjax(form, null, null);
+        });
+    });
+</script>
 <script>
     const hoy = new Date().toISOString().split('T')[0];
     document.querySelectorAll('input[type="date"]').forEach(i => i.setAttribute('min', hoy));

@@ -1,5 +1,6 @@
 import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
+import re
 import yaml
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_bcrypt import Bcrypt
@@ -9,6 +10,39 @@ from shared.service_client import auth_client, pacientes_client, citas_client, p
 from shared.audit import log_accion
 
 bcrypt = Bcrypt()
+
+
+def _is_ajax():
+    return (
+        request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        or "application/json" in request.headers.get("Accept", "")
+    )
+
+
+def _dni_ok(valor):
+    return bool(re.fullmatch(r"\d{8}", (valor or "").strip()))
+
+
+def _tel_ok(valor):
+    tel = re.sub(r"[\s\-]", "", (valor or "").strip())
+    if tel.startswith("+51"):
+        tel = tel[3:]
+    return bool(re.fullmatch(r"\d{9}", tel))
+
+
+def _nombre_ok(valor):
+    return bool(re.fullmatch(r"[A-Za-zÁÉÍÓÚáéíóúÑñ ]{2,60}", (valor or "").strip()))
+
+
+def _validar_datos_cita_rapida(nombre, apellido, dni, telefono):
+    """Validacion de formato sin salir del gateway (milisegundos, no HTTP)."""
+    if not _nombre_ok(nombre) or not _nombre_ok(apellido):
+        return "Nombre/apellido inválido"
+    if not _dni_ok(dni):
+        return "DNI inválido, debe tener 8 dígitos"
+    if not _tel_ok(telefono):
+        return "Teléfono inválido, debe tener 9 dígitos"
+    return None
 
 
 def _load_swagger():
@@ -141,14 +175,37 @@ def create_app():
             form_data = {k: request.form.get(k, "").strip() for k in
                          ["nombre", "apellido", "dni", "telefono", "medico_id", "fecha_cita", "metodo_pago", "servicio_id"]}
             if not all(form_data.values()):
+                msg = "Por favor completa todos los campos, selecciona un médico y elige una fecha."
+                if _is_ajax():
+                    return jsonify({"error": msg}), 400
                 flash("campos_vacios")
+                return redirect(url_for("citas_page"))
+
+            # Validacion de formato local y rapida (Tarea A): no gastamos un
+            # round-trip HTTP con datos que ya sabemos invalidos.
+            error_formato = _validar_datos_cita_rapida(
+                form_data["nombre"], form_data["apellido"],
+                form_data["dni"], form_data["telefono"],
+            )
+            if error_formato:
+                if _is_ajax():
+                    return jsonify({"error": error_formato}), 400
+                flash(error_formato)
                 return redirect(url_for("citas_page"))
 
             result, status = citas_client.post("/api/citas", form_data)
             if status == 201 and result.get("success"):
-                return redirect(url_for("pago_page", cita_id=result["cita_id"]))
-            else:
-                flash(result.get("error", "Error al crear cita"))
+                redirect_to = url_for("pago_page", cita_id=result["cita_id"])
+                if _is_ajax():
+                    return jsonify({
+                        "success": True,
+                        "mensaje": "Cita reservada correctamente.",
+                        "redirect": redirect_to,
+                    }), 201
+                return redirect(redirect_to)
+            if _is_ajax():
+                return jsonify(result or {"error": "Error al crear cita"}), status
+            flash(result.get("error", "Error al crear cita"))
 
         return render_template("citas.html", terapeutas=terapeutas, servicios=servicios)
 
@@ -162,36 +219,82 @@ def create_app():
         tel_mask = ""
         error_msg = None
 
+        # Render de pasos via query cuando llegan de la cadena AJAX.
+        if request.method == "GET":
+            q_paso = request.args.get("paso")
+            q_dni = request.args.get("dni", "").strip()
+            if q_paso == "verificar" and _dni_ok(q_dni):
+                paso, dni_val = "verificar", q_dni
+                tel_mask = session.get("otp_tel_mask", "")
+            elif q_paso == "citas" and _dni_ok(q_dni):
+                cdata, _ = citas_client.get(f"/api/citas?dni={q_dni}&estado=programada")
+                citas_encontradas = cdata.get("citas", [])
+
         if request.method == "POST":
             accion = request.form.get("accion")
             if accion == "solicitar":
                 dni = request.form.get("dni", "").strip()
-                result, status = citas_client.post("/api/citas/otp/solicitar", {"dni": dni, "accion": "modificar"})
-                if status == 200 and result.get("success"):
-                    paso, dni_val, tel_mask = "verificar", dni, result["tel_mask"]
+                if not _dni_ok(dni):
+                    if _is_ajax():
+                        return jsonify({"error": "DNI inválido, debe tener 8 dígitos"}), 400
+                    error_msg = "DNI inválido, debe tener 8 dígitos"
                 else:
-                    error_msg = result.get("error", "Error.")
+                    result, status = citas_client.post("/api/citas/otp/solicitar", {"dni": dni, "accion": "modificar"})
+                    if status == 200 and result.get("success"):
+                        session["otp_tel_mask"] = result.get("tel_mask", "")
+                        if _is_ajax():
+                            return jsonify({
+                                "success": True,
+                                "mensaje": "Código enviado por SMS.",
+                                "redirect": f"/citas/modificar?paso=verificar&dni={dni}",
+                            }), 200
+                        paso, dni_val, tel_mask = "verificar", dni, result.get("tel_mask", "")
+                    else:
+                        msg = result.get("error", "Error.")
+                        if _is_ajax():
+                            return jsonify({"error": msg}), status
+                        error_msg = msg
             elif accion == "verificar":
                 dni = request.form.get("dni", "").strip()
                 otp = request.form.get("otp", "").strip()
                 result, _ = citas_client.post("/api/citas/otp/verificar", {"dni": dni, "otp": otp, "accion": "modificar"})
                 r = result.get("resultado", "")
                 if r == "ok":
+                    if _is_ajax():
+                        return jsonify({
+                            "success": True,
+                            "mensaje": "Identidad verificada.",
+                            "redirect": f"/citas/modificar?paso=citas&dni={dni}",
+                        }), 200
                     cdata, _ = citas_client.get(f"/api/citas?dni={dni}&estado=programada")
                     citas_encontradas = cdata.get("citas", [])
                 else:
                     mensajes = {"expirado": "El codigo expiro.", "agotado": "Intentos agotados.", "no_existe": "Solicita uno nuevo."}
-                    error_msg = mensajes.get(r, f"Codigo incorrecto. Quedan {result.get('restantes', '?')} intento(s).")
+                    msg = mensajes.get(r, f"Codigo incorrecto. Quedan {result.get('restantes', '?')} intento(s).")
+                    if _is_ajax():
+                        return jsonify({"error": msg}), 400
+                    error_msg = msg
                     paso, dni_val = "verificar", dni
             elif accion == "guardar":
                 cita_id = request.form.get("cita_id")
                 nueva_fecha = request.form.get("fecha_cita", "").strip()
                 nuevo_medico = request.form.get("medico_id", "").strip()
-                result, status = citas_client.put(f"/api/citas/{cita_id}", {"fecha_cita": nueva_fecha, "medico_id": nuevo_medico})
-                if status == 200:
-                    flash("exito:Cita modificada correctamente.")
+                if not cita_id or not nueva_fecha or not nuevo_medico:
+                    msg = "Se requieren la nueva fecha y el especialista."
+                    if _is_ajax():
+                        return jsonify({"error": msg}), 400
+                    flash(msg)
                 else:
-                    flash(result.get("error", "Error al modificar."))
+                    result, status = citas_client.put(f"/api/citas/{cita_id}", {"fecha_cita": nueva_fecha, "medico_id": nuevo_medico})
+                    if status == 200:
+                        if _is_ajax():
+                            return jsonify({"success": True, "mensaje": "Cita modificada correctamente."}), 200
+                        flash("exito:Cita modificada correctamente.")
+                    else:
+                        msg = result.get("error", "Error al modificar.")
+                        if _is_ajax():
+                            return jsonify({"error": msg}), status
+                        flash(msg)
 
         return render_template("modificar_cita.html", terapeutas=terapeutas, citas=citas_encontradas,
                                paso=paso, dni=dni_val, tel_mask=tel_mask, error=error_msg)
@@ -204,31 +307,77 @@ def create_app():
         tel_mask = ""
         error_msg = None
 
+        if request.method == "GET":
+            q_paso = request.args.get("paso")
+            q_dni = request.args.get("dni", "").strip()
+            if q_paso == "verificar" and _dni_ok(q_dni):
+                paso, dni_val = "verificar", q_dni
+                tel_mask = session.get("otp_tel_mask", "")
+            elif q_paso == "citas" and _dni_ok(q_dni):
+                cdata, _ = citas_client.get(f"/api/citas?dni={q_dni}&estado=programada")
+                citas_encontradas = cdata.get("citas", [])
+
         if request.method == "POST":
             accion = request.form.get("accion")
             if accion == "solicitar":
                 dni = request.form.get("dni", "").strip()
-                result, status = citas_client.post("/api/citas/otp/solicitar", {"dni": dni, "accion": "cancelar"})
-                if status == 200 and result.get("success"):
-                    paso, dni_val, tel_mask = "verificar", dni, result["tel_mask"]
+                if not _dni_ok(dni):
+                    if _is_ajax():
+                        return jsonify({"error": "DNI inválido, debe tener 8 dígitos"}), 400
+                    error_msg = "DNI inválido, debe tener 8 dígitos"
                 else:
-                    error_msg = result.get("error", "Error.")
+                    result, status = citas_client.post("/api/citas/otp/solicitar", {"dni": dni, "accion": "cancelar"})
+                    if status == 200 and result.get("success"):
+                        session["otp_tel_mask"] = result.get("tel_mask", "")
+                        if _is_ajax():
+                            return jsonify({
+                                "success": True,
+                                "mensaje": "Código enviado por SMS.",
+                                "redirect": f"/citas/cancelar?paso=verificar&dni={dni}",
+                            }), 200
+                        paso, dni_val, tel_mask = "verificar", dni, result.get("tel_mask", "")
+                    else:
+                        msg = result.get("error", "Error.")
+                        if _is_ajax():
+                            return jsonify({"error": msg}), status
+                        error_msg = msg
             elif accion == "verificar":
                 dni = request.form.get("dni", "").strip()
                 otp = request.form.get("otp", "").strip()
                 result, _ = citas_client.post("/api/citas/otp/verificar", {"dni": dni, "otp": otp, "accion": "cancelar"})
                 r = result.get("resultado", "")
                 if r == "ok":
+                    if _is_ajax():
+                        return jsonify({
+                            "success": True,
+                            "mensaje": "Identidad verificada.",
+                            "redirect": f"/citas/cancelar?paso=citas&dni={dni}",
+                        }), 200
                     cdata, _ = citas_client.get(f"/api/citas?dni={dni}&estado=programada")
                     citas_encontradas = cdata.get("citas", [])
                 else:
                     mensajes = {"expirado": "El codigo expiro.", "agotado": "Intentos agotados.", "no_existe": "Solicita uno nuevo."}
-                    error_msg = mensajes.get(r, f"Codigo incorrecto. Quedan {result.get('restantes', '?')} intento(s).")
+                    msg = mensajes.get(r, f"Codigo incorrecto. Quedan {result.get('restantes', '?')} intento(s).")
+                    if _is_ajax():
+                        return jsonify({"error": msg}), 400
+                    error_msg = msg
                     paso, dni_val = "verificar", dni
             elif accion == "confirmar":
                 cita_id = request.form.get("cita_id")
-                result, _ = citas_client.delete(f"/api/citas/{cita_id}")
-                flash("exito:Tu cita ha sido cancelada correctamente.")
+                result, status = citas_client.delete(f"/api/citas/{cita_id}")
+                if status == 200:
+                    if _is_ajax():
+                        return jsonify({
+                            "success": True,
+                            "mensaje": "Tu cita ha sido cancelada correctamente.",
+                            "redirect": "/citas/cancelar",
+                        }), 200
+                    flash("exito:Tu cita ha sido cancelada correctamente.")
+                else:
+                    msg = result.get("error", "No se pudo cancelar la cita.")
+                    if _is_ajax():
+                        return jsonify({"error": msg}), status
+                    flash(msg)
 
         return render_template("cancelar_cita.html", citas=citas_encontradas,
                                paso=paso, dni=dni_val, tel_mask=tel_mask, error=error_msg)
