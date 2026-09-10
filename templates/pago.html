@@ -272,7 +272,10 @@
         <div class="modal-box modal-exito">
             <i class="fas fa-check-circle exito-icon"></i>
             <h3 class="fs-5 fw-bold">Pago realizado correctamente</h3>
-            <p>Tu cita quedó registrada como pagada. Redirigiendo a tu confirmación...</p>
+            <p>Tu cita quedó registrada como pagada.</p>
+            <button type="button" class="btn btn-secondary w-100" id="btnContinuar" disabled onclick="irARetorno()">
+                <i class="fas fa-arrow-right me-2"></i> Continuar
+            </button>
         </div>
     </div>
 
@@ -283,7 +286,17 @@ var CITA_ID = "{{ cita.id }}";
 
 function mostrarOverlayExito() {
     document.getElementById('overlayExito').style.display = 'flex';
-    setTimeout(function(){ window.location.href = '/retorno?cita_id=' + CITA_ID; }, 1800);
+}
+function habilitarContinuar() {
+    var btnContinuar = document.getElementById('btnContinuar');
+    if (btnContinuar) {
+        btnContinuar.disabled = false;
+        btnContinuar.classList.remove('btn-secondary');
+        btnContinuar.classList.add('btn-moova');
+    }
+}
+function irARetorno() {
+    window.location.href = '/retorno?cita_id=' + CITA_ID;
 }
 function abrirModal(id) { document.getElementById(id).style.display = 'flex'; }
 function cerrarModal(id) { document.getElementById(id).style.display = 'none'; }
@@ -342,6 +355,7 @@ function verificarYape() {
     setTimeout(function(){
         cerrarModal('modalYape');
         mostrarOverlayExito();
+        habilitarContinuar();
     }, 800);
 }
 
@@ -388,6 +402,7 @@ function verificarPlin() {
     setTimeout(function(){
         cerrarModal('modalPlin');
         mostrarOverlayExito();
+        habilitarContinuar();
     }, 800);
 }
 
@@ -478,7 +493,7 @@ if (formTarjeta) {
             }).then(function(r){ return r.json(); });
         })
         .then(function(res){
-            if (res.ok && res.pagado) { mostrarOverlayExito(); }
+            if (res.ok && res.pagado) { mostrarOverlayExito(); habilitarContinuar(); }
             else { throw new Error(res.error || 'El pago fue rechazado.'); }
         })
         .catch(function(err){

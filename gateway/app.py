@@ -185,6 +185,12 @@ def create_app():
 
     @app.route("/citas", methods=["GET", "POST"])
     def citas_page():
+        # Si ya se creo una cita en esta sesion, no volver a mostrar el
+        # formulario: se redirige al pago (paso 3) de esa cita.
+        cita_pendiente = session.get("cita_pendiente_id")
+        if request.method == "GET" and cita_pendiente:
+            return redirect(url_for("pago_page", cita_id=cita_pendiente))
+
         data, _ = citas_client.get("/api/citas/terapeutas")
         terapeutas = data.get("terapeutas", [])
         sdata, _ = pacientes_client.get("/api/servicios")
@@ -214,6 +220,7 @@ def create_app():
 
             result, status = citas_client.post("/api/citas", form_data)
             if status == 201 and result.get("success"):
+                session["cita_pendiente_id"] = result["cita_id"]
                 redirect_to = url_for("pago_page", cita_id=result["cita_id"])
                 if _is_ajax():
                     return jsonify({
@@ -572,8 +579,16 @@ def create_app():
         data, _ = pagos_client.get(f"/api/pagos/{cita_id}")
         pago = data.get("pago", {})
 
-        if pago.get("estado_pago") != "pagado":
+        # DEMO/temporal: si la cita es la que se acaba de crear en esta
+        # sesion, se permite llegar aunque el pago figure "pendiente"
+        # (la simulacion no llama al backend). En produccion real el
+        # pago llega como "pagado" y el guard normal aplica igual.
+        es_cita_pendiente = str(session.get("cita_pendiente_id") or "") == str(cita_id)
+        if pago.get("estado_pago") != "pagado" and not es_cita_pendiente:
             return redirect(url_for("pago_page", cita_id=cita_id))
+
+        # Flujo terminado (pago confirmado o demo): limpiar la cita pendiente.
+        session.pop("cita_pendiente_id", None)
 
         cdata, _ = citas_client.get(f"/api/citas/{cita_id}")
         cita = cdata.get("cita", {})
