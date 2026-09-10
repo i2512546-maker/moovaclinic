@@ -33,7 +33,7 @@ def _mapa_terapeutas(usuarios=None, especialidades=None):
         mapa[t["ID"]] = {
             "terapeuta_nombre": (u or {}).get("nombre"),
             "especialidad": especialidades.get(t.get("especialidad_id")),
-            "precio": t.get("precio"),
+            "precio": float(t["precio"]) if t.get("precio") is not None else None,
         }
     return mapa
 
@@ -256,6 +256,7 @@ def listar_terapeutas():
         t["Nombre"] = u.get("nombre")
         t["Telefono"] = u.get("telefono")
         t["Especialidad"] = especialidades.get(t.get("especialidad_id"))
+        t["precio"] = float(t["precio"]) if t.get("precio") is not None else None
 
     return jsonify({"success": True, "terapeutas": terapeutas})
 
@@ -271,6 +272,7 @@ def obtener_terapeuta(medico_id):
     u = usuarios.get(terapeuta.get("usuario_id")) or {}
     terapeuta["Nombre"] = u.get("nombre")
     terapeuta["Especialidad"] = especialidades.get(terapeuta.get("especialidad_id"))
+    terapeuta["precio"] = float(terapeuta["precio"]) if terapeuta.get("precio") is not None else None
 
     return jsonify({"success": True, "terapeuta": terapeuta})
 
