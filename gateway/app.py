@@ -803,6 +803,22 @@ def create_app():
         data, _ = citas_client.get("/api/citas/estadisticas")
         return jsonify(data)
 
+    # Proxy publico de las pasarelas Yape/Plin (QR y consulta de estado).
+    # El frontend de pago.html las invoca con ruta relativa al gateway
+    # (same-origin), asi que se reenvian a pagos_service preservando el
+    # cuerpo JSON y el codigo de estado. No toca el flujo de tarjeta/Niubiz.
+    @app.route("/api/pagos/yape/iniciar", methods=["POST"])
+    @app.route("/api/pagos/plin/iniciar", methods=["POST"])
+    def proxy_pago_scan_iniciar():
+        data, status = pagos_client.post(request.path, request.get_json() or {})
+        return jsonify(data or {}), status
+
+    @app.route("/api/pagos/yape/estado", methods=["POST"])
+    @app.route("/api/pagos/plin/estado", methods=["POST"])
+    def proxy_pago_scan_estado():
+        data, status = pagos_client.post(request.path, request.get_json() or {})
+        return jsonify(data or {}), status
+
     from services.audit_service.routes import audit_bp
     app.register_blueprint(audit_bp)
 
