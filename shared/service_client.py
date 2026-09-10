@@ -3,7 +3,7 @@ from shared.config import SERVICE_URLS
 
 
 class ServiceClient:
-    def __init__(self, service_name, timeout=10):
+    def __init__(self, service_name, timeout=15):
         self.base_url = SERVICE_URLS.get(service_name, "")
         self.timeout = timeout
         self.headers = {"Content-Type": "application/json"}
@@ -52,3 +52,4 @@ pacientes_client = ServiceClient("pacientes")
 citas_client = ServiceClient("citas")
 pagos_client = ServiceClient("pagos")
 notas_client = ServiceClient("notas")
+audit_client = ServiceClient("audit")

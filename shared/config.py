@@ -1,8 +1,11 @@
 import os
 import requests
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 
-load_dotenv()
+# Carga primero el .env del directorio de trabajo del proceso (el de cada
+# servicio al arrancar desde su propia carpeta); si no existe, cae al .env
+# de la raiz del repo como respaldo.
+load_dotenv(find_dotenv(usecwd=True))
 
 DB_HOST = os.getenv("DB_HOST")
 DB_USER = os.getenv("DB_USER")
@@ -59,4 +62,5 @@ SERVICE_URLS = {
     "citas": os.getenv("CITAS_SERVICE_URL", "http://127.0.0.1:5003"),
     "pagos": os.getenv("PAGOS_SERVICE_URL", "http://127.0.0.1:5004"),
     "notas": os.getenv("NOTAS_SERVICE_URL", "http://127.0.0.1:5005"),
+    "audit": os.getenv("AUDIT_SERVICE_URL", "http://127.0.0.1:5006"),
 }

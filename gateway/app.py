@@ -7,7 +7,6 @@ from datetime import datetime, timedelta
 from shared.config import REDES_SOCIALES
 from shared.service_client import auth_client, pacientes_client, citas_client, pagos_client, notas_client
 from shared.audit import log_accion
-from shared.proc import call_proc, call_proc_one, call_proc_execute
 
 bcrypt = Bcrypt()
 
@@ -120,7 +119,8 @@ def create_app():
         descripcion = request.form.get("descripcion", "").strip()
         fecha = request.form.get("fecha", datetime.today().strftime("%Y-%m-%d"))
 
-        call_proc_execute("sp_completar_cita", (historial_id, descripcion))
+        # FASE 2: completar cita es responsabilidad de citas_service.
+        citas_client.put(f"/api/citas/{historial_id}/completar", {"descripcion": descripcion})
         log_accion(
             usuario_id=session.get("usuario_id"),
             accion="completar_cita",
@@ -292,7 +292,11 @@ def create_app():
                 precio = request.form.get("precio", "").strip()
 
                 if nombre and especialidad and correo and clave:
-                    if call_proc_one("sp_obtener_usuario_por_nombre", (nombre,)):
+                    # FASE 2: todo via HTTP (auth para el usuario, pacientes
+                    # para terapeuta/especialidad). El hash de la clave lo
+                    # hace auth_service.
+                    existente, estatus = auth_client.get(f"/api/auth/usuarios/por-nombre/{nombre}")
+                    if estatus == 200:
                         flash("Ya existe un terapeuta con ese nombre.")
                     else:
                         try:
@@ -300,24 +304,28 @@ def create_app():
                         except ValueError:
                             precio_num = None
                         telefono = request.form.get("telefono", "").strip()
-                        clave_hash = bcrypt.generate_password_hash(clave).decode("utf-8")
-                        rol = call_proc_one("sp_obtener_rol_id_terapeuta")
-                        rol_id = rol["id"] if rol else 2
-                        creado = call_proc_one("sp_crear_usuario_admin", (
-                            nombre, correo, telefono or None, clave_hash, rol_id,
-                        ))
-                        usuario_id = creado["id"] if creado else None
-                        esp = call_proc_one("sp_obtener_especialidad_id", (especialidad,))
-                        esp_id = esp["id"] if esp else None
-                        call_proc_execute("sp_crear_terapeuta", (usuario_id, esp_id, precio_num))
-                        log_accion(
-                            usuario_id=session.get("usuario_id"),
-                            accion="crear_usuario",
-                            tabla_afectada="usuarios",
-                            registro_id=usuario_id,
-                            detalle=f"Terapeuta creado: nombre={nombre}, correo={correo}",
-                        )
-                        flash("exito:Terapeuta registrado correctamente.")
+
+                        creado, cstatus = auth_client.post("/api/auth/usuarios", {
+                            "nombre": nombre, "correo": correo,
+                            "clave": clave, "rol": "terapeuta", "telefono": telefono or None,
+                        })
+                        if cstatus not in (200, 201):
+                            flash(creado.get("error", "No se pudo crear el usuario."))
+                        else:
+                            usuario_id = (creado or {}).get("usuario_id")
+                            esp, estatus = pacientes_client.get(f"/api/especialidades/por-nombre/{especialidad}")
+                            esp_id = (esp or {}).get("id") if estatus == 200 else None
+                            pacientes_client.post("/api/terapeutas", {
+                                "usuario_id": usuario_id, "especialidad_id": esp_id, "precio": precio_num,
+                            })
+                            log_accion(
+                                usuario_id=session.get("usuario_id"),
+                                accion="crear_usuario",
+                                tabla_afectada="usuarios",
+                                registro_id=usuario_id,
+                                detalle=f"Terapeuta creado: nombre={nombre}, correo={correo}",
+                            )
+                            flash("exito:Terapeuta registrado correctamente.")
                 else:
                     flash("Completa todos los campos.")
 
@@ -326,7 +334,7 @@ def create_app():
                 precio = request.form.get("precio", "").strip()
                 if mid and precio:
                     try:
-                        call_proc_execute("sp_actualizar_precio", (mid, float(precio)))
+                        pacientes_client.put(f"/api/terapeutas/{mid}/precio", {"precio": float(precio)})
                         flash("exito:Precio actualizado.")
                     except ValueError:
                         flash("Precio invalido.")
@@ -334,11 +342,12 @@ def create_app():
             elif accion == "eliminar":
                 mid = request.form.get("medico_id")
                 if mid:
-                    terapeuta = call_proc_one("sp_obtener_usuario_id_terapeuta", (mid,))
+                    tdata, _ = pacientes_client.get(f"/api/terapeutas/{mid}")
+                    terapeuta = tdata.get("terapeuta", {}) if tdata else {}
                     if terapeuta:
-                        call_proc_execute("sp_set_terapeuta_activo", (mid, 0))
+                        pacientes_client.put(f"/api/terapeutas/{mid}/activo", {"activo": 0})
                         if terapeuta.get("usuario_id"):
-                            call_proc_execute("sp_set_usuario_activo", (terapeuta["usuario_id"], 0))
+                            auth_client.put(f"/api/auth/usuarios/{terapeuta['usuario_id']}", {"activo": 0})
                         log_accion(
                             usuario_id=session.get("usuario_id"),
                             accion="desactivar_usuario",
@@ -351,28 +360,33 @@ def create_app():
             elif accion == "reactivar":
                 mid = request.form.get("medico_id")
                 if mid:
-                    terapeuta = call_proc_one("sp_obtener_usuario_id_terapeuta", (mid,))
+                    tdata, _ = pacientes_client.get(f"/api/terapeutas/{mid}")
+                    terapeuta = tdata.get("terapeuta", {}) if tdata else {}
                     if terapeuta:
-                        call_proc_execute("sp_set_terapeuta_activo", (mid, 1))
+                        pacientes_client.put(f"/api/terapeutas/{mid}/activo", {"activo": 1})
                         if terapeuta.get("usuario_id"):
-                            call_proc_execute("sp_set_usuario_activo", (terapeuta["usuario_id"], 1))
+                            auth_client.put(f"/api/auth/usuarios/{terapeuta['usuario_id']}", {"activo": 1})
                         flash("exito:Terapeuta reactivado.")
 
             elif accion == "cambiar_clave":
                 mid = request.form.get("medico_id")
                 nc = request.form.get("nueva_clave", "").strip()
                 if mid and nc:
-                    terapeuta = call_proc_one("sp_obtener_usuario_id_terapeuta", (mid,))
+                    tdata, _ = pacientes_client.get(f"/api/terapeutas/{mid}")
+                    terapeuta = tdata.get("terapeuta", {}) if tdata else {}
                     if terapeuta and terapeuta.get("usuario_id"):
-                        h = bcrypt.generate_password_hash(nc).decode("utf-8")
-                        call_proc_execute("sp_cambiar_clave_usuario", (terapeuta["usuario_id"], h))
+                        # FASE 2: el hash de la clave lo hace auth_service.
+                        auth_client.put(f"/api/auth/usuarios/{terapeuta['usuario_id']}", {"clave": nc})
                         flash("exito:Contrasena actualizada.")
 
             return redirect(url_for("panel_admin"))
 
-        medicos = call_proc("sp_consultar_medicos_admin")
-        especialidades = call_proc("sp_listar_especialidades")
-        usuarios = call_proc("sp_listar_usuarios")
+        tdata, _ = pacientes_client.get("/api/terapeutas")
+        medicos = tdata.get("terapeutas", [])
+        edata, _ = pacientes_client.get("/api/especialidades")
+        especialidades = edata.get("especialidades", [])
+        udata, _ = auth_client.get("/api/auth/usuarios")
+        usuarios = udata.get("usuarios", [])
 
         params = "?fecha=" + datetime.today().strftime("%Y-%m-%d") + "&estado=programada"
         cdata, _ = citas_client.get(f"/api/citas{params}")

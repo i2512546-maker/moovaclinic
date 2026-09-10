@@ -8,13 +8,34 @@ from services.pagos_service.providers import (
 )
 from shared.audit import log_accion
 from shared.proc import call_proc, call_proc_one, call_proc_execute
+from shared.service_client import auth_client, citas_client, pacientes_client
+
+
+def _obtener_cita_info(cita_id):
+    """Datos de la cita (nombre/apellido/terapeuta/Especialidad/
+    telefono/fecha) via citas_service. Antes venian de
+    sp_obtener_cita_para_confirmar / sp_obtener_pago_pendiente
+    (CROSS-DB a citas_db/pacientes_db/auth_db)."""
+    try:
+        data, status = citas_client.get(f"/api/citas/{cita_id}")
+        if status == 200:
+            return data.get("cita") or {}
+    except Exception:
+        pass
+    return {}
 
 
 def _obtener_pago_pendiente(cita_id):
-    cita = call_proc_one("sp_obtener_pago_pendiente", (cita_id,))
-    if not cita or cita["estado_pago"] != "pendiente":
+    pago = call_proc_one("sp_obtener_pago", (cita_id,))
+    if not pago or pago["estado_pago"] != "pendiente":
         return None
-    return cita
+    cita = _obtener_cita_info(cita_id)
+    combinado = dict(pago)
+    for campo in ("nombre", "apellido", "dni", "telefono", "telefono_paciente",
+                  "terapeuta", "Especialidad", "fecha_cita"):
+        if cita.get(campo) is not None:
+            combinado[campo] = cita[campo]
+    return combinado
 
 
 def _guardar_referencia(cita_id, cobro_id):
@@ -22,7 +43,7 @@ def _guardar_referencia(cita_id, cobro_id):
 
 
 def confirmar_pago_servicio(cita_id, referencia=None, datos_respuesta=None, verificado_por=None):
-    cita = call_proc_one("sp_obtener_cita_para_confirmar", (cita_id,))
+    cita = _obtener_cita_info(cita_id)
 
     datos_json = json.dumps(datos_respuesta) if datos_respuesta else None
     res = call_proc_one("sp_confirmar_pago", (
@@ -49,7 +70,7 @@ def confirmar_pago_servicio(cita_id, referencia=None, datos_respuesta=None, veri
         try:
             fecha_fmt = datetime.strptime(str(cita["fecha_cita"]), "%Y-%m-%d").strftime("%d/%m/%Y")
         except Exception:
-            fecha_fmt = str(cita["fecha_cita"])
+            fecha_fmt = str(cita.get("fecha_cita"))
 
         def _sms(tel, msg):
             try:
@@ -64,14 +85,118 @@ def confirmar_pago_servicio(cita_id, referencia=None, datos_respuesta=None, veri
             except Exception:
                 pass
 
-        _sms(cita["telefono_paciente"],
-             f"MOOVA Clinic: Hola {cita['nombre']}, tu cita fue confirmada. Medico: {cita['terapeuta']} ({cita['Especialidad']}). Fecha: {fecha_fmt}.")
-        if cita.get("telefono_medico"):
-            _sms(cita["telefono_medico"],
-                 f"MOOVA Clinic: Dr(a). {cita['terapeuta']}, se agendo cita con {cita['nombre']} {cita['apellido']}. Fecha: {fecha_fmt}.")
+        # FASE 2: el telefono del medico vive en auth_db (usuarios);
+        # se resuelve por HTTP: terapeuta (pacientes) -> usuario_id ->
+        # auth_service GET /api/auth/usuarios/<id>.
+        telefono_paciente = cita.get("telefono_paciente") or cita.get("telefono")
+        if telefono_paciente:
+            _sms(telefono_paciente,
+                 f"MOOVA Clinic: Hola {cita.get('nombre')}, tu cita fue confirmada. Medico: {cita.get('terapeuta')} ({cita.get('Especialidad')}). Fecha: {fecha_fmt}.")
+
+        telefono_medico = None
+        terapeuta_id = cita.get("terapeuta_id")
+        if terapeuta_id:
+            try:
+                tdata, tstatus = pacientes_client.get(f"/api/terapeutas/{terapeuta_id}")
+                usuario_id = ((tdata or {}).get("terapeuta") or {}).get("usuario_id") if tstatus == 200 else None
+            except Exception:
+                usuario_id = None
+            if usuario_id:
+                try:
+                    udata, ustatus = auth_client.get(f"/api/auth/usuarios/{usuario_id}")
+                    userinfo = ((udata or {}).get("usuario") or {}) if ustatus == 200 else {}
+                    telefono_medico = userinfo.get("telefono")
+                except Exception:
+                    telefono_medico = None
+        if telefono_medico:
+            _sms(telefono_medico,
+                 f"MOOVA Clinic: Dr(a). {cita.get('terapeuta')}, se agendo cita con {cita.get('nombre')} {cita.get('apellido')}. Fecha: {fecha_fmt}.")
 
     return pagado
 
+
+# ============================================================
+# Anticipo / cancelacion (llamados por citas_service)
+# ============================================================
+
+@pagos_bp.route("/api/pagos/anticipo", methods=["POST"])
+def crear_anticipo():
+    """Crea el pago de anticipo de una cita. Lo invoca citas_service
+    tras sp_crear_cita (antes sp_crear_pago_anticipo, CROSS-DB)."""
+    data = request.get_json() or {}
+    cita_id = data.get("cita_id")
+    paciente_id = data.get("paciente_id")
+    monto = data.get("monto")
+    metodo_pago = data.get("metodo_pago", "efectivo")
+
+    if not cita_id or not paciente_id or monto is None or not metodo_pago:
+        return jsonify({"error": "cita_id, paciente_id, monto y metodo_pago requeridos."}), 400
+
+    result = call_proc_one("sp_crear_pago_anticipo", (cita_id, paciente_id, monto, metodo_pago))
+    return jsonify({"success": True, "id": result["id"] if result else None}), 201
+
+
+@pagos_bp.route("/api/pagos/<int:cita_id>/cancelar", methods=["POST"])
+def cancelar_pago_cita(cita_id):
+    """Cancela el pago pendiente de una cita. Lo invoca citas_service
+    cuando cancela una cita (antes dentro de sp_cancelar_cita, CROSS-DB)."""
+    call_proc_execute("sp_cancelar_pago_cita", (cita_id,))
+    return jsonify({"success": True})
+
+
+# ============================================================
+# Consultas de pagos (usadas por pacientes_service para el detalle)
+# ============================================================
+
+@pagos_bp.route("/api/pagos/pacientes/<int:paciente_id>", methods=["GET"])
+def listar_pagos_paciente(paciente_id):
+    pagos = call_proc("sp_obtener_pagos_paciente", (paciente_id,))
+    return jsonify({"success": True, "pagos": pagos})
+
+
+@pagos_bp.route("/api/pagos/pacientes/<int:paciente_id>/paquetes", methods=["GET"])
+def listar_paquetes_paciente(paciente_id):
+    paquetes = call_proc("sp_listar_paquetes_paciente", (paciente_id,)) or []
+    try:
+        servicios_data, _ = pacientes_client.get("/api/servicios")
+        servicios = {s["id"]: s for s in (servicios_data.get("servicios") or [])}
+    except Exception:
+        servicios = {}
+    for ps in paquetes:
+        s = servicios.get(ps.get("servicio_id")) or {}
+        if s.get("nombre") is not None:
+            ps["servicio_nombre"] = s["nombre"]
+        if s.get("duracion_min") is not None:
+            ps["duracion_min"] = s["duracion_min"]
+    return jsonify({"success": True, "paquetes": paquetes})
+
+
+@pagos_bp.route("/api/pagos/pacientes/<int:paciente_id>/paquetes", methods=["POST"])
+def crear_paquete_paciente(paciente_id):
+    data = request.get_json() or {}
+    servicio_id = data.get("servicio_id")
+    total_sesiones = data.get("total_sesiones")
+    fecha_compra = data.get("fecha_compra")
+    fecha_vencimiento = data.get("fecha_vencimiento")
+
+    if not servicio_id or not total_sesiones or not fecha_compra:
+        return jsonify({"error": "servicio_id, total_sesiones y fecha_compra son requeridos."}), 400
+
+    result = call_proc_one("sp_crear_paquete", (
+        paciente_id, servicio_id, total_sesiones, fecha_compra, fecha_vencimiento,
+    ))
+    return jsonify({"success": True, "paquete_id": result["id"] if result else None}), 201
+
+
+@pagos_bp.route("/api/pagos/configuracion/anio", methods=["GET"])
+def obtener_anio_inicio():
+    cfg = call_proc_one("sp_obtener_configuracion_anio")
+    return jsonify({"success": True, "valor": cfg["valor"] if cfg else None})
+
+
+# ============================================================
+# Pasarelas de pago
+# ============================================================
 
 @pagos_bp.route("/api/pagos/<int:cita_id>", methods=["GET"])
 def estado_pago(cita_id):
@@ -90,7 +215,7 @@ def api_pago_yape_iniciar():
         return jsonify({"ok": False, "error": "Cita no encontrada o ya pagada."}), 400
     try:
         yape = YapeClient()
-        cobro = yape.crear_cobro(monto=cita["monto"], concepto=f"Cita MOOVA - {cita['terapeuta']}", referencia=str(cita_id))
+        cobro = yape.crear_cobro(monto=cita["monto"], concepto=f"Cita MOOVA - {cita.get('terapeuta')}", referencia=str(cita_id))
     except (PaymentNotConfigured, PaymentProviderError) as e:
         return jsonify({"ok": False, "error": str(e)}), 400
     _guardar_referencia(cita_id, cobro["cobro_id"])
@@ -124,7 +249,7 @@ def api_pago_plin_iniciar():
         return jsonify({"ok": False, "error": "Cita no encontrada o ya pagada."}), 400
     try:
         plin = PlinClient()
-        cobro = plin.crear_cobro(monto=cita["monto"], concepto=f"Cita MOOVA - {cita['terapeuta']}", referencia=str(cita_id))
+        cobro = plin.crear_cobro(monto=cita["monto"], concepto=f"Cita MOOVA - {cita.get('terapeuta')}", referencia=str(cita_id))
     except (PaymentNotConfigured, PaymentProviderError) as e:
         return jsonify({"ok": False, "error": str(e)}), 400
     _guardar_referencia(cita_id, cobro["cobro_id"])
