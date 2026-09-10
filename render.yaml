@@ -39,6 +39,11 @@ services:
           name: moova-notas
           type: web
           property: host
+      - key: AUDIT_SERVICE_URL
+        fromService:
+          name: moova-audit
+          type: web
+          property: host
 
   # ============================================
   # AUTH SERVICE — Puerto 5001
@@ -96,6 +101,18 @@ services:
     runtime: python
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn "services.notas_service.app:create_app()" --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.8"
+
+  # ============================================
+  # AUDIT SERVICE — Puerto 5006
+  # ============================================
+  - type: web
+    name: moova-audit
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn "services.audit_service.app:create_app()" --bind 0.0.0.0:$PORT
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.8"
