@@ -153,6 +153,7 @@ nav.navbar.navbar-expand-lg.fixed-top .navbar-bubble {
 @media (min-width: 992px) {
     nav.navbar.navbar-expand-lg.fixed-top .navbar-bubble {
         width: max-content;
+        width: calc(max-content * 1.15);
         max-width: 92vw;
         justify-content: center;
         column-gap: 2.5rem;
