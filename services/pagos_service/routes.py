@@ -38,6 +38,21 @@ def _obtener_pago_pendiente(cita_id):
     return combinado
 
 
+def _nombre_paciente(paciente_id):
+    """Nombre completo de un paciente via pacientes_service (best effort)."""
+    if not paciente_id:
+        return None
+    try:
+        data, _ = pacientes_client.get("/api/pacientes")
+        for p in (data.get("pacientes") or []):
+            if p.get("id") == paciente_id:
+                nombre = " ".join(x for x in (p.get("nombre"), p.get("apellido")) if x).strip()
+                return nombre or None
+    except Exception:
+        pass
+    return None
+
+
 def _guardar_referencia(cita_id, cobro_id):
     call_proc_execute("sp_guardar_referencia", (cita_id, cobro_id))
 
@@ -53,6 +68,10 @@ def confirmar_pago_servicio(cita_id, referencia=None, datos_respuesta=None, veri
 
     if pagado:
         try:
+            paciente_id = cita.get("paciente_id") if cita else None
+            entidad_nombre = " ".join(
+                x for x in (cita.get("nombre"), cita.get("apellido")) if x
+            ).strip() or None
             log_accion(
                 usuario_id=verificado_por,
                 accion="marcar_pago",
@@ -60,6 +79,9 @@ def confirmar_pago_servicio(cita_id, referencia=None, datos_respuesta=None, veri
                 registro_id=cita_id,
                 detalle=f"Pago marcado como 'pagado' para cita_id={cita_id}, verificado_por={verificado_por}",
                 ip_origen=request.remote_addr,
+                entidad_tipo="paciente",
+                entidad_id=paciente_id,
+                entidad_nombre=entidad_nombre,
             )
         except Exception:
             pass
@@ -205,12 +227,17 @@ def usar_sesion_paquete(paquete_id):
         return jsonify({"error": "El paquete no esta activo o no tiene sesiones disponibles."}), 409
 
     try:
+        pago = call_proc_one("sp_obtener_pago", (cita_id,))
+        paciente_id = (pago or {}).get("paciente_id")
         log_accion(
             accion="usar_sesion_paquete",
             tabla_afectada="paquetes_sesiones",
             registro_id=paquete_id,
             detalle=f"Sesion del paquete {paquete_id} usada por cita_id={cita_id}",
             ip_origen=request.remote_addr,
+            entidad_tipo="paciente",
+            entidad_id=paciente_id,
+            entidad_nombre=_nombre_paciente(paciente_id),
         )
     except Exception:
         pass

@@ -99,6 +99,27 @@ def _enriquecer_cita(cita, pacientes=None, terapeutas=None):
     return cita
 
 
+def _datos_paciente_cita(cita_id):
+    """(paciente_id, nombre completo) de una cita para auditoria.
+    Best effort: ante cualquier fallo devuelve (None, None) para que
+    el registro se guarde igualmente sin entidad."""
+    try:
+        cita = call_proc_one("sp_detalle_cita", (cita_id,))
+    except Exception:
+        return None, None
+    paciente_id = (cita or {}).get("paciente_id")
+    if not paciente_id:
+        return None, None
+    try:
+        data, _ = pacientes_client.get("/api/pacientes")
+        mapa = {p["id"]: p for p in (data.get("pacientes") or [])}
+        p = mapa.get(paciente_id) or {}
+        nombre = " ".join(x for x in (p.get("nombre"), p.get("apellido")) if x).strip()
+        return paciente_id, nombre or None
+    except Exception:
+        return paciente_id, None
+
+
 @citas_bp.route("/api/citas/disponibilidad", methods=["POST"])
 def verificar_disponibilidad():
     data = request.get_json() or {}
@@ -295,6 +316,9 @@ def crear_cita():
         registro_id=cita_id,
         detalle=f"Cita creada para paciente_id={paciente_id}, medico_id={data['medico_id']}, fecha={data['fecha_cita']}",
         ip_origen=request.remote_addr,
+        entidad_tipo="paciente",
+        entidad_id=paciente_id,
+        entidad_nombre=(" ".join(x for x in (data.get("nombre"), data.get("apellido")) if x).strip() or None),
     )
 
     metodo_pago = data.get("metodo_pago", "").strip()
@@ -344,12 +368,16 @@ def modificar_cita(cita_id):
     result = call_proc_one("sp_modificar_cita", (cita_id, nueva_fecha, nuevo_medico))
     if not result or int(result.get("actualizadas") or 0) == 0:
         return jsonify({"error": "Cita no encontrada o ya no esta programada"}), 404
+    ent_paciente_id, ent_paciente_nombre = _datos_paciente_cita(cita_id)
     log_accion(
         accion="reprogramar_cita",
         tabla_afectada="historial_citas",
         registro_id=cita_id,
         detalle=f"Cita reprogramada a fecha={nueva_fecha}, medico_id={nuevo_medico}",
         ip_origen=request.remote_addr,
+        entidad_tipo="paciente",
+        entidad_id=ent_paciente_id,
+        entidad_nombre=ent_paciente_nombre,
     )
     return jsonify({"success": True})
 
@@ -367,11 +395,15 @@ def cancelar_cita(cita_id):
     except Exception:
         pass
 
+    ent_paciente_id, ent_paciente_nombre = _datos_paciente_cita(cita_id)
     log_accion(
         accion="cancelar_cita",
         tabla_afectada="historial_citas",
         registro_id=cita_id,
         ip_origen=request.remote_addr,
+        entidad_tipo="paciente",
+        entidad_id=ent_paciente_id,
+        entidad_nombre=ent_paciente_nombre,
     )
     return jsonify({"success": True})
 
@@ -387,12 +419,16 @@ def completar_cita(cita_id):
         return jsonify({"error": "descripcion requerida"}), 400
 
     call_proc_execute("sp_completar_cita", (cita_id, descripcion))
+    ent_paciente_id, ent_paciente_nombre = _datos_paciente_cita(cita_id)
     log_accion(
         accion="completar_cita",
         tabla_afectada="historial_citas",
         registro_id=cita_id,
         detalle="Cita completada con descripcion clinica",
         ip_origen=request.remote_addr,
+        entidad_tipo="paciente",
+        entidad_id=ent_paciente_id,
+        entidad_nombre=ent_paciente_nombre,
     )
     return jsonify({"success": True})
 
