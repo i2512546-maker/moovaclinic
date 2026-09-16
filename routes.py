@@ -1,10 +1,14 @@
 import os
 import requests
 from datetime import date, datetime
+from ZoneInfo import ZoneInfo 
 from flask import request, jsonify, Response
 from services.pacientes_service import pacientes_bp
 from shared.config import APIPERU_TOKEN, APIPERU_URL
 from shared.proc import call_proc, call_proc_one, call_proc_execute, call_proc_results
+
+def hora_local_peru():
+    return ZoneInfo('America/Lima')
 
 
 @pacientes_bp.route("/api/pacientes", methods=["GET"])
