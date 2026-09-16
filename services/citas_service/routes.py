@@ -80,6 +80,11 @@ def detalle_cita(cita_id):
 
 @citas_bp.route("/api/citas", methods=["POST"])
 def crear_cita():
+    tz = hora_local_peru()
+    fecha_obj= datetime.strptime(data['fecha_cita']).date()
+    j < datetime.now(tz).date():
+    jsonify
+    
     data = request.get_json() or {}
     for campo in ["nombre", "apellido", "dni", "telefono", "medico_id", "fecha_cita"]:
         if not data.get(campo):
@@ -87,7 +92,7 @@ def crear_cita():
 
     try:
         fecha_obj = datetime.strptime(data["fecha_cita"], "%Y-%m-%d").date()
-        if fecha_obj < datetime.today().date():
+        if fecha_obj < datetime.tomorrow().date():
             return jsonify({"error": "La fecha no puede ser en el pasado"}), 400
     except ValueError:
         return jsonify({"error": "Formato de fecha invalido (YYYY-MM-DD)"}), 400
