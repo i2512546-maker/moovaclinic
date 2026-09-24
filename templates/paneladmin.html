@@ -79,6 +79,7 @@
                 </div>
                 <div class="card-body">
                     <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
                         <input type="hidden" name="accion" value="registrar">
                         <div class="mb-3">
                             <label class="form-label">Nombre completo</label>
@@ -147,6 +148,7 @@
                                     <td><span class="badge text-bg-light">{{ m.Especialidad }}</span></td>
                                     <td>
                                         <form method="POST" class="d-flex align-items-center gap-1">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
                                             <input type="hidden" name="accion" value="actualizar_precio">
                                             <input type="hidden" name="medico_id" value="{{ m.ID }}">
                                             <input type="number" name="precio" value="{{ '%.2f'|format(m.precio) if m.precio else '' }}"
@@ -173,6 +175,7 @@
                                             {% if m.activo %}
                                             <form method="POST"
                                                 onsubmit="return confirm('Desactivar a {{ m.Nombre }}?')">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
                                                 <input type="hidden" name="accion" value="eliminar">
                                                 <input type="hidden" name="medico_id" value="{{ m.ID }}">
                                                 <button type="submit" class="btn btn-icon" title="Desactivar">
@@ -182,6 +185,7 @@
                                             {% else %}
                                             <form method="POST"
                                                 onsubmit="return confirm('Reactivar a {{ m.Nombre }}?')">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
                                                 <input type="hidden" name="accion" value="reactivar">
                                                 <input type="hidden" name="medico_id" value="{{ m.ID }}">
                                                 <button type="submit" class="btn btn-icon" title="Reactivar" style="color:#16a34a;">
@@ -289,6 +293,7 @@
                                 {% if c.estado == 'programada' %}
                                 <form method="POST" action="{{ url_for('admin_cancelar_cita', cita_id=c.id) }}"
                                     onsubmit="return confirm('¿Cancelar la cita de {{ c.nombre }}?')">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
                                     <button type="submit" class="btn btn-icon" title="Cancelar cita">
                                         <i class="bi bi-ban"></i>
                                     </button>
@@ -321,6 +326,7 @@
             <div class="modal-body">
                 <p id="modal-nombre"></p>
                 <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
                     <input type="hidden" name="accion" value="cambiar_clave">
                     <input type="hidden" name="medico_id" id="modal-id">
                     <div class="mb-3">

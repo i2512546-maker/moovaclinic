@@ -32,6 +32,7 @@
         {% endwith %}
 
         <form method="POST" class="d-flex flex-column gap-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
             <div>
                 <label class="form-label fw-semibold d-flex align-items-center gap-2 mb-2"><i class="fas fa-envelope text-sky"></i> Correo</label>
                 <input type="email" name="correo" class="form-control form-control-lg" placeholder="tu@correo.com" required>

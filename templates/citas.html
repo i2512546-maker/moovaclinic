@@ -9,6 +9,10 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap-style.css') }}">
+    <meta name="csrf-token" content="{{ csrf_raw }}">
+    <script>
+        function csrfToken() { var m = document.querySelector('meta[name="csrf-token"]'); return m ? m.content : ''; }
+    </script>
     <script src="https://t.contentsquare.com/uxa/6897c7b83eb5.js"></script>
 </head>
 <body>
@@ -100,6 +104,7 @@
 
         <!-- ══════════════ SINGLE FORM ══════════════ -->
         <form id="formCita" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
 
             <!-- ──────── STEP 1: DATOS PERSONALES ──────── -->
             <div class="wizard-panel" id="step-1">
@@ -452,7 +457,7 @@
             try {
                 var resp = await fetch('/api/verificar_dni', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
                     body: JSON.stringify({ dni: dni })
                 });
                 var data = await resp.json();
