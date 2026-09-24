@@ -12,3 +12,6 @@ instance/
 *.log
 .DS_Store
 Thumbs.db
+reporte_bandit.txt
+reporte_semgrep.txt
+.secrets_baseline.json
