@@ -78,11 +78,26 @@ def _mapa_terapeutas():
         return {}
 
 
+def _fmt_hora(valor):
+    # mysql-connector-python representa una columna MySQL TIME como timedelta.
+    # Flask JSON no puede serializar ese tipo, por eso lo llevamos a HH:MM:SS
+    # en el borde de la API, igual que los tipos datetime.time/datetime.
+    if isinstance(valor, timedelta):
+        segundos = int(valor.total_seconds())
+        signo = "-" if segundos < 0 else ""
+        horas, resto = divmod(abs(segundos), 3600)
+        minutos, segundos = divmod(resto, 60)
+        return f"{signo}{horas:02d}:{minutos:02d}:{segundos:02d}"
+    if hasattr(valor, "strftime"):
+        return valor.strftime("%H:%M:%S")
+    return valor
+
+
 def _fmt_fecha(fila):
     if hasattr(fila.get("fecha_cita"), "strftime"):
         fila["fecha_cita"] = fila["fecha_cita"].strftime("%Y-%m-%d")
-    if hasattr(fila.get("hora_cita"), "strftime"):
-        fila["hora_cita"] = fila["hora_cita"].strftime("%H:%M:%S")
+    if "hora_cita" in fila:
+        fila["hora_cita"] = _fmt_hora(fila["hora_cita"])
     return fila
 
 
