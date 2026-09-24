@@ -10,4 +10,7 @@ def create_app():
     from services.pagos_service.routes import pagos_bp
     app.register_blueprint(pagos_bp)
 
+    from shared.service_auth import proteger_api_interna
+    proteger_api_interna(app)
+
     return app

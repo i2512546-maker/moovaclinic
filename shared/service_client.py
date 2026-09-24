@@ -1,12 +1,15 @@
 import requests
-from shared.config import SERVICE_URLS
+from shared.config import SERVICE_URLS, API_KEY
 
 
 class ServiceClient:
     def __init__(self, service_name, timeout=15):
         self.base_url = SERVICE_URLS.get(service_name, "")
         self.timeout = timeout
-        self.headers = {"Content-Type": "application/json"}
+        self.headers = {
+            "Content-Type": "application/json",
+            "X-Api-Key": (API_KEY or ""),
+        }
 
     def get(self, path, **kwargs):
         resp = requests.get(

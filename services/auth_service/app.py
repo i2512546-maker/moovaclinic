@@ -15,4 +15,7 @@ def create_app():
     from services.auth_service.routes import auth_bp
     app.register_blueprint(auth_bp)
 
+    from shared.service_auth import proteger_api_interna
+    proteger_api_interna(app)
+
     return app

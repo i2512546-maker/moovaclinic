@@ -10,4 +10,7 @@ def create_app():
     from services.pacientes_service.routes import pacientes_bp
     app.register_blueprint(pacientes_bp)
 
+    from shared.service_auth import proteger_api_interna
+    proteger_api_interna(app)
+
     return app

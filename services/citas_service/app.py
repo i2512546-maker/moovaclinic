@@ -13,4 +13,7 @@ def create_app():
     from services.notas_service.routes import notas_bp
     app.register_blueprint(notas_bp)
 
+    from shared.service_auth import proteger_api_interna
+    proteger_api_interna(app)
+
     return app
