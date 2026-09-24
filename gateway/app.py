@@ -4,6 +4,7 @@ import re
 import yaml
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_bcrypt import Bcrypt
+from flask_wtf.csrf import CSRFProtect, CSRFError, generate_csrf
 from datetime import datetime, timedelta
 from urllib.parse import urlencode
 from shared.config import REDES_SOCIALES
@@ -11,12 +12,14 @@ from shared.service_client import auth_client, pacientes_client, citas_client, p
 from shared.audit import log_accion
 
 bcrypt = Bcrypt()
+csrf = CSRFProtect()
 
 
 def _is_ajax():
     return (
         request.headers.get("X-Requested-With") == "XMLHttpRequest"
         or "application/json" in request.headers.get("Accept", "")
+        or "application/json" in request.headers.get("Content-Type", "")
     )
 
 
@@ -80,6 +83,7 @@ def create_app():
     app = Flask(__name__, template_folder="../templates", static_folder="../static")
     app.secret_key = os.getenv("SECRET_KEY", os.urandom(32).hex())
     bcrypt.init_app(app)
+    csrf.init_app(app)
 
     try:
         from flasgger import Swagger
@@ -92,6 +96,7 @@ def create_app():
     def inject():
         return {
             "REDES": REDES_SOCIALES,
+            "csrf_raw": generate_csrf(),
             "current_user": {
                 "id": session.get("usuario_id"),
                 "nombre": session.get("usuario_nombre"),
@@ -100,6 +105,13 @@ def create_app():
                 "es_terapeuta": session.get("rol") == "terapeuta",
             }
         }
+
+    @app.errorhandler(CSRFError)
+    def _csrf_error(e):
+        if _is_ajax():
+            return jsonify({"error": "Sesión expirada o token de seguridad inválido. Recarga la página e inténtalo de nuevo."}), 403
+        flash("error:Tu sesión expiró o el token de seguridad no es válido. Vuelve a cargar la página e inténtalo de nuevo.")
+        return redirect(request.referrer or url_for("index"))
 
     @app.route("/")
     def index():

@@ -9,6 +9,10 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap-style.css') }}">
+    <meta name="csrf-token" content="{{ csrf_raw }}">
+    <script>
+        function csrfToken() { var m = document.querySelector('meta[name="csrf-token"]'); return m ? m.content : ''; }
+    </script>
     {% if niubiz_sdk_url %}<script src="{{ niubiz_sdk_url }}"></script>{% endif %}
 </head>
 <body class="bg-light">
@@ -327,7 +331,7 @@ if (btnYape) {
         }, 10000);
         fetch('/api/pagos/yape/iniciar', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
             body: JSON.stringify({cita_id: CITA_ID}),
             signal: controladorQR.signal
         })
@@ -374,7 +378,7 @@ if (btnPlin) {
         }, 10000);
         fetch('/api/pagos/plin/iniciar', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
             body: JSON.stringify({cita_id: CITA_ID}),
             signal: controladorQR.signal
         })
@@ -454,7 +458,7 @@ if (formTarjeta) {
 
         fetch('/api/pagos/tarjeta/iniciar', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
             body: JSON.stringify({cita_id: CITA_ID})
         })
         .then(function(r){ return r.json(); })
@@ -483,7 +487,7 @@ if (formTarjeta) {
         .then(function(cardToken){
             return fetch('/api/pagos/tarjeta/cobrar', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
                 body: JSON.stringify({
                     cita_id: CITA_ID,
                     cardToken: cardToken,

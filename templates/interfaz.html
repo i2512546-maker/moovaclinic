@@ -106,6 +106,7 @@
                             </td>
                             <td>
                                 <form method="POST" action="{{ url_for('guardar_descripcion') }}" class="d-flex align-items-start gap-2">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
                                     <input type="hidden" name="historial_id" value="{{ p.historial_id }}">
                                     <input type="hidden" name="fecha" value="{{ fecha_actual }}">
                                     <textarea name="descripcion" placeholder="Notas..." rows="2" class="form-control form-control-sm">{{ p.descripcion or '' }}</textarea>

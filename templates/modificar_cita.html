@@ -75,6 +75,7 @@
                     </div>
                     <div class="card-body">
                         <form method="POST">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
                             <input type="hidden" name="accion" value="solicitar">
                             <div class="mb-3">
                                 <label class="form-label"><i class="fas fa-id-card"></i> Tu DNI</label>
@@ -107,6 +108,7 @@
                     </div>
                     <div class="card-body">
                         <form method="POST">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
                             <input type="hidden" name="accion" value="verificar">
                             <input type="hidden" name="dni" value="{{ dni }}">
                             <div class="mb-3">
@@ -153,6 +155,7 @@
                 </span>
             </div>
             <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
                 <input type="hidden" name="accion" value="guardar">
                 <input type="hidden" name="cita_id" value="{{ c.id }}">
                 <div class="row g-3">
