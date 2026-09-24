@@ -48,8 +48,20 @@ CREATE TABLE `historial_citas` (
   `hora_cita` time DEFAULT NULL,
   `descripcion` text DEFAULT NULL,
   `estado` enum('programada','confirmada','cancelada','completada','no_asistio') NOT NULL DEFAULT 'programada',
-  `recordatorio_enviado` tinyint(1) DEFAULT 0
+  `recordatorio_enviado` tinyint(1) DEFAULT 0,
+  `creado_en` datetime DEFAULT NULL,
+  `actualizado_en` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Politica de zona horaria (historial_citas):
+--   - creado_en / actualizado_en se guardan en UTC explicito con
+--     UTC_TIMESTAMP(), NUNCA NOW()/CURRENT_TIMESTAMP(): el servidor MySQL
+--     corre en SYSTEM/CEST (UTC+2), asi que el reloj de la maquina no debe
+--     decidir los timestamps. Las columnas no usan DEFAULT with a timestamp
+--     precisamente para que el valor lo fije el procedimiento.
+--   - fecha_cita / hora_cita son literales (DATE/TIME sin zona): guardan
+--     exactamente lo que el paciente eligio, interpretado como hora de Lima
+--     (America/Lima, UTC-5). La capa de presentacion convierte a Lima.
 
 --
 -- Dumping data for table `historial_citas`
@@ -171,18 +183,29 @@ END$$
 
 DROP PROCEDURE IF EXISTS `sp_crear_cita`$$
 CREATE PROCEDURE `sp_crear_cita`(
-    IN p_paciente_id INT, IN p_terapeuta_id INT, IN p_servicio_id INT, IN p_fecha DATETIME
+    IN p_paciente_id INT, IN p_terapeuta_id INT, IN p_servicio_id INT,
+    IN p_fecha DATETIME, IN p_hora TIME
 )
 BEGIN
-    INSERT INTO historial_citas (paciente_id, terapeuta_id, servicio_id, fecha_cita, estado)
-    VALUES (p_paciente_id, p_terapeuta_id, p_servicio_id, p_fecha, 'programada');
+    INSERT INTO historial_citas (
+        paciente_id, terapeuta_id, servicio_id, fecha_cita, hora_cita, estado,
+        creado_en, actualizado_en
+    )
+    VALUES (
+        p_paciente_id, p_terapeuta_id, p_servicio_id, p_fecha, p_hora, 'programada',
+        UTC_TIMESTAMP(), UTC_TIMESTAMP()
+    );
     SELECT LAST_INSERT_ID() AS id;
 END$$
 
 DROP PROCEDURE IF EXISTS `sp_modificar_cita`$$
-CREATE PROCEDURE `sp_modificar_cita`(IN p_cita_id INT, IN p_fecha DATETIME, IN p_medico_id INT)
+CREATE PROCEDURE `sp_modificar_cita`(IN p_cita_id INT, IN p_fecha DATETIME, IN p_medico_id INT, IN p_hora TIME)
 BEGIN
-    UPDATE historial_citas SET fecha_cita = p_fecha, terapeuta_id = p_medico_id
+    UPDATE historial_citas
+    SET fecha_cita = p_fecha,
+        hora_cita = p_hora,
+        terapeuta_id = p_medico_id,
+        actualizado_en = UTC_TIMESTAMP()
     WHERE id = p_cita_id AND estado = 'programada';
     SELECT ROW_COUNT() AS actualizadas;
 END$$
@@ -190,7 +213,8 @@ END$$
 DROP PROCEDURE IF EXISTS `sp_completar_cita`$$
 CREATE PROCEDURE `sp_completar_cita`(IN p_historial_id INT, IN p_descripcion TEXT)
 BEGIN
-    UPDATE historial_citas SET descripcion = p_descripcion, estado = 'completada'
+    UPDATE historial_citas SET descripcion = p_descripcion, estado = 'completada',
+        actualizado_en = UTC_TIMESTAMP()
     WHERE id = p_historial_id;
 END$$
 
@@ -291,7 +315,7 @@ DROP PROCEDURE IF EXISTS `sp_cancelar_cita`$$
 CREATE PROCEDURE `sp_cancelar_cita`(IN p_cita_id INT)
 BEGIN
     DECLARE v_afectadas INT DEFAULT 0;
-    UPDATE historial_citas SET estado = 'cancelada'
+    UPDATE historial_citas SET estado = 'cancelada', actualizado_en = UTC_TIMESTAMP()
     WHERE id = p_cita_id AND estado = 'programada';
     SET v_afectadas = ROW_COUNT();
     SELECT v_afectadas AS actualizadas;

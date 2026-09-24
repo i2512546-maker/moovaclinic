@@ -3,6 +3,7 @@ import re
 import mysql.connector
 import requests as http_requests
 from datetime import datetime, timedelta, date
+from zoneinfo import ZoneInfo
 from flask import request, jsonify, current_app
 from services.citas_service import citas_bp
 from shared.audit import log_accion
@@ -80,7 +81,29 @@ def _mapa_terapeutas():
 def _fmt_fecha(fila):
     if hasattr(fila.get("fecha_cita"), "strftime"):
         fila["fecha_cita"] = fila["fecha_cita"].strftime("%Y-%m-%d")
+    if hasattr(fila.get("hora_cita"), "strftime"):
+        fila["hora_cita"] = fila["hora_cita"].strftime("%H:%M:%S")
     return fila
+
+
+def _hoy_lima():
+    """Fecha actual en America/Lima. El servidor puede correr en otra zona
+    (hoy: UTC+2); no se usa el reloj de la maquina para decidir si una cita
+    ya es 'pasada'."""
+    return datetime.now(ZoneInfo("America/Lima")).date()
+
+
+def _normalizar_hora_cita(hora):
+    """Valida y normaliza una hora elegida por el paciente (Americana de
+    Lima, sin zona): acepta HH:MM o HH:MM:SS y devuelve 'HH:MM:SS'.
+    Devuelve None si no viene hora; lanza ValueError si el formato es malo."""
+    if not hora:
+        return None
+    hora = hora.strip()
+    if len(hora) == 5:
+        hora = hora + ":00"
+    datetime.strptime(hora, "%H:%M:%S")
+    return hora
 
 
 def _enriquecer_cita(cita, pacientes=None, terapeutas=None):
@@ -267,10 +290,15 @@ def crear_cita():
 
     try:
         fecha_obj = datetime.strptime(data["fecha_cita"], "%Y-%m-%d").date()
-        if fecha_obj < date.today():
+        if fecha_obj < _hoy_lima():
             return jsonify({"error": "La fecha no puede ser en el pasado"}), 400
     except ValueError:
         return jsonify({"error": "Formato de fecha invalido (YYYY-MM-DD)"}), 400
+
+    try:
+        hora_cita = _normalizar_hora_cita(data.get("hora_cita"))
+    except ValueError:
+        return jsonify({"error": "Formato de hora invalido (HH:MM)"}), 400
 
     # Disponibilidad del medico (DB local). Blindada: si la BD no responde
     # en tiempo, respondemos 500 en vez de colgar el request.
@@ -326,7 +354,7 @@ def crear_cita():
     servicio_id = data.get("servicio_id")
 
     try:
-        cita = call_proc_one("sp_crear_cita", (paciente_id, data["medico_id"], servicio_id, data["fecha_cita"]))
+        cita = call_proc_one("sp_crear_cita", (paciente_id, data["medico_id"], servicio_id, data["fecha_cita"], hora_cita))
     except mysql.connector.Error as exc:
         current_app.logger.error(
             "[crear_cita] Error en BD (sp_crear_cita): %s: %s",
@@ -345,7 +373,7 @@ def crear_cita():
         accion="crear_cita",
         tabla_afectada="historial_citas",
         registro_id=cita_id,
-        detalle=f"Cita creada para paciente_id={paciente_id}, medico_id={data['medico_id']}, fecha={data['fecha_cita']}",
+        detalle=f"Cita creada para paciente_id={paciente_id}, medico_id={data['medico_id']}, fecha={data['fecha_cita']}, hora={hora_cita or 'sin hora'}",
         ip_origen=request.remote_addr,
         entidad_tipo="paciente",
         entidad_id=paciente_id,
@@ -389,14 +417,18 @@ def modificar_cita(cita_id):
         return jsonify({"error": "Se requieren fecha_cita y medico_id"}), 400
     try:
         fecha_obj = datetime.strptime(nueva_fecha, "%Y-%m-%d").date()
-        if fecha_obj < datetime.today().date():
+        if fecha_obj < _hoy_lima():
             return jsonify({"error": "La fecha no puede ser en el pasado"}), 400
     except ValueError:
         return jsonify({"error": "Formato invalido"}), 400
+    try:
+        hora_cita = _normalizar_hora_cita(data.get("hora_cita"))
+    except ValueError:
+        return jsonify({"error": "Formato de hora invalido (HH:MM)"}), 400
     if not medico_disponible(nuevo_medico, nueva_fecha, excluir_cita_id=cita_id):
         return jsonify({"error": "El medico ya tiene una cita ese dia"}), 409
 
-    result = call_proc_one("sp_modificar_cita", (cita_id, nueva_fecha, nuevo_medico))
+    result = call_proc_one("sp_modificar_cita", (cita_id, nueva_fecha, nuevo_medico, hora_cita))
     if not result or int(result.get("actualizadas") or 0) == 0:
         return jsonify({"error": "Cita no encontrada o ya no esta programada"}), 404
     ent_paciente_id, ent_paciente_nombre = _datos_paciente_cita(cita_id)
@@ -404,7 +436,7 @@ def modificar_cita(cita_id):
         accion="reprogramar_cita",
         tabla_afectada="historial_citas",
         registro_id=cita_id,
-        detalle=f"Cita reprogramada a fecha={nueva_fecha}, medico_id={nuevo_medico}",
+        detalle=f"Cita reprogramada a fecha={nueva_fecha}, hora={hora_cita or 'sin hora'}, medico_id={nuevo_medico}",
         ip_origen=request.remote_addr,
         entidad_tipo="paciente",
         entidad_id=ent_paciente_id,
