@@ -10,4 +10,7 @@ def create_app():
     from services.audit_service.routes import audit_bp
     app.register_blueprint(audit_bp)
 
+    from shared.service_auth import proteger_api_interna
+    proteger_api_interna(app)
+
     return app

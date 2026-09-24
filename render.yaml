@@ -12,6 +12,8 @@ services:
         value: "3.11.8"
       - key: FLASK_DEBUG
         value: "false"
+      - key: API_KEY
+        sync: false
       - key: SECRET_KEY
         generateValue: true
       - key: AUTH_SERVICE_URL
@@ -56,6 +58,10 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.8"
+      - key: API_KEY
+        sync: false
+      - key: SECRET_KEY
+        sync: false
 
   # ============================================
   # PACIENTES SERVICE — Puerto 5002
@@ -68,6 +74,10 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.8"
+      - key: API_KEY
+        sync: false
+      - key: SECRET_KEY
+        sync: false
 
   # ============================================
   # CITAS SERVICE — Puerto 5003
@@ -80,6 +90,10 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.8"
+      - key: API_KEY
+        sync: false
+      - key: SECRET_KEY
+        sync: false
 
   # ============================================
   # PAGOS SERVICE — Puerto 5004
@@ -92,6 +106,10 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.8"
+      - key: API_KEY
+        sync: false
+      - key: SECRET_KEY
+        sync: false
 
   # ============================================
   # NOTAS SERVICE — Puerto 5005
@@ -104,6 +122,10 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.8"
+      - key: API_KEY
+        sync: false
+      - key: SECRET_KEY
+        sync: false
 
   # ============================================
   # AUDIT SERVICE — Puerto 5006
@@ -116,3 +138,7 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.8"
+      - key: API_KEY
+        sync: false
+      - key: SECRET_KEY
+        sync: false

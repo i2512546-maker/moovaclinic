@@ -1,4 +1,4 @@
-import random
+import secrets
 import re
 import mysql.connector
 import requests as http_requests
@@ -533,7 +533,7 @@ def solicitar_otp():
         if not call_proc_one("sp_existe_cita_programada_paciente", (paciente["id"],)):
             return jsonify({"error": "No se encontraron citas programadas para ese DNI."}), 404
 
-    codigo = str(random.randint(100000, 999999))
+    codigo = str(secrets.randbelow(900000) + 100000)
     expira = datetime.now() + timedelta(minutes=OTP_EXPIRA_MIN)
 
     call_proc_execute("sp_invalidar_otps_previos", (dni, accion))
