@@ -193,6 +193,37 @@ def resumen_pacientes():
     return jsonify({"success": True, "resumen": resumen})
 
 
+@citas_bp.route("/api/kpis", methods=["GET"])
+def kpis_resumen():
+    """KPIs del panel admin (solo lectura, CROSS-DB de reportes).
+
+    Parametros obligatorios: desde=YYYY-MM-DD, hasta=YYYY-MM-DD
+    (fechas en hora de Peru). Llama a los procedimientos de la base
+    moovacloud_kpis y devuelve un solo JSON:
+      {"success": true, "resumen": {...}, "por_terapeuta": [...]}
+    Valida formato y que desde <= hasta (400 si algo falla)."""
+    desde = (request.args.get("desde") or "").strip()
+    hasta = (request.args.get("hasta") or "").strip()
+    if not desde or not hasta:
+        return jsonify({"error": "Se requieren los parametros desde y hasta (YYYY-MM-DD)"}), 400
+    try:
+        desde_dt = datetime.strptime(desde, "%Y-%m-%d").date()
+        hasta_dt = datetime.strptime(hasta, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"error": "Formato invalido, use YYYY-MM-DD"}), 400
+    if desde_dt > hasta_dt:
+        return jsonify({"error": "desde no puede ser mayor que hasta"}), 400
+
+    try:
+        resumen = call_proc_one("sp_kpis_resumen", (desde, hasta), db_name="moovacloud_kpis")
+        por_terapeuta = call_proc("sp_kpis_por_terapeuta", (desde, hasta), db_name="moovacloud_kpis") or []
+    except Exception as exc:
+        current_app.logger.error("[kpis_resumen] Error al calcular KPIs: %s: %s", type(exc).__name__, exc)
+        return jsonify({"error": "No se pudo calcular los KPIs"}), 500
+
+    return jsonify({"success": True, "resumen": resumen, "por_terapeuta": por_terapeuta})
+
+
 @citas_bp.route("/api/citas/<int:cita_id>", methods=["GET"])
 def detalle_cita(cita_id):
     cita = call_proc_one("sp_detalle_cita", (cita_id,))

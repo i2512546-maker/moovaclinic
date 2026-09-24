@@ -770,6 +770,34 @@ def create_app():
         return render_template("auditoria.html", logs=logs, filtros=filtros,
                                usuarios_filtro=usuarios_filtro)
 
+    @app.route("/panel_admin/kpis")
+    def panel_admin_kpis():
+        if "usuario_id" not in session or session.get("rol") != "admin":
+            return redirect(url_for("login"))
+
+        hoy = datetime.now().date()
+        try:
+            desde = datetime.strptime((request.args.get("desde") or "").strip(), "%Y-%m-%d").date() if (request.args.get("desde") or "").strip() else hoy - timedelta(days=30)
+            hasta = datetime.strptime((request.args.get("hasta") or "").strip(), "%Y-%m-%d").date() if (request.args.get("hasta") or "").strip() else hoy
+        except ValueError:
+            desde, hasta = hoy - timedelta(days=30), hoy
+        if desde > hasta:
+            desde, hasta = hoy - timedelta(days=30), hoy
+
+        resumen, por_terapeuta, error = None, [], None
+        try:
+            data, status = citas_client.get(f"/api/kpis?desde={desde.isoformat()}&hasta={hasta.isoformat()}")
+            if status == 200 and data.get("success"):
+                resumen = data.get("resumen") or {}
+                por_terapeuta = data.get("por_terapeuta") or []
+            else:
+                error = (data or {}).get("error") or "No se pudieron cargar los KPIs"
+        except Exception:
+            error = "Servicio de KPIs no disponible"
+
+        return render_template("kpis.html", resumen=resumen, por_terapeuta=por_terapeuta,
+                               desde=desde.isoformat(), hasta=hasta.isoformat(), error=error)
+
     @app.route("/panel_admin/cancelar_cita/<int:cita_id>", methods=["POST"])
     def admin_cancelar_cita(cita_id):
         if "usuario_id" not in session or session.get("rol") != "admin":
