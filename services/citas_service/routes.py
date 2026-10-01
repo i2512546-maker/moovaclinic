@@ -1,5 +1,4 @@
 import secrets
-import re
 import mysql.connector
 import requests as http_requests
 from datetime import datetime, timedelta
@@ -13,23 +12,7 @@ from shared.config import (
     TEXTBEE_API_KEY, TEXTBEE_DEVICE_ID, TEXTBEE_URL, KPIS_DB_NAME,
 )
 from shared.service_client import pacientes_client, pagos_client
-
-
-def _validar_datos_cita(nombre, apellido, dni, telefono):
-    """Valida formato estricto ANTES de tocar DB u otros servicios.
-    Devuelve un mensaje de error o None si todo OK."""
-    if not re.fullmatch(r"[A-Za-zÁÉÍÓÚáéíóúÑñ ]{2,60}", nombre):
-        return "Nombre inválido"
-    if not re.fullmatch(r"[A-Za-zÁÉÍÓÚáéíóúÑñ ]{2,60}", apellido):
-        return "Apellido inválido"
-    if not re.fullmatch(r"\d{8}", dni):
-        return "DNI inválido, debe tener 8 dígitos"
-    tel = re.sub(r"[\s\-]", "", telefono or "")
-    if tel.startswith("+51"):
-        tel = tel[3:]
-    if not re.fullmatch(r"\d{9}", tel):
-        return "Teléfono inválido, debe tener 9 dígitos"
-    return None
+from shared.validators import validar_datos_paciente
 
 
 def _enviar_sms(telefono, mensaje):
@@ -294,7 +277,7 @@ def crear_cita():
             return jsonify({"error": f"Campo requerido: {campo}"}), 400
 
     # Validacion de formato estricta, ANTES de tocar DB o servicios.
-    error_formato = _validar_datos_cita(
+    error_formato = validar_datos_paciente(
         str(data.get("nombre") or "").strip(),
         str(data.get("apellido") or "").strip(),
         str(data.get("dni") or "").strip(),
