@@ -2,15 +2,35 @@ import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
 import re
 import yaml
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, Response
 from flask_wtf.csrf import CSRFProtect, CSRFError, generate_csrf
 from datetime import datetime, timedelta
 from urllib.parse import urlencode
 from shared.config import REDES_SOCIALES
+from shared.fechas import fmt_fecha
 from shared.service_client import auth_client, pacientes_client, citas_client, pagos_client, notas_client, audit_client
 from shared.audit import log_accion
+from gateway.ficha_pdf import build_ficha_clinica_pdf
 
 csrf = CSRFProtect()
+
+
+def _cargar_anexos_paciente(paciente_id):
+    """Paquetes, evaluaciones iniciales y consentimientos de un paciente.
+
+    Cada bloque es independiente: si un microservicio no responde, el resto
+    de la ficha se sigue mostrando igual que antes en la vista HTML.
+    """
+    if not paciente_id:
+        return [], [], []
+    paquetes, evaluaciones, consentimientos = [], [], []
+    pdata, _ = pacientes_client.get(f"/api/pacientes/{paciente_id}/paquetes")
+    paquetes = pdata.get("paquetes", [])
+    edata, _ = pacientes_client.get(f"/api/pacientes/{paciente_id}/evaluaciones")
+    evaluaciones = edata.get("evaluaciones", [])
+    cdata, _ = pacientes_client.get(f"/api/pacientes/{paciente_id}/consentimientos")
+    consentimientos = cdata.get("consentimientos", [])
+    return paquetes, evaluaciones, consentimientos
 
 
 def _is_ajax():
@@ -89,6 +109,9 @@ def create_app():
     if os.getenv("FLASK_ENV") == "production":
         app.config["SESSION_COOKIE_SECURE"] = True
     csrf.init_app(app)
+
+    app.jinja_env.filters["fecha"] = lambda v: fmt_fecha(v)
+    app.jinja_env.filters["fechahora"] = lambda v: fmt_fecha(v, con_hora=True)
 
     try:
         from flasgger import Swagger
@@ -853,20 +876,35 @@ def create_app():
         data, _ = pacientes_client.get(f"/api/pacientes/{paciente_dni}")
         paciente = data.get("paciente", {})
         historial = data.get("historial", [])
-        paciente_id_val = paciente.get("id")
-
-        paquetes, evaluaciones, consentimientos = [], [], []
-        if paciente_id_val:
-            pdata, _ = pacientes_client.get(f"/api/pacientes/{paciente_id_val}/paquetes")
-            paquetes = pdata.get("paquetes", [])
-            edata, _ = pacientes_client.get(f"/api/pacientes/{paciente_id_val}/evaluaciones")
-            evaluaciones = edata.get("evaluaciones", [])
-            cdata, _ = pacientes_client.get(f"/api/pacientes/{paciente_id_val}/consentimientos")
-            consentimientos = cdata.get("consentimientos", [])
+        paquetes, evaluaciones, consentimientos = _cargar_anexos_paciente(paciente.get("id"))
 
         return render_template("detalle_paciente.html", paciente=paciente,
                                historial=historial, paquetes=paquetes,
                                evaluaciones=evaluaciones, consentimientos=consentimientos)
+
+    @app.route("/pacientes/<paciente_dni>/ficha-clinica.pdf")
+    @_admin_required
+    def ficha_clinica_pdf(paciente_dni):
+        data, status = pacientes_client.get(f"/api/pacientes/{paciente_dni}")
+        if status == 404 or not data.get("paciente"):
+            flash("Paciente no encontrado", "danger")
+            return redirect(url_for("pacientes_page"))
+
+        paciente = data.get("paciente", {})
+        historial = data.get("historial", [])
+        paquetes, evaluaciones, consentimientos = _cargar_anexos_paciente(paciente.get("id"))
+
+        pdf_bytes = build_ficha_clinica_pdf(
+            paciente, historial, paquetes, evaluaciones, consentimientos,
+            generado_por=session.get("usuario_nombre"),
+        )
+        log_accion("ficha_clinica_pdf", paciente_id=paciente.get("id"), dni=paciente_dni)
+        nombre_archivo = f"ficha_clinica_{paciente.get('dni') or paciente_dni}.pdf"
+        return Response(
+            pdf_bytes,
+            mimetype="application/pdf",
+            headers={"Content-Disposition": f'inline; filename="{nombre_archivo}"'},
+        )
 
     @app.route("/notas/<int:cita_id>", methods=["GET", "POST"])
     @_login_required
