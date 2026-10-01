@@ -2,13 +2,13 @@
 # Auditoria centralizada (Punto 5)
 #
 # FASE 2: cada servicio usa su propia base de datos; logs_auditoria
-# vive en la BD del audit_service (audit_db). Esta funcion ya NO toca
+# vive en la BD del audit_service (moovacloud_auditoria). Esta funcion ya NO toca
 # la BD directamente: delega la insercion por HTTP al audit_service
 # (POST /api/auditoria), que invoca sp_insertar_log_auditoria.
 #
 # La firma publica se conserva (usuario_id, accion, tabla_afectada,
 # registro_id, detalle, ip_origen) para no tocar los callers; aqui se
-# mapea al esquema de audit_db (usuario_tipo, usuario_nombre, detalles).
+# mapea al esquema de moovacloud_auditoria (usuario_tipo, usuario_nombre, detalles).
 #
 # USO (desde cualquier servicio):
 #   from shared.audit import log_accion

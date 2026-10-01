@@ -17,7 +17,7 @@ def _obtener_cita_info(cita_id):
     """Datos de la cita (nombre/apellido/terapeuta/Especialidad/
     telefono/fecha) via citas_service. Antes venian de
     sp_obtener_cita_para_confirmar / sp_obtener_pago_pendiente
-    (CROSS-DB a citas_db/pacientes_db/auth_db)."""
+    (CROSS-DB a moovacloud_citas/moovacloud_pacientes/moovacloud_auth)."""
     try:
         data, status = citas_client.get(f"/api/citas/{cita_id}")
         if status == 200:
@@ -109,7 +109,7 @@ def confirmar_pago_servicio(cita_id, referencia=None, datos_respuesta=None, veri
             except Exception:
                 pass
 
-        # FASE 2: el telefono del medico vive en auth_db (usuarios);
+        # FASE 2: el telefono del medico vive en moovacloud_auth (usuarios);
         # se resuelve por HTTP: terapeuta (pacientes) -> usuario_id ->
         # auth_service GET /api/auth/usuarios/<id>.
         telefono_paciente = cita.get("telefono_paciente") or cita.get("telefono")

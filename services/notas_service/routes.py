@@ -41,7 +41,7 @@ def crear_nota(cita_id):
 
     if not paciente_id:
         # FASE 2: paciente_id de la cita via citas_service. Se usa el
-        # endpoint liviano /basico (solo datos locales de citas_db) en
+        # endpoint liviano /basico (solo datos locales de moovacloud_citas) en
         # vez del detalle enriquecido, que dispara llamadas HTTP a
         # pacientes_service y supera el timeout de ServiceClient.
         try:

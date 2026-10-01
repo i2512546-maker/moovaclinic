@@ -1,5 +1,5 @@
 -- ============================================================
--- auth_db.sql
+-- moovacloud_auth.sql
 -- Base de datos de AUTENTICACION / AUTORIZACION
 -- Servicio que la consume: auth_service
 -- FASE 1 - Separacion de bases (solo archivos SQL)
@@ -17,7 +17,7 @@
 -- Notas de FASE 1:
 --   - El almacen de auditoria y su procedimiento de insercion
 --     (estructura + logica) quedaron fuera de este archivo:
---     ahora viven en audit_db.sql.
+--     ahora viven en moovacloud_auditoria.sql.
 --   - Los procedimientos que tocan tablas de otras bases se
 --     conservan comentados y documentados como CROSS-DB
 --     (pendientes de convertir en Fase 2).
@@ -261,5 +261,5 @@ END$$
 DELIMITER ;
 
 -- ============================================================
--- FIN auth_db.sql
+-- FIN moovacloud_auth.sql
 -- ============================================================

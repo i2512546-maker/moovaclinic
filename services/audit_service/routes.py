@@ -15,9 +15,9 @@ def _fecha_param(key):
 
 @audit_bp.route("/api/auditoria", methods=["POST"])
 def registrar_auditoria():
-    """Registra una accion en logs_auditoria (audit_db).
+    """Registra una accion en logs_auditoria (moovacloud_auditoria).
 
-    Recibe el esquema de audit_db; la composicion de las claves
+    Recibe el esquema de moovacloud_auditoria; la composicion de las claves
     antiguas de shared/audit.py (tabla_afectada/registro_id/detalle)
     la hace el propio log_accion antes de llamar por HTTP.
     """
