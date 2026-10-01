@@ -1,5 +1,4 @@
 import os
-import requests
 from dotenv import load_dotenv, find_dotenv
 
 # Carga primero el .env del directorio de trabajo del proceso (el de cada

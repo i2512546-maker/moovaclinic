@@ -3,7 +3,6 @@ sys.path.insert(0, os.path.dirname(__file__))
 import re
 import yaml
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
-from flask_bcrypt import Bcrypt
 from flask_wtf.csrf import CSRFProtect, CSRFError, generate_csrf
 from datetime import datetime, timedelta
 from urllib.parse import urlencode
@@ -11,7 +10,6 @@ from shared.config import REDES_SOCIALES
 from shared.service_client import auth_client, pacientes_client, citas_client, pagos_client, notas_client, audit_client
 from shared.audit import log_accion
 
-bcrypt = Bcrypt()
 csrf = CSRFProtect()
 
 
@@ -90,7 +88,6 @@ def create_app():
     # Solo si se usa HTTPS en producción; en localhost http queda desactivado automaticamente
     if os.getenv("FLASK_ENV") == "production":
         app.config["SESSION_COOKIE_SECURE"] = True
-    bcrypt.init_app(app)
     csrf.init_app(app)
 
     try:

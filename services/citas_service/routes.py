@@ -2,7 +2,7 @@ import secrets
 import re
 import mysql.connector
 import requests as http_requests
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from flask import request, jsonify, current_app
 from services.citas_service import citas_bp

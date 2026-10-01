@@ -1,6 +1,6 @@
 from flask import request, jsonify
 from services.notas_service import notas_bp
-from shared.proc import call_proc, call_proc_one, call_proc_execute
+from shared.proc import call_proc, call_proc_one
 from shared.service_client import citas_client, pacientes_client
 from shared.config import NOTAS_DB_NAME
 

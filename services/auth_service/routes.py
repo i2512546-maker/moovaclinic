@@ -1,8 +1,7 @@
-from datetime import datetime, timedelta
 from flask import request, jsonify, session
 from services.auth_service import auth_bp
 from services.auth_service.app import bcrypt
-from shared.config import OTP_EXPIRA_MIN, OTP_MAX_INTENTOS, MAX_INTENTOS_IP, TIEMPO_BLOQUEO
+from shared.config import OTP_EXPIRA_MIN, MAX_INTENTOS_IP, TIEMPO_BLOQUEO
 from shared.proc import call_proc, call_proc_one, call_proc_execute
 import time
 
