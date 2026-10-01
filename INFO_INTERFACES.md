@@ -174,7 +174,7 @@
   - Según método_pago: panel Yape (QR), Plin (QR), tarjeta (form Niubiz) o transferencia.
   - Wizzard de pasos completados (1-4 todos "completed").
 - **Interacciones del usuario:**
-  1. **Yape/Plin:** Clic "Mostrar código QR de Yape" → fetch `POST /api/pagos/yape/iniciar` con `{cita_id}`; devuelve `qr` (base64) y `cobro_id`; muestra imagen en modal. Clic "Ya realicé el pago" → `verificarYape()` → setTimeout 800ms simula éxito → cierra modal y muestra overlay `overlayExito`.
+  1. **Yape/Plin:** Clic "Mostrar código QR de Yape" → fetch `POST /api/pagos/yape/iniciar` con `{cita_id}`; devuelve `qr` (base64) y `cobro_id`; muestra imagen en modal. Clic "Ya realicé el pago" → `verificarYape()` → hace `POST /api/pagos/yape/estado` con `{cita_id, cobro_id}`; si la respuesta trae `pagado: true` cierra el modal y muestra overlay `overlayExito`, si no muestra el error del servicio y reactiva el botón.
   2. **Tarjeta:** Llena formulario número, titular, vencimiento (MM/AA), CVV; submit `POST /api/pagos/tarjeta/iniciar` (obtiene `sessionKey`, `merchantId` de NiubizClient) → luego `POST /api/pagos/tarjeta/cobrar` con `cardToken`, `cvv`, `purchaseNumber`. Si `res.ok && res.pagado` → overlay éxito.
   3. **Transferencia:** Clic "Confirmar pago" → muestra mensaje "método requiere cuenta bancaria configurada. Contacta con administración." (placeholders).
   4. Después de pago exitoso → `irARetorno()` → navega a `/retorno?cita_id=X`.
@@ -186,14 +186,14 @@
   - Igual flujo para `POST /api/pagos/plin/iniciar` y `/plin/estado` usando `PlinClient`.
   - `POST /api/pagos/tarjeta/iniciar` → `NiubizClient().get_session_key()` → devuelve `sessionKey`, `merchantId`, `monto`, `purchaseNumber`.
   - `POST /api/pagos/tarjeta/cobrar` → `NiubizClient().cobrar(card_token, cvv, purchase_number, monto)`; si ok → `confirmar_pago_servicio(cita_id, referencia=res["transaccion_id"], datos_respuesta=res.get("datos_respuesta"))`; devuelve `{"ok":True,"pagado":True,"transaccion_id":res["transaccion_id"]}`.
-  - Flujo simulación: `verificarYape()` y `verificarPlin()` usan `setTimeout(800ms)` para simular éxito (comentado TODO-DEMO). En producción real se habría que llamar al endpoint `/api/pagos/yape|plin/estado` con el `cobro_id` real.
+  - Verificación real: `verificarYape()`/`verificarPlin()` llaman a `verificarCobro()`, que hace `POST /api/pagos/yape|plin/estado` con `{cita_id, cobro_id}`. Solo si la respuesta trae `pagado: true` se cierra el modal y se muestra el overlay de éxito; el pago se confirma en `pagos_service`, no en el navegador.
 
 ### 9. Retorno
 - **Archivo/ruta:** `templates/retorno.html`, ruta `/retorno?cita_id=X`
-- **Rol:** Staff (después de pago confirmado o demo)
+- **Rol:** Staff (después de que `pagos_service` confirma el pago)
 - **Función:** Pantalla de confirmación final: cita agendada con éxito, datos resumidos y contactos.
 - **Objetivo:** Confirmar al usuario que su cita quedó registrada y facilitar contacto posterior.
-- **Pre-requisitos:** `cita_id` como query param; pago `pagado` o `es_cita_pendiente` (cita creada en sesión actual).
+- **Pre-requisitos:** `cita_id` como query param y pago en estado `pagado` (confirmado por `pagos_service`); si no lo está, redirige de vuelta a `/pago`.
 - **Datos a mostrar:** 
   - Círculo de confirmación con check.
   - Título "¡Tu cita ha sido agendada!".
@@ -205,7 +205,7 @@
 - **Servicios/endpoints/tablas:** 
   - `GET /api/pagos/{cita_id}` (mismo que en pago) para obtener datos de pago.
   - `GET /api/citas/{cita_id}` (citas_service.detalle_cita) para datos de cita (nombre, apellido, terapeuta, Especialidad, fecha_cita, monto, metodo_pago).
-  - Lógica demo: `es_cita_pendiente = str(session.get("cita_pendiente_id") or "") == str(cita_id)`; si pago != "pagado" y no es cita pendiente → redirect a `/pago?cita_id=cita_id`. Si es cita pendiente o pago pagado → `session.pop("cita_pendiente_id", None)` y renderiza plantilla.
+  - Guarda: si el pago no figura `pagado` redirige a `/pago?cita_id=...`; en caso contrario limpia `session["cita_pendiente_id"]` y renderiza la plantilla.
 
 ### 10. Panel Admin
 - **Archivo/ruta:** `templates/paneladmin.html`, ruta `/panel_admin`
@@ -277,7 +277,7 @@
 - **Navega a:** `/panel_admin`, `/panel_admin/auditoria`, `/logout`, `/index`
 - **Servicios/endpoints/tablas:** 
   - `GET /api/kpis?desde=YYYY-MM-DD&hasta=YYYY-MM-DD` (citas_service.kpis_resumen) → valida formato y que `desde <= hasta`; llama a `call_proc_one("sp_kpis_resumen", (desde, hasta), db_name="moovacloud_kpis")` y `call_proc("sp_kpis_por_terapeuta", (desde, hasta), db_name="moovacloud_kpis")` o `[]`; devuelve `{"success":True,"resumen":{...},"por_terapeuta":[...]}`.
-  - SP `sp_kpis_resumen` y `sp_kpis_por_terapeuta` operan sobre base `moovacloud_kpis` (no forma parte del split de 7 DBs principales; es de reporte cross-DB).
+  - SP `sp_kpis_resumen` y `sp_kpis_por_terapeuta` viven en `moovacloud_kpis` (`db_split/kpis_db.sql`) y son de reporte cross-DB: leen de las demás bases, no escriben.
 
 ### 13. Pacientes
 - **Archivo/ruta:** `templates/pacientes.html`, ruta `/pacientes`
@@ -310,7 +310,7 @@
   - Paquetes de sesiones: tabla con servicio nombre, sesiones usadas/sesiones totales, progreso (barra de progreso), fecha de compra, vencimiento, estado.
   - Evaluaciones iniciales: tabla con fecha, terapeuta, motivo consulta, dolor EVA (0-10), rango movimiento, objetivos terapéuticos.
   - Consentimientos informados: tabla con tipo, versión, fecha aceptación (dd/mm/YYYY HH:MM), IP origen.
-  - Botón "Descargar Ficha PDF" → enlace `url_for('ficha_clinica_pdf', paciente_id=paciente.id)` (ruta no implementada en el código actual; se indica como maqueta/pendiente).
+  - Botón "Descargar Ficha PDF" → `GET /pacientes/<dni>/ficha-clinica.pdf` (endpoint `ficha_clinica_pdf`, solo admin). Genera el PDF con `reportlab` (`gateway/ficha_pdf.py`): encabezado, datos del paciente, historial de citas, paquetes, evaluaciones iniciales, consentimientos y pie con la fecha de emisión. Se abre en una pestaña nueva.
 - **Interacciones del usuario:** Ninguna beyond view; scroll dentro de la página.
 - **Navega a:** `/pacientes`, `/index`, `/logout`
 - **Servicios/endpoints/tablas:** 
@@ -357,13 +357,13 @@
 | Modificar Cita | DNI + OTP verificado | `POST /api/citas/otp/solicitar/verificar`, `PUT /api/citas/{id}` | 2‑step OTP, listar citas, editar fecha/médico |
 | Cancelar Cita | DNI + OTP verificado | Igual que modificar, `DELETE /api/citas/{id}` | 2‑step OTP, confirmar cancelación |
 | Tratamiento | Paciente con paquete activo | `POST /api/citas/otp/solicitar (accion=tratamiento)`, paquetes API | OTP, listar paquetes, agendar sesión + usar sesión paquete |
-| Pago | `cita_pendiente_id` en sesión | `GET /api/pagos/{id}`, `/api/pagos/yape/iniciar`, `/api/pagos/plin/iniciar`, `/api/pagos/tarjeta/iniciar/cobrar` | QR Yape/Plin (simulado), form tarjeta Niubiz, transferencia (placeholder) |
-| Retorno | pago confirmado o demo | `GET /api/pagos/{id}`, `GET /api/citas/{id}` | Pantalla estática, botones volver/inicios/Contacto |
+| Pago | `cita_pendiente_id` en sesión | `GET /api/pagos/{id}`, `/api/pagos/yape/iniciar`, `/api/pagos/plin/iniciar`, `/api/pagos/yape/estado`, `/api/pagos/plin/estado`, `/api/pagos/tarjeta/iniciar/cobrar` | QR Yape/Plin con verificación real, form tarjeta Niubiz, transferencia (placeholder) |
+| Retorno | pago confirmado por `pagos_service` | `GET /api/pagos/{id}`, `GET /api/citas/{id}` | Pantalla estática, botones volver/inicios/Contacto |
 | Panel Admin | rol admin | `/api/terapeutas`, `/api/auth/usuarios`, `/api/citas` | CRUD médicos, actualizar precio, cambiar clave, desactivar/ reactivar, listar usuarios, citas próximas |
 | Auditoría | rol admin, filtros opcionales | `GET /api/auditoria?filtros` | Aplicar filtros, tabla logs, "No hay registros" |
 | KPIs | rol admin, rango fechas | `GET /api/kpis?desde=...&hasta=...` | Selector de fechas, tarjetas resumen, tabla por terapeuta |
 | Pacientes | rol admin | `GET /api/pacientes` | Buscador client‑side, cards con badge estado, enlaces historial |
-| Detalle Paciente | DNI válido, admin | `GET /api/pacientes/{dni}`, `/paquetes`, `/evaluaciones`, `/consentimientos` | Ficha completa: datos, historial, paquetes, evaluaciones, consentimientos, PDF (maqueta) |
+| Detalle Paciente | DNI válido, admin | `GET /api/pacientes/{dni}`, `/paquetes`, `/evaluaciones`, `/consentimientos` | Ficha completa: datos, historial, paquetes, evaluaciones, consentimientos, descarga del PDF |
 | Notas Cita | sesión activa, cita_id | `GET /api/notas/{cita_id}`, `POST /api/notas/{cita_id}` | Form nueva nota, lista notas previas, flash éxito |
 
 ---
@@ -397,15 +397,14 @@ flowchart TD
 
 ## 5. Conclusión
 
-MOOVA Clinic presenta una arquitectura de microservicios Flask totalmente separada por dominio (auth, pacientes, citas, pagos, notas, auditoría) sobre bases de datos divididas, lo que garantiza aislamiento y escalabilidad. El flujo de usuario cubre todo el ciclo de vida de una cita: desde la primera visita en la página pública, pasando por la autenticación del personal, la agendación con validaciones de formato y disponibilidad, la elección y cobro del método de pago (con simulación de pasarelas Yape/Plin y flujo real Niubiz para tarjetas), hasta la confirmación final y la gestión administrativa. Todas las pantallas están cubiertas por vistas HTML con Bootstrap 5 y Javascript interactivo, y los datos de origen se obtienen mediante endpoints API bien definidos y stored procedures sobre las 7 bases de datos `moovacloud_*`. Queda pendiente la implementación real de los proveedores de pago Yape/Plin (actualmente simulado con `setTimeout`) y la generación del PDF de ficha clínica; asimismo, los roles exactos más allá de `admin`/`terapeuta` y la configuración completa de APIPERU/TEXTBEE/Niubiz en producción deben verificarse.
+MOOVA Clinic presenta una arquitectura de microservicios Flask totalmente separada por dominio (auth, pacientes, citas, pagos, notas, auditoría) sobre bases de datos divididas, lo que garantiza aislamiento y escalabilidad. El flujo de usuario cubre todo el ciclo de vida de una cita: desde la primera visita en la página pública, pasando por la autenticación del personal, la agendación con validaciones de formato y disponibilidad, la elección y cobro del método de pago (Yape, Plin y tarjeta Niubiz, todos confirmados en el backend) hasta la confirmación final y la gestión administrativa. Todas las pantallas están cubiertas por vistas HTML con Bootstrap 5 y Javascript interactivo, y los datos de origen se obtienen mediante endpoints API bien definidos y stored procedures sobre las 7 bases de datos `moovacloud_*`. Queda pendiente únicamente la configuración de credenciales reales en producción (APIPERU, TextBEE, Yape, Plin y Niubiz) y la confirmación de los roles más allá de `admin`/`terapeuta`.
 
 ---
 
-## 6. Pantallas no inferibles con certeza
+## 6. Pendiente de verificar en producción
 
-- **PDF ficha clínica:** El enlace `url_for('ficha_clinica_pdf', paciente_id=...)` existe en `detalle_paciente.html` pero no hay ruta/controlador asociado en el código actual; se trata de una maqueta pendiente.
-- **Proveedores de pago reales:** Los flujos Yape, Plin y tarjeta Niubiz incluyen `TODO-DEMO` y simulaciones; en producción requerirán credenciales y SDK efectivos no configurados en el repo.
-- **APIPERU validación DNI:** El endpoint `/api/verificar_dni` consulta a API externa; su éxito depende de la clave `APIPERU_TOKEN` y disponibilidad del servicio, no verificada en el entorno actual.
-- **TextBEE SMS:** El envío de SMS usa `TEXTBEE_API_KEY`, `TEXTBEE_DEVICE_ID`, `TEXTBEE_URL` desde `.env`; sin estos valores los flujos OTP y confirmación de pago cayerron en error silencioso.
-- **Roles adicionales:** El código distingue `admin` y `terapeuta`; no se observan roles de `paciente` en el flujo de sesión (el público accede a citas/pago/retorno sin login). Queda si el paciente tiene un rol propio en bases o es puramente público.
-- **Base de datos `moovacloud_kpis`:** No forma parte del set de 7 `db_split/*.sql`; su esquema y procedimientos `sp_kpis_resumen`/`sp_kpis_por_terapeuta` son cross‑DB y no fueron inspeccionados directamente.
+- **Credenciales de proveedores externos:** los clientes de Yape, Plin y Niubiz (`shared/payments/`), APIPERU y TextBEE ya están implementados y devuelven un error explícito al usuario cuando faltan credenciales, pero requieren valores reales en el `.env` de producción para funcionar.
+- **APIPERU validación DNI:** el endpoint `/api/verificar_dni` consulta a una API externa; su éxito depende de la clave `APIPERU_TOKEN` y de la disponibilidad del servicio.
+- **TextBEE SMS:** usa `TEXTBEE_API_KEY`, `TEXTBEE_DEVICE_ID` y `TEXTBEE_URL`. Sin ellos, el envío de OTP responde `500 "No se pudo enviar el SMS."` (falla de forma visible). Los SMS de confirmación de pago son avisos de cortesía y se omiten en silencio si fallan, sin afectar el cobro ya confirmado.
+- **Roles adicionales:** el código distingue `admin` y `terapeuta`; no se observan roles de `paciente` en el flujo de sesión (el público accede a citas/pago/retorno sin login). Queda confirmar si el paciente tiene un rol propio en bases o es puramente público.
+- **Transferencia bancaria:** el panel de pago informa que el método no tiene integración contratada y que hay que contactar con administración; no hay cobro automático.
