@@ -1,8 +1,9 @@
 import requests
-from flask import request, jsonify, current_app
+from flask import current_app, jsonify, request
+
 from services.pacientes_service import pacientes_bp
 from shared.config import APIPERU_TOKEN, APIPERU_URL
-from shared.proc import call_proc, call_proc_one, call_proc_execute
+from shared.proc import call_proc, call_proc_execute, call_proc_one
 from shared.service_client import auth_client, citas_client, pagos_client
 from shared.validators import validar_datos_paciente
 
@@ -85,7 +86,7 @@ def crear_paciente_min():
     if not all([nombre, apellido, dni, telefono]):
         return jsonify({"error": "Todos los campos son requeridos."}), 400
 
-    error = _validar_datos_paciente(nombre, apellido, dni, telefono)
+    error = validar_datos_paciente(nombre, apellido, dni, telefono)
     if error:
         return jsonify({"error": error}), 400
 
