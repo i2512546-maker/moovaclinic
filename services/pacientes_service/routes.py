@@ -191,6 +191,29 @@ def actualizar_paciente(dni):
     return jsonify({"success": True})
 
 
+def _resumen_dni(api_data):
+    """Reduce la respuesta de APIPERU a lo que el flujo de reserva usa.
+
+    APIPERU devuelve el expediente completo del titular (direccion,
+    telefonos, ubigeo, fecha de nacimiento, etc). El formulario de cita
+    solo autocompleta nombres y apellidos, asi que se filtra el resto
+    para no exponer datos que el flujo no necesita. Se aceptan las dos
+    variantes de nombre que devuelve la API (con y sin guion bajo).
+    """
+    datos = api_data.get("data") if isinstance(api_data.get("data"), dict) else {}
+    nombres = datos.get("nombres") or datos.get("nombre")
+    paterno = datos.get("apellido_paterno") or datos.get("apellidoPaterno") or ""
+    materno = datos.get("apellido_materno") or datos.get("apellidoMaterno") or ""
+    return {
+        "nombres": nombres or "",
+        "nombre": nombres or "",
+        "apellido_paterno": paterno,
+        "apellido_materno": materno,
+        "apellidoPaterno": paterno,
+        "apellidoMaterno": materno,
+    }
+
+
 @pacientes_bp.route("/api/pacientes/buscar_dni", methods=["POST"])
 def buscar_dni():
     data = request.get_json() or {}
@@ -204,7 +227,12 @@ def buscar_dni():
         if resp.status_code == 200:
             api_data = resp.json()
             if api_data.get("success"):
-                return jsonify({"success": True, "data": api_data})
+                # APIPERU devuelve el expediente completo (DNI, direccion,
+                # telefonos, ubigeo, etc). El formulario de reserva solo
+                # necesita nombres y apellidos, asi que se devuelve un
+                # resumen: retransmitir el payload crudo exponia datos
+                # que el flujo de reserva no usa.
+                return jsonify({"success": True, "data": _resumen_dni(api_data)})
     except Exception as exc:
         current_app.logger.error(
             "[buscar_dni] Error consultando APIPERU (dni=%s): %s: %s",
