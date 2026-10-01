@@ -12,6 +12,9 @@
 #    pero quede visible en los logs.
 #  - Se exime el path "/" y "/health" para los health checks de
 #    Render (que hacen GET al root).
+#  - Se exime el webhook de pagos (/api/pagos/webhook): el proveedor
+#    autentica con X-Provider-Token / X-Signature (movimientos reales
+#    de pago), no con la API_KEY interna del gateway.
 # ============================================================
 
 import hmac
@@ -28,7 +31,7 @@ def proteger_api_interna(app):
     def _verificar_api_key():
         if request.method == "OPTIONS":
             return None
-        if request.path in ("/", "/health"):
+        if request.path in ("/", "/health", "/api/pagos/webhook"):
             return None
         esperada = (API_KEY or "").strip()
         if not esperada:
