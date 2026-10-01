@@ -1,4 +1,33 @@
-version: "3.8"
+# ============================================================
+# MOOVA Clinic - orquestacion local (docker compose)
+#
+# Solo el gateway publica puerto. Los 6 microservicios quedan en la red
+# interna: no se exponen al host ni a Internet, y ademas exigen la
+# API_KEY interna en cada request (ver shared/service_auth.py).
+#
+# MySQL NO se levanta aqui: las bases viven en el hosting (Alwaysdata).
+# Para desarrollo local se puede agregar un servicio mysql importando los
+# 7 db_split/*.sql, leyendo del .env las credenciales.
+#
+# NOTA sobre anchors de YAML: no se puede usar %(port)s para parametrizar
+# el healthcheck desde un ancla, porque Docker Compose no sustituye esa
+# variable (quedaria el literal y el check fallaria siempre). Por eso
+# cada servicio declara su propio puerto en el test.
+# ============================================================
+
+x-servicio: &servicio
+  build: .
+  restart: unless-stopped
+  networks:
+    - moova-net
+
+x-urls: &urls
+  AUTH_SERVICE_URL: http://auth-service:5001
+  PACIENTES_SERVICE_URL: http://pacientes-service:5002
+  CITAS_SERVICE_URL: http://citas-service:5003
+  PAGOS_SERVICE_URL: http://pagos-service:5004
+  NOTAS_SERVICE_URL: http://notas-service:5005
+  AUDIT_SERVICE_URL: http://audit-service:5006
 
 services:
   gateway:
@@ -7,106 +36,108 @@ services:
     ports:
       - "5000:5000"
     env_file: .env
+    restart: unless-stopped
     depends_on:
-      - auth-service
-      - pacientes-service
-      - citas-service
-      - pagos-service
-      - notas-service
-      - audit-service
+      auth-service:
+        condition: service_healthy
+      pacientes-service:
+        condition: service_healthy
+      citas-service:
+        condition: service_healthy
+      pagos-service:
+        condition: service_healthy
+      notas-service:
+        condition: service_healthy
+      audit-service:
+        condition: service_healthy
     environment:
-      - AUTH_SERVICE_URL=http://auth-service:5001
-      - PACIENTES_SERVICE_URL=http://pacientes-service:5002
-      - CITAS_SERVICE_URL=http://citas-service:5003
-      - PAGOS_SERVICE_URL=http://pagos-service:5004
-      - NOTAS_SERVICE_URL=http://notas-service:5005
-      - AUDIT_SERVICE_URL=http://audit-service:5006
+      <<: *urls
     networks:
       - moova-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:5000/', timeout=3).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   auth-service:
-    build: .
+    <<: *servicio
     command: python -m services.auth_service.run
     env_file: services/auth_service/.env
     environment:
-      - AUTH_SERVICE_URL=http://auth-service:5001
-      - PACIENTES_SERVICE_URL=http://pacientes-service:5002
-      - CITAS_SERVICE_URL=http://citas-service:5003
-      - PAGOS_SERVICE_URL=http://pagos-service:5004
-      - NOTAS_SERVICE_URL=http://notas-service:5005
-      - AUDIT_SERVICE_URL=http://audit-service:5006
-    networks:
-      - moova-net
+      <<: *urls
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:5001/health', timeout=3).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   pacientes-service:
-    build: .
+    <<: *servicio
     command: python -m services.pacientes_service.run
     env_file: services/pacientes_service/.env
     environment:
-      - AUTH_SERVICE_URL=http://auth-service:5001
-      - PACIENTES_SERVICE_URL=http://pacientes-service:5002
-      - CITAS_SERVICE_URL=http://citas-service:5003
-      - PAGOS_SERVICE_URL=http://pagos-service:5004
-      - NOTAS_SERVICE_URL=http://notas-service:5005
-      - AUDIT_SERVICE_URL=http://audit-service:5006
-    networks:
-      - moova-net
+      <<: *urls
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:5002/health', timeout=3).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   citas-service:
-    build: .
+    <<: *servicio
     command: python -m services.citas_service.run
     env_file: services/citas_service/.env
     environment:
-      - AUTH_SERVICE_URL=http://auth-service:5001
-      - PACIENTES_SERVICE_URL=http://pacientes-service:5002
-      - CITAS_SERVICE_URL=http://citas-service:5003
-      - PAGOS_SERVICE_URL=http://pagos-service:5004
-      - NOTAS_SERVICE_URL=http://notas-service:5005
-      - AUDIT_SERVICE_URL=http://audit-service:5006
-    networks:
-      - moova-net
+      <<: *urls
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:5003/health', timeout=3).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   pagos-service:
-    build: .
+    <<: *servicio
     command: python -m services.pagos_service.run
     env_file: services/pagos_service/.env
     environment:
-      - AUTH_SERVICE_URL=http://auth-service:5001
-      - PACIENTES_SERVICE_URL=http://pacientes-service:5002
-      - CITAS_SERVICE_URL=http://citas-service:5003
-      - PAGOS_SERVICE_URL=http://pagos-service:5004
-      - NOTAS_SERVICE_URL=http://notas-service:5005
-      - AUDIT_SERVICE_URL=http://audit-service:5006
-    networks:
-      - moova-net
+      <<: *urls
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:5004/health', timeout=3).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   notas-service:
-    build: .
+    <<: *servicio
     command: python -m services.notas_service.run
     env_file: services/notas_service/.env
     environment:
-      - AUTH_SERVICE_URL=http://auth-service:5001
-      - PACIENTES_SERVICE_URL=http://pacientes-service:5002
-      - CITAS_SERVICE_URL=http://citas-service:5003
-      - PAGOS_SERVICE_URL=http://pagos-service:5004
-      - NOTAS_SERVICE_URL=http://notas-service:5005
-      - AUDIT_SERVICE_URL=http://audit-service:5006
-    networks:
-      - moova-net
+      <<: *urls
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:5005/health', timeout=3).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   audit-service:
-    build: .
+    <<: *servicio
     command: python -m services.audit_service.run
     env_file: services/audit_service/.env
     environment:
-      - AUTH_SERVICE_URL=http://auth-service:5001
-      - PACIENTES_SERVICE_URL=http://pacientes-service:5002
-      - CITAS_SERVICE_URL=http://citas-service:5003
-      - PAGOS_SERVICE_URL=http://pagos-service:5004
-      - NOTAS_SERVICE_URL=http://notas-service:5005
-      - AUDIT_SERVICE_URL=http://audit-service:5006
-    networks:
-      - moova-net
+      <<: *urls
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:5006/health', timeout=3).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
 networks:
   moova-net:
