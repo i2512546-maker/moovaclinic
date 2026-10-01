@@ -7,6 +7,5 @@ python-dotenv==1.2.2
 mysql-connector-python==9.1.0
 gunicorn==23.0.0
 setuptools==83.0.0
-APScheduler==3.10.4
 flasgger==0.9.7.1
 MarkupSafe==2.1.5
