@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches: [main, branch-jarib]
+  pull_request:
+    branches: [main, branch-jarib]
+
+jobs:
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: ruff check
+        run: ruff check .
+
+  tests:
+    name: Tests (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      # Los tests no tocan MySQL: shared.config exige SECRET_KEY y los
+      # procs se parchean. API_KEY tambien porque la auth interna esta
+      # cerrada sin ella.
+      - name: Configurar entorno
+        run: |
+          echo "SECRET_KEY=clave-de-pruebas-ci" >> "$GITHUB_ENV"
+          echo "API_KEY=clave-interna-ci" >> "$GITHUB_ENV"
+          echo "ALLOW_INSECURE_INTERNAL_API=1" >> "$GITHUB_ENV"
+
+      - name: pytest
+        run: pytest -v
+
+  audit-python:
+    name: Auditoria de dependencias
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: pip-audit
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.txt
+
+  sql-estatico:
+    name: Coherencia de procedimientos SQL
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # Detecta procedimientos definidos en db_split/ que el codigo nunca
+      # llama, y llamadas a procedimientos inexistentes. Es el chequeo que
+      # encontro los 4 procs muertos de FASE 3.
+      - name: Verificar que no haya procedimientos huerfanos
+        run: python scripts/auditar_procs.py
+
+  swagger:
+    name: Swagger sincronizado
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Verificar rutas documentadas
+        run: python scripts/verificar_swagger.py
