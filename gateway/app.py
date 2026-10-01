@@ -593,7 +593,7 @@ def create_app():
                                tel_mask=tel_mask, error=error_msg)
 
     @app.route("/pago")
-    @login_required
+    @_login_required
     def pago_page():
         cita_id = request.args.get("cita_id")
         data, _ = pagos_client.get(f"/api/pagos/{cita_id}")
@@ -614,7 +614,7 @@ def create_app():
         return render_template("pago.html", cita=cita, niubiz_sdk_url=niubiz.sdk_url, niubiz_mode=niubiz.mode)
 
     @app.route("/retorno")
-    @login_required
+    @_login_required
     def retorno_page():
         cita_id = request.args.get("cita_id")
         data, _ = pagos_client.get(f"/api/pagos/{cita_id}")
@@ -869,7 +869,7 @@ def create_app():
                                evaluaciones=evaluaciones, consentimientos=consentimientos)
 
     @app.route("/notas/<int:cita_id>", methods=["GET", "POST"])
-    @login_required
+    @_login_required
     def notas_page(cita_id):
         if "usuario_id" not in session:
             return redirect(url_for("login"))
@@ -899,7 +899,7 @@ def create_app():
         return render_template("notas_cita.html", cita=cita, notas=ndata.get("notas", []))
 
     @app.route("/api/verificar_dni", methods=["POST"])
-    @login_required
+    @_login_required
     def verificar_dni():
         dni = (request.json or {}).get("dni", "").strip()
         # Rate limit simple: máximo 5 consultas DNI por sesión para evitar force brute
@@ -919,7 +919,7 @@ def create_app():
             return jsonify({"success": True, "data": {}}), 200
 
     @app.route("/api/estadisticas")
-    @login_required
+    @_login_required
     def api_estadisticas():
         data, _ = citas_client.get("/api/citas/estadisticas")
         return jsonify(data)
