@@ -168,6 +168,51 @@ def cancelar_pago_cita(cita_id):
     return jsonify({"success": True})
 
 
+@pagos_bp.route("/api/pagos/mantenimiento/liberar_vencidos", methods=["POST"])
+def liberar_pagos_vencidos():
+    """Expira los pagos pendientes que llevan demasiado tiempo sin
+    confirmar, para que la cita pueda volver a reservarse.
+
+    Lo invoca scripts/liberar_pagos_vencidos.py desde cron. Es interno:
+    va protegido por la API_KEY (proteger_api_interna), no por sesion de
+    usuario, porque corre sin navegador.
+
+    p_horas define a partir de cuantas horas se considera vencido. Si
+    no se envia, usa 24.
+    """
+    data = request.get_json(silent=True) or {}
+    try:
+        horas = int(data.get("horas", 24))
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "error": "horas debe ser un entero."}), 400
+
+    if horas <= 0 or horas > 24 * 30:
+        return jsonify({"success": False, "error": "horas fuera de rango (1..720)."}), 400
+
+    res = call_proc_one("sp_liberar_pagos_vencidos", (horas,))
+    vencidos = int(res.get("vencidos") or 0) if res else 0
+
+    current_app.logger.info(
+        "[mantenimiento] pagos vencidos (%sh): %s", horas, vencidos,
+    )
+    if vencidos:
+        try:
+            log_accion(
+                usuario_id=None,
+                accion="liberar_pagos_vencidos",
+                tabla_afectada="pagos",
+                registro_id=None,
+                detalle=f"{vencidos} pago(s) pendiente(s) expirados tras {horas}h",
+            )
+        except Exception:
+            current_app.logger.warning(
+                "[mantenimiento] no se pudo auditar la liberacion de pagos",
+                exc_info=True,
+            )
+
+    return jsonify({"success": True, "vencidos": vencidos, "horas": horas})
+
+
 # ============================================================
 # Consultas de pagos (usadas por pacientes_service para el detalle)
 # ============================================================

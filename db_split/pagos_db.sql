@@ -236,6 +236,10 @@ CREATE PROCEDURE `sp_confirmar_pago`(
     IN p_datos_respuesta TEXT, IN p_verificado_por INT
 )
 BEGIN
+    -- Acepta tambien 'vencido' (pago pagado por el proveedor despues de
+    -- que el job de expiracion lo marcara): el dinero entro igualmente y
+    -- descartarlo dejaria al paciente con el cobro hecho y la cita
+    -- impagada, que habria que revertir a mano.
     IF p_verificado_por IS NOT NULL THEN
         UPDATE pagos
         SET estado_pago = 'pagado', fecha_pago = NOW(),
@@ -243,7 +247,8 @@ BEGIN
             transaccion_id = COALESCE(p_referencia, transaccion_id),
             datos_respuesta = COALESCE(p_datos_respuesta, datos_respuesta),
             verificado_en = NOW(), verificado_por = p_verificado_por
-        WHERE cita_id = p_cita_id AND estado_pago = 'pendiente';
+        WHERE cita_id = p_cita_id
+          AND estado_pago IN ('pendiente', 'vencido');
     ELSE
         UPDATE pagos
         SET estado_pago = 'pagado', fecha_pago = NOW(),
@@ -251,7 +256,8 @@ BEGIN
             transaccion_id = COALESCE(p_referencia, transaccion_id),
             datos_respuesta = COALESCE(p_datos_respuesta, datos_respuesta),
             verificado_en = NOW()
-        WHERE cita_id = p_cita_id AND estado_pago = 'pendiente';
+        WHERE cita_id = p_cita_id
+          AND estado_pago IN ('pendiente', 'vencido');
     END IF;
     SELECT ROW_COUNT() AS pagado;
 END$$
@@ -299,6 +305,38 @@ BEGIN
     UPDATE pagos SET estado_pago = 'cancelado'
     WHERE cita_id = p_cita_id AND estado_pago = 'pendiente';
     SELECT ROW_COUNT() AS cancelados;
+END$$
+
+--
+-- sp_liberar_pagos_vencidos  |  LOCAL (FASE 4)
+--   Expira los pagos 'pendiente' mas antiguos que p_horas horas para
+--   que el espacio de la cita se libere y el paciente pueda volver a
+--   reservar. Sin esto, una cita abandonada a mitad del pago queda
+--   bloqueada de forma indefinida (no hay job que la limpie).
+--
+--   Solo toca pagos pendientes: los 'pagado' y 'cancelado' no se
+--   alteran. Usa creado_en (indice idx_fecha cubre fecha_pago, pero
+--   los pendientes la tienen a NULL, asi que no sirve aqui).
+--
+DROP PROCEDURE IF EXISTS `sp_liberar_pagos_vencidos`$$
+CREATE PROCEDURE `sp_liberar_pagos_vencidos`(IN p_horas INT)
+BEGIN
+    DECLARE v_limite DATETIME;
+
+    IF p_horas IS NULL OR p_horas <= 0 THEN
+        SET p_horas = 24;
+    END IF;
+
+    SET v_limite = DATE_SUB(NOW(), INTERVAL p_horas HOUR);
+
+    UPDATE pagos
+    SET estado_pago = 'vencido',
+        notas = CONCAT(COALESCE(notas, ''),
+                       ' [expire automatico: pendiente sin confirmar]')
+    WHERE estado_pago = 'pendiente'
+      AND creado_en < v_limite;
+
+    SELECT ROW_COUNT() AS vencidos;
 END$$
 
 --
