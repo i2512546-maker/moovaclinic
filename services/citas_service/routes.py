@@ -10,7 +10,7 @@ from shared.audit import log_accion
 from shared.proc import call_proc, call_proc_one, call_proc_execute
 from shared.config import (
     OTP_EXPIRA_MIN, OTP_MAX_INTENTOS,
-    TEXTBEE_API_KEY, TEXTBEE_DEVICE_ID, TEXTBEE_URL,
+    TEXTBEE_API_KEY, TEXTBEE_DEVICE_ID, TEXTBEE_URL, KPIS_DB_NAME,
 )
 from shared.service_client import pacientes_client, pagos_client
 
@@ -253,8 +253,8 @@ def kpis_resumen():
         return jsonify({"error": "desde no puede ser mayor que hasta"}), 400
 
     try:
-        resumen = call_proc_one("sp_kpis_resumen", (desde, hasta), db_name="moovacloud_kpis")
-        por_terapeuta = call_proc("sp_kpis_por_terapeuta", (desde, hasta), db_name="moovacloud_kpis") or []
+        resumen = call_proc_one("sp_kpis_resumen", (desde, hasta), db_name=KPIS_DB_NAME)
+        por_terapeuta = call_proc("sp_kpis_por_terapeuta", (desde, hasta), db_name=KPIS_DB_NAME) or []
     except Exception as exc:
         current_app.logger.error("[kpis_resumen] Error al calcular KPIs: %s: %s", type(exc).__name__, exc)
         return jsonify({"error": "No se pudo calcular los KPIs"}), 500
