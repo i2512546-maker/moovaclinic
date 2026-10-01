@@ -9,3 +9,4 @@ gunicorn==23.0.0
 setuptools==83.0.0
 flasgger==0.9.7.1
 MarkupSafe==2.1.5
+reportlab==5.0.1
