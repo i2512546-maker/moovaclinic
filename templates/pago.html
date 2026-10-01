@@ -350,17 +350,41 @@ if (btnYape) {
         });
     });
 }
-function verificarYape() {
-    var btn = document.getElementById('btnVerificarYape');
+/* Consulta el estado real del cobro en pagos_service. El servicio es el
+   que confirma el pago en la base cuando la pasarela responde "pagado",
+   asi que aqui no se marca nada por el lado del navegador. */
+function verificarCobro(btnId, msgId, modalId, endpoint, cobroId) {
+    var btn = document.getElementById(btnId);
+    var msg = document.getElementById(msgId);
     btn.disabled = true;
-    document.getElementById('msgYape').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Consultando estado del pago...';
-    // TODO-DEMO: simulación de pago exitoso, quitar y restaurar el fetch
-    // real a /api/pagos/yape|plin/estado antes de producción real.
-    setTimeout(function(){
-        cerrarModal('modalYape');
-        mostrarOverlayExito();
-        habilitarContinuar();
-    }, 800);
+    msg.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Consultando estado del pago...';
+    fetch(endpoint, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
+        body: JSON.stringify({cita_id: CITA_ID, cobro_id: cobroId})
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(res){
+        if (res.ok && res.pagado) {
+            cerrarModal(modalId);
+            mostrarOverlayExito();
+            habilitarContinuar();
+        } else {
+            msg.innerHTML = '<span class="text-danger">' +
+                (res.error || 'El pago aun no aparece confirmado. Verifica el QR e intentalo de nuevo.') +
+                '</span>';
+            btn.disabled = false;
+        }
+    })
+    .catch(function(){
+        msg.innerHTML = '<span class="text-danger">' +
+            'No se pudo consultar el pago. Revisa tu conexion e intentalo de nuevo.</span>';
+        btn.disabled = false;
+    });
+}
+
+function verificarYape() {
+    verificarCobro('btnVerificarYape', 'msgYape', 'modalYape', '/api/pagos/yape/estado', yapeCobroId);
 }
 
 /* ---------- PLIN ---------- */
@@ -398,16 +422,7 @@ if (btnPlin) {
     });
 }
 function verificarPlin() {
-    var btn = document.getElementById('btnVerificarPlin');
-    btn.disabled = true;
-    document.getElementById('msgPlin').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Consultando estado del pago...';
-    // TODO-DEMO: simulación de pago exitoso, quitar y restaurar el fetch
-    // real a /api/pagos/yape|plin/estado antes de producción real.
-    setTimeout(function(){
-        cerrarModal('modalPlin');
-        mostrarOverlayExito();
-        habilitarContinuar();
-    }, 800);
+    verificarCobro('btnVerificarPlin', 'msgPlin', 'modalPlin', '/api/pagos/plin/estado', plinCobroId);
 }
 
 /* ---------- TARJETA ---------- */
