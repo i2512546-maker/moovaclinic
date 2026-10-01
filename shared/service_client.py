@@ -5,6 +5,8 @@ from shared.config import SERVICE_URLS, API_KEY
 class ServiceClient:
     def __init__(self, service_name, timeout=15):
         self.base_url = SERVICE_URLS.get(service_name, "")
+        if self.base_url and not self.base_url.startswith(("http://", "https://")):
+            self.base_url = "http://" + self.base_url
         self.timeout = timeout
         self.headers = {
             "Content-Type": "application/json",

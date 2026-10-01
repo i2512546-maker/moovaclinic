@@ -6,49 +6,47 @@ services:
     name: moova-gateway
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn gateway.app:app --bind 0.0.0.0:$PORT
+    startCommand: gunicorn "gateway.app:create_app()" --bind 0.0.0.0:$PORT
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.8"
-      - key: FLASK_DEBUG
-        value: "false"
-      - key: API_KEY
-        sync: false
       - key: SECRET_KEY
         generateValue: true
+      - key: API_KEY
+        sync: false
       - key: AUTH_SERVICE_URL
         fromService:
           name: moova-auth
           type: web
-          property: host
+          property: hostport
       - key: PACIENTES_SERVICE_URL
         fromService:
           name: moova-pacientes
           type: web
-          property: host
+          property: hostport
       - key: CITAS_SERVICE_URL
         fromService:
           name: moova-citas
           type: web
-          property: host
+          property: hostport
       - key: PAGOS_SERVICE_URL
         fromService:
           name: moova-pagos
           type: web
-          property: host
+          property: hostport
       - key: NOTAS_SERVICE_URL
         fromService:
           name: moova-notas
           type: web
-          property: host
+          property: hostport
       - key: AUDIT_SERVICE_URL
         fromService:
           name: moova-audit
           type: web
-          property: host
+          property: hostport
 
   # ============================================
-  # AUTH SERVICE — Puerto 5001
+  # AUTH SERVICE
   # ============================================
   - type: web
     name: moova-auth
@@ -58,13 +56,31 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.8"
-      - key: API_KEY
-        sync: false
       - key: SECRET_KEY
         sync: false
+      - key: API_KEY
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        value: moovacloud_auth
+      - key: DB_PORT
+        value: "3306"
+      - key: OTP_EXPIRA_MIN
+        value: "10"
+      - key: OTP_MAX_INTENTOS
+        value: "3"
+      - key: MAX_INTENTOS_IP
+        value: "3"
+      - key: TIEMPO_BLOQUEO
+        value: "2"
 
   # ============================================
-  # PACIENTES SERVICE — Puerto 5002
+  # PACIENTES SERVICE
   # ============================================
   - type: web
     name: moova-pacientes
@@ -74,13 +90,42 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.8"
-      - key: API_KEY
-        sync: false
       - key: SECRET_KEY
         sync: false
+      - key: API_KEY
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        value: moovacloud_pacientes
+      - key: DB_PORT
+        value: "3306"
+      - key: APIPERU_TOKEN
+        sync: false
+      - key: APIPERU_URL
+        value: "https://dniruc.apisperu.com/api/v1/dni/{dni}?token={token}"
+      - key: AUTH_SERVICE_URL
+        fromService:
+          name: moova-auth
+          type: web
+          property: hostport
+      - key: CITAS_SERVICE_URL
+        fromService:
+          name: moova-citas
+          type: web
+          property: hostport
+      - key: PAGOS_SERVICE_URL
+        fromService:
+          name: moova-pagos
+          type: web
+          property: hostport
 
   # ============================================
-  # CITAS SERVICE — Puerto 5003
+  # CITAS SERVICE
   # ============================================
   - type: web
     name: moova-citas
@@ -90,13 +135,44 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.8"
-      - key: API_KEY
-        sync: false
       - key: SECRET_KEY
         sync: false
+      - key: API_KEY
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        value: moovacloud_citas
+      - key: DB_PORT
+        value: "3306"
+      - key: TEXTBEE_API_KEY
+        sync: false
+      - key: TEXTBEE_DEVICE_ID
+        sync: false
+      - key: TEXTBEE_URL
+        value: "https://api.textbee.dev/api/v1/gateway/devices/{device_id}/send-sms"
+      - key: PACIENTES_SERVICE_URL
+        fromService:
+          name: moova-pacientes
+          type: web
+          property: hostport
+      - key: PAGOS_SERVICE_URL
+        fromService:
+          name: moova-pagos
+          type: web
+          property: hostport
+      - key: AUDIT_SERVICE_URL
+        fromService:
+          name: moova-audit
+          type: web
+          property: hostport
 
   # ============================================
-  # PAGOS SERVICE — Puerto 5004
+  # PAGOS SERVICE
   # ============================================
   - type: web
     name: moova-pagos
@@ -106,13 +182,45 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.8"
-      - key: API_KEY
-        sync: false
       - key: SECRET_KEY
         sync: false
+      - key: API_KEY
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        value: moovacloud_pagos
+      - key: DB_PORT
+        value: "3306"
+      - key: WEBHOOK_PROVIDER_TOKEN
+        sync: false
+      - key: AUTH_SERVICE_URL
+        fromService:
+          name: moova-auth
+          type: web
+          property: hostport
+      - key: CITAS_SERVICE_URL
+        fromService:
+          name: moova-citas
+          type: web
+          property: hostport
+      - key: PACIENTES_SERVICE_URL
+        fromService:
+          name: moova-pacientes
+          type: web
+          property: hostport
+      - key: AUDIT_SERVICE_URL
+        fromService:
+          name: moova-audit
+          type: web
+          property: hostport
 
   # ============================================
-  # NOTAS SERVICE — Puerto 5005
+  # NOTAS SERVICE
   # ============================================
   - type: web
     name: moova-notas
@@ -122,13 +230,33 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.8"
-      - key: API_KEY
-        sync: false
       - key: SECRET_KEY
         sync: false
+      - key: API_KEY
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        value: moovacloud_notas
+      - key: DB_PORT
+        value: "3306"
+      - key: CITAS_SERVICE_URL
+        fromService:
+          name: moova-citas
+          type: web
+          property: hostport
+      - key: PACIENTES_SERVICE_URL
+        fromService:
+          name: moova-pacientes
+          type: web
+          property: hostport
 
   # ============================================
-  # AUDIT SERVICE — Puerto 5006
+  # AUDIT SERVICE
   # ============================================
   - type: web
     name: moova-audit
@@ -138,7 +266,17 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.8"
-      - key: API_KEY
-        sync: false
       - key: SECRET_KEY
         sync: false
+      - key: API_KEY
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        value: moovacloud_auditoria
+      - key: DB_PORT
+        value: "3306"
