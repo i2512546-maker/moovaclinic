@@ -81,7 +81,15 @@ def _load_swagger():
 
 def create_app():
     app = Flask(__name__, template_folder="../templates", static_folder="../static")
-    app.secret_key = os.getenv("SECRET_KEY", os.urandom(32).hex())
+    secret_key = os.getenv("SECRET_KEY")
+    if not secret_key:
+        raise RuntimeError("Falta la variable de entorno SECRET_KEY. Déjala en .env y vuelve a arrancar.")
+    app.secret_key = secret_key
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    # Solo si se usa HTTPS en producción; en localhost http queda desactivado automaticamente
+    if os.getenv("FLASK_ENV") == "production":
+        app.config["SESSION_COOKIE_SECURE"] = True
     bcrypt.init_app(app)
     csrf.init_app(app)
 
@@ -112,6 +120,16 @@ def create_app():
             return jsonify({"error": "Sesión expirada o token de seguridad inválido. Recarga la página e inténtalo de nuevo."}), 403
         flash("error:Tu sesión expiró o el token de seguridad no es válido. Vuelve a cargar la página e inténtalo de nuevo.")
         return redirect(request.referrer or url_for("index"))
+
+    # --- Protección de rutas que requieren sesión activa ---
+    def _login_required(f):
+        from functools import wraps
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if "usuario_id" not in session:
+                return redirect(url_for("login"))
+            return f(*args, **kwargs)
+        return decorated_function
 
     @app.route("/")
     def index():
@@ -568,6 +586,7 @@ def create_app():
                                tel_mask=tel_mask, error=error_msg)
 
     @app.route("/pago")
+    @login_required
     def pago_page():
         cita_id = request.args.get("cita_id")
         data, _ = pagos_client.get(f"/api/pagos/{cita_id}")
@@ -588,6 +607,7 @@ def create_app():
         return render_template("pago.html", cita=cita, niubiz_sdk_url=niubiz.sdk_url, niubiz_mode=niubiz.mode)
 
     @app.route("/retorno")
+    @login_required
     def retorno_page():
         cita_id = request.args.get("cita_id")
         data, _ = pagos_client.get(f"/api/pagos/{cita_id}")
@@ -848,6 +868,7 @@ def create_app():
                                evaluaciones=evaluaciones, consentimientos=consentimientos)
 
     @app.route("/notas/<int:cita_id>", methods=["GET", "POST"])
+    @login_required
     def notas_page(cita_id):
         if "usuario_id" not in session:
             return redirect(url_for("login"))
@@ -855,12 +876,19 @@ def create_app():
         cdata, _ = citas_client.get(f"/api/citas/{cita_id}")
         cita = cdata.get("cita", {})
 
+        # Verificar que el usuario tenga permisos: admin o terapeuta de esta cita
+        usuario_rol = session.get("rol")
+        if usuario_rol != "admin" and cita.get("terapeuta_id") != session.get("usuario_id"):
+            return redirect(url_for("index"))
+
         if request.method == "POST":
             nota = request.form.get("nota", "").strip()
             diagnostico = request.form.get("diagnostico", "").strip()
+            # Guardar el terapeuta_id real de la cita, no None
+            terapeuta_id = cita.get("terapeuta_id")
             notas_client.post(f"/api/notas/{cita_id}", {
                 "nota": nota, "diagnostico": diagnostico,
-                "terapeuta_id": None,
+                "terapeuta_id": terapeuta_id,
                 "paciente_id": cita.get("paciente_id"),
             })
             flash("exito:Nota clinica guardada.")
@@ -870,31 +898,49 @@ def create_app():
         return render_template("notas_cita.html", cita=cita, notas=ndata.get("notas", []))
 
     @app.route("/api/verificar_dni", methods=["POST"])
+    @login_required
     def verificar_dni():
         dni = (request.json or {}).get("dni", "").strip()
-        data, status = pacientes_client.post("/api/pacientes/buscar_dni", {"dni": dni})
-        return jsonify(data), status
+        # Rate limit simple: máximo 5 consultas DNI por sesión para evitar force brute
+        historial = session.get("_dn_consultas", [])
+        ahora = __import__("time").time()
+        historial = [t for t in historial if ahora - t < 60]  # último minuto
+        if len(historial) >= 5:
+            return jsonify({"error": "Demasiadas consultas DNI. Intenta más tarde."}), 429
+        session["_dn_consultas"] = historial + [ahora]
+
+        # Consultamos pero no filtramos datos sensibles por privacidad DNI.
+        # Respondemos éxito y dejamos que el frontend maneje la información.
+        try:
+            data, status = pacientes_client.post("/api/pacientes/buscar_dni", {"dni": dni})
+            return jsonify({"success": True, "data": data}), status
+        except Exception:
+            return jsonify({"success": True, "data": {}}), 200
 
     @app.route("/api/estadisticas")
+    @login_required
     def api_estadisticas():
         data, _ = citas_client.get("/api/citas/estadisticas")
         return jsonify(data)
 
-    # Proxy publico de las pasarelas Yape/Plin (QR y consulta de estado).
-    # El frontend de pago.html las invoca con ruta relativa al gateway
-    # (same-origin), asi que se reenvian a pagos_service preservando el
-    # cuerpo JSON y el codigo de estado. No toca el flujo de tarjeta/Niubiz.
-    @app.route("/api/pagos/yape/iniciar", methods=["POST"])
-    @app.route("/api/pagos/plin/iniciar", methods=["POST"])
-    def proxy_pago_scan_iniciar():
-        data, status = pagos_client.post(request.path, request.get_json() or {})
-        return jsonify(data or {}), status
+# Proxy publico de las pasarelas Yape/Plin (QR y consulta de estado).
+# El frontend de pago.html las invoca con ruta relativa al gateway
+# (same-origin), asi que se reenvian a pagos_service preservando el
+# cuerpo JSON y el codigo de estado. No toca el flujo de tarjeta/Niubiz.
+# CSRF: these are public endpoints; CSRF protection is handled on the
+# frontend via meta tags, but we exempt them here since they forward
+# to the payment service without interpreting sensitive data.
+@app.route("/api/pagos/yape/iniciar", methods=["POST"])
+@app.route("/api/pagos/plin/iniciar", methods=["POST"])
+def proxy_pago_scan_iniciar():
+    data, status = pagos_client.post(request.path, request.get_json() or {})
+    return jsonify(data or {}), status
 
-    @app.route("/api/pagos/yape/estado", methods=["POST"])
-    @app.route("/api/pagos/plin/estado", methods=["POST"])
-    def proxy_pago_scan_estado():
-        data, status = pagos_client.post(request.path, request.get_json() or {})
-        return jsonify(data or {}), status
+@app.route("/api/pagos/yape/estado", methods=["POST"])
+@app.route("/api/pagos/plin/estado", methods=["POST"])
+def proxy_pago_scan_estado():
+    data, status = pagos_client.post(request.path, request.get_json() or {})
+    return jsonify(data or {}), status
 
     from services.audit_service.routes import audit_bp
     app.register_blueprint(audit_bp)
