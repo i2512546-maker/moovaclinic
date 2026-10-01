@@ -1,5 +1,6 @@
 import requests
-from shared.config import SERVICE_URLS, API_KEY
+
+from shared.config import API_KEY, SERVICE_URLS
 
 
 class ServiceClient:

@@ -1,7 +1,8 @@
-from flask import request, jsonify
+from flask import jsonify, request
+
 from services.auth_service import auth_bp
 from services.auth_service.app import bcrypt
-from shared.proc import call_proc, call_proc_one, call_proc_execute
+from shared.proc import call_proc, call_proc_execute, call_proc_one
 
 
 @auth_bp.route("/api/auth/login", methods=["POST"])

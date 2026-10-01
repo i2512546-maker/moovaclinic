@@ -1,16 +1,22 @@
 import secrets
-import mysql.connector
-import requests as http_requests
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-from flask import request, jsonify, current_app
+
+import mysql.connector
+import requests as http_requests
+from flask import current_app, jsonify, request
+
 from services.citas_service import citas_bp
 from shared.audit import log_accion
-from shared.proc import call_proc, call_proc_one, call_proc_execute
 from shared.config import (
-    OTP_EXPIRA_MIN, OTP_MAX_INTENTOS,
-    TEXTBEE_API_KEY, TEXTBEE_DEVICE_ID, TEXTBEE_URL, KPIS_DB_NAME,
+    KPIS_DB_NAME,
+    OTP_EXPIRA_MIN,
+    OTP_MAX_INTENTOS,
+    TEXTBEE_API_KEY,
+    TEXTBEE_DEVICE_ID,
+    TEXTBEE_URL,
 )
+from shared.proc import call_proc, call_proc_execute, call_proc_one
 from shared.service_client import pacientes_client, pagos_client
 from shared.validators import validar_datos_paciente
 

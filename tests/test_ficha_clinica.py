@@ -159,6 +159,7 @@ class FormatoFechaTest(unittest.TestCase):
 
     def test_timedelta_de_mysql(self):
         from datetime import timedelta
+
         from shared.fechas import fmt_hora
         self.assertEqual(fmt_hora(timedelta(hours=9, minutes=30)), "09:30")
 

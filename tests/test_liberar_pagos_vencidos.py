@@ -1,7 +1,7 @@
 import os
 import sys
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 os.environ.setdefault("SECRET_KEY", "clave-de-pruebas")
 os.environ.setdefault("API_KEY", "clave-interna-de-pruebas")

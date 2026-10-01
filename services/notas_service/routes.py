@@ -1,8 +1,9 @@
-from flask import request, jsonify
+from flask import jsonify, request
+
 from services.notas_service import notas_bp
+from shared.config import NOTAS_DB_NAME
 from shared.proc import call_proc, call_proc_one
 from shared.service_client import citas_client, pacientes_client
-from shared.config import NOTAS_DB_NAME
 
 
 def _mapa_terapeutas():
