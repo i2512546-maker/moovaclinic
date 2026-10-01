@@ -1,8 +1,12 @@
+import os
 import unittest
 from datetime import date, timedelta
 from unittest.mock import patch
 
+os.environ.setdefault("SECRET_KEY", "clave-de-pruebas")
+
 from services.citas_service.app import create_app
+from shared.config import API_KEY
 
 
 class ListarCitasTest(unittest.TestCase):
@@ -10,6 +14,10 @@ class ListarCitasTest(unittest.TestCase):
         app = create_app()
         app.config.update(TESTING=False)
         client = app.test_client()
+
+        # Todas las rutas del servicio exigen la API_KEY interna (FASE 1),
+        # salvo "/" y "/health".
+        cabeceras = {"X-Api-Key": API_KEY} if API_KEY else {}
 
         cita = {
             "id": 1,
@@ -35,7 +43,10 @@ class ListarCitasTest(unittest.TestCase):
             patch("services.citas_service.routes._mapa_pacientes", return_value={}),
             patch("services.citas_service.routes._mapa_terapeutas", return_value={}),
         ):
-            response = client.get("/api/citas?fecha=2026-09-24&estado=programada")
+            response = client.get(
+                "/api/citas?fecha=2026-09-24&estado=programada",
+                headers=cabeceras,
+            )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get_json()["citas"][0]["hora_cita"], "09:30:00")

@@ -51,21 +51,28 @@ class CreateAppTest(unittest.TestCase):
                 self.assertEqual(app.secret_key, os.environ["SECRET_KEY"])
 
     def test_secret_key_ausente_falla_rapido(self):
-        """shared.config debe fallar si no hay SECRET_KEY (nada de claves aleatorias)."""
-        import importlib
+        """shared.config debe fallar si no hay SECRET_KEY (nada de claves
+        aleatorias silenciosas). Se prueba en un subprocess con un cwd sin
+        .env, porque `load_dotenv` vuelve a leer el archivo del disco."""
+        import subprocess
         import sys
+        import tempfile
 
-        import shared.config
-
-        clave = shared.config.SECRET_KEY
-        os.environ.pop("SECRET_KEY", None)
-        sys.modules.pop("shared.config", None)
-        try:
-            with self.assertRaises(RuntimeError):
-                importlib.import_module("shared.config")
-        finally:
-            os.environ["SECRET_KEY"] = clave
-            sys.modules.pop("shared.config", None)
+        raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        codigo = "import shared.config"
+        with tempfile.TemporaryDirectory() as tmp:
+            env = {k: v for k, v in os.environ.items() if k != "SECRET_KEY"}
+            env["PYTHONPATH"] = raiz
+            proc = subprocess.run(
+                [sys.executable, "-c", codigo],
+                cwd=tmp, env=env, capture_output=True, text=True,
+            )
+        self.assertNotEqual(
+            proc.returncode, 0,
+            "shared.config deberia fallar sin SECRET_KEY, pero arranco bien.\n"
+            f"stdout={proc.stdout}\nstderr={proc.stderr}",
+        )
+        self.assertIn("SECRET_KEY", proc.stderr)
 
 
 if __name__ == "__main__":
