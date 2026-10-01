@@ -13,6 +13,7 @@ DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_NAME = os.getenv("DB_NAME")
 DB_PORT = int(os.getenv("DB_PORT", 3306))
 NOTAS_DB_NAME = os.getenv("NOTAS_DB_NAME", "moovacloud_notas")
+KPIS_DB_NAME = os.getenv("KPIS_DB_NAME", "moovacloud_kpis")
 
 SECRET_KEY = os.getenv("SECRET_KEY", os.urandom(32).hex())
 API_KEY = os.getenv("API_KEY")
