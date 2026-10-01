@@ -14,7 +14,11 @@ DB_PORT = int(os.getenv("DB_PORT", 3306))
 NOTAS_DB_NAME = os.getenv("NOTAS_DB_NAME", "moovacloud_notas")
 KPIS_DB_NAME = os.getenv("KPIS_DB_NAME", "moovacloud_kpis")
 
-SECRET_KEY = os.getenv("SECRET_KEY", os.urandom(32).hex())
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError(
+        "Falta la variable de entorno SECRET_KEY. Déjala en .env y vuelve a arrancar."
+    )
 API_KEY = os.getenv("API_KEY")
 
 TEXTBEE_API_KEY = os.getenv("TEXTBEE_API_KEY")

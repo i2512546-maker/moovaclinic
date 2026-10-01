@@ -3,12 +3,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from flask import Flask
 from flask_bcrypt import Bcrypt
 
+from shared.config import SECRET_KEY
+
 bcrypt = Bcrypt()
 
 
 def create_app():
     app = Flask(__name__)
-    app.secret_key = os.getenv("SECRET_KEY", os.urandom(32).hex())
+    app.secret_key = SECRET_KEY
 
     bcrypt.init_app(app)
 
