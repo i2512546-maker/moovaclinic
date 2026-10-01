@@ -128,6 +128,16 @@ def create_app():
             return f(*args, **kwargs)
         return decorated_function
 
+    def _admin_required(f):
+        """Requerir sesión activa y rol admin (acceso al panel)."""
+        from functools import wraps
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if "usuario_id" not in session or session.get("rol") != "admin":
+                return redirect(url_for("login"))
+            return f(*args, **kwargs)
+        return decorated_function
+
     @app.route("/")
     def index():
         return render_template("index.html")
@@ -637,9 +647,8 @@ def create_app():
         return render_template("retorno.html", cita_id=cita_id, cita=cita, fecha_fmt=fecha_fmt)
 
     @app.route("/panel_admin", methods=["GET", "POST"])
+    @_admin_required
     def panel_admin():
-        if "usuario_id" not in session or session.get("rol") != "admin":
-            return redirect(url_for("login"))
 
         if request.method == "POST":
             accion = request.form.get("accion")
@@ -755,9 +764,8 @@ def create_app():
                                especialidades=especialidades, usuarios=usuarios)
 
     @app.route("/panel_admin/auditoria")
+    @_admin_required
     def panel_admin_auditoria():
-        if "usuario_id" not in session or session.get("rol") != "admin":
-            return redirect(url_for("login"))
 
         usuarios_filtro = []
         try:
@@ -800,9 +808,8 @@ def create_app():
                                usuarios_filtro=usuarios_filtro)
 
     @app.route("/panel_admin/kpis")
+    @_admin_required
     def panel_admin_kpis():
-        if "usuario_id" not in session or session.get("rol") != "admin":
-            return redirect(url_for("login"))
 
         hoy = datetime.now().date()
         try:
@@ -828,24 +835,21 @@ def create_app():
                                desde=desde.isoformat(), hasta=hasta.isoformat(), error=error)
 
     @app.route("/panel_admin/cancelar_cita/<int:cita_id>", methods=["POST"])
+    @_admin_required
     def admin_cancelar_cita(cita_id):
-        if "usuario_id" not in session or session.get("rol") != "admin":
-            return redirect(url_for("login"))
         citas_client.delete(f"/api/citas/{cita_id}")
         flash("exito:Cita cancelada.")
         return redirect(url_for("panel_admin"))
 
     @app.route("/pacientes")
+    @_admin_required
     def pacientes_page():
-        if "usuario_id" not in session or session.get("rol") != "admin":
-            return redirect(url_for("login"))
         data, _ = pacientes_client.get("/api/pacientes")
         return render_template("pacientes.html", pacientes=data.get("pacientes", []))
 
     @app.route("/pacientes/<paciente_dni>")
+    @_admin_required
     def detalle_paciente_page(paciente_dni):
-        if "usuario_id" not in session or session.get("rol") != "admin":
-            return redirect(url_for("login"))
         data, _ = pacientes_client.get(f"/api/pacientes/{paciente_dni}")
         paciente = data.get("paciente", {})
         historial = data.get("historial", [])
