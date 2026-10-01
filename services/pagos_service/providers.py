@@ -1,5 +1,11 @@
-import os
 import requests
+
+from shared.config import (
+    NIUBIZ_SANDBOX_URL, NIUBIZ_LIVE_URL, NIUBIZ_MODE,
+    NIUBIZ_USER, NIUBIZ_PASSWORD, NIUBIZ_MERCHANT_ID, NIUBIZ_SDK_URL,
+    YAPE_API_URL, YAPE_CLIENT_ID, YAPE_CLIENT_SECRET, YAPE_MERCHANT_ID,
+    PLIN_API_URL, PLIN_CLIENT_ID, PLIN_CLIENT_SECRET, PLIN_MERCHANT_ID,
+)
 
 API_TIMEOUT = 20
 # Timeout corto para la generacion/consulta de QR de Yape/Plin: la UI de
@@ -16,16 +22,16 @@ class PaymentProviderError(Exception):
 
 
 class NiubizClient:
-    SANDBOX_URL = os.getenv("NIUBIZ_SANDBOX_URL", "https://apisandbox.vnforappstest.com")
-    LIVE_URL = os.getenv("NIUBIZ_LIVE_URL", "https://api.viacel.com")
+    SANDBOX_URL = NIUBIZ_SANDBOX_URL
+    LIVE_URL = NIUBIZ_LIVE_URL
 
     def __init__(self):
-        self.mode = (os.getenv("NIUBIZ_MODE") or "sandbox").lower()
-        self.user = os.getenv("NIUBIZ_USER") or ""
-        self.password = os.getenv("NIUBIZ_PASSWORD") or ""
-        self.merchant_id = os.getenv("NIUBIZ_MERCHANT_ID") or ""
+        self.mode = NIUBIZ_MODE
+        self.user = NIUBIZ_USER
+        self.password = NIUBIZ_PASSWORD
+        self.merchant_id = NIUBIZ_MERCHANT_ID
         self.base_url = self.LIVE_URL if self.mode == "live" else self.SANDBOX_URL
-        self.sdk_url = os.getenv("NIUBIZ_SDK_URL") or (
+        self.sdk_url = NIUBIZ_SDK_URL or (
             f"{self.base_url}/js/niubiz-sdk.js" if self.mode == "live"
             else "https://apisandbox.vnforappstest.com/js/niubiz-sdk.js"
         )
@@ -96,10 +102,10 @@ class NiubizClient:
 
 class YapeClient:
     def __init__(self):
-        self.base_url = (os.getenv("YAPE_API_URL") or "").rstrip("/")
-        self.client_id = os.getenv("YAPE_CLIENT_ID") or ""
-        self.client_secret = os.getenv("YAPE_CLIENT_SECRET") or ""
-        self.merchant_id = os.getenv("YAPE_MERCHANT_ID") or ""
+        self.base_url = YAPE_API_URL.rstrip("/")
+        self.client_id = YAPE_CLIENT_ID
+        self.client_secret = YAPE_CLIENT_SECRET
+        self.merchant_id = YAPE_MERCHANT_ID
 
     def is_configured(self):
         return bool(self.base_url and self.client_id and self.client_secret and self.merchant_id)
@@ -162,10 +168,10 @@ class YapeClient:
 
 class PlinClient:
     def __init__(self):
-        self.base_url = (os.getenv("PLIN_API_URL") or "").rstrip("/")
-        self.client_id = os.getenv("PLIN_CLIENT_ID") or ""
-        self.client_secret = os.getenv("PLIN_CLIENT_SECRET") or ""
-        self.merchant_id = os.getenv("PLIN_MERCHANT_ID") or ""
+        self.base_url = PLIN_API_URL.rstrip("/")
+        self.client_id = PLIN_CLIENT_ID
+        self.client_secret = PLIN_CLIENT_SECRET
+        self.merchant_id = PLIN_MERCHANT_ID
 
     def is_configured(self):
         return bool(self.base_url and self.client_id and self.client_secret and self.merchant_id)

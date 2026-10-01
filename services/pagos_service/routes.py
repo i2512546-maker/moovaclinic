@@ -1,6 +1,5 @@
 import json
 import hmac
-import os
 from datetime import datetime
 from flask import request, jsonify, current_app
 from services.pagos_service import pagos_bp
@@ -9,6 +8,7 @@ from services.pagos_service.providers import (
     PaymentNotConfigured, PaymentProviderError, qr_url,
 )
 from shared.audit import log_accion
+from shared.config import WEBHOOK_PROVIDER_TOKEN
 from shared.proc import call_proc, call_proc_one, call_proc_execute
 from shared.service_client import auth_client, citas_client, pacientes_client
 
@@ -371,7 +371,7 @@ def api_pago_tarjeta_cobrar():
 def webhook_pago():
     # Verificar token secreto del proveedor (preventivo contra webhooks falsos)
     token_proveedor = request.headers.get("X-Provider-Token") or request.headers.get("X-Signature") or ""
-    token_esperado = os.getenv("WEBHOOK_PROVIDER_TOKEN") or ""
+    token_esperado = WEBHOOK_PROVIDER_TOKEN
     if token_esperado and not hmac.compare_digest(token_proveedor, token_esperado):
         current_app.logger.warning("Webhook token inválido desde %s", request.remote_addr)
         return jsonify({"ok": False, "error": "Token no autorizado"}), 401
