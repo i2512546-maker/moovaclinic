@@ -35,6 +35,8 @@ tags:
     description: Gestion de pagos (Yape, Plin, Niubiz, webhook)
   - name: notas
     description: Notas clinicas
+  - name: auditoria
+    description: Registro de eventos de auditoria
 paths:
   # ---------------- AUTH ----------------
   /api/auth/login:
@@ -444,30 +446,6 @@ paths:
               success: { type: boolean, example: true }
               consentimiento_id: { type: integer }
         "400": { description: Campos requeridos }
-  /api/pacientes/{paciente_id}/pdf:
-    get:
-      tags: [pacientes]
-      summary: Descargar ficha clinica completa del paciente en PDF
-      description: |
-        Genera y descarga la historia clinica completa (datos personales,
-        citas con notas clinicas, evaluaciones iniciales y paquetes de
-        sesiones) con el logo de MOOVA Clinic.
-      produces:
-        - application/pdf
-      parameters:
-        - name: paciente_id
-          in: path
-          required: true
-          type: integer
-      responses:
-        "200":
-          description: PDF de la ficha clinica generado
-          schema:
-            type: file
-        "404":
-          description: Paciente no encontrado
-        "500":
-          description: Error al generar el PDF
 
   # ---------------- CITAS ----------------
   /api/citas:
@@ -855,6 +833,573 @@ paths:
             type: object
             properties:
               ok: { type: boolean, example: true }
+
+  # ---------------- PACIENTES (resto) ----------------
+  /api/terapeutas:
+    get:
+      tags: [pacientes]
+      summary: Listar terapeutas con su especialidad y precio
+      responses:
+        "200":
+          description: Listado de terapeutas
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              terapeutas:
+                type: array
+                items: { type: object }
+    post:
+      tags: [pacientes]
+      summary: Registrar un terapeuta
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              nombre: { type: string }
+              apellido: { type: string }
+              especialidad: { type: string }
+              correo: { type: string }
+              telefono: { type: string }
+              precio: { type: number, format: float }
+      responses:
+        "201": { description: Terapeuta creado }
+
+  /api/pacientes/{dni}:
+    put:
+      tags: [pacientes]
+      summary: Actualizar un paciente
+      parameters:
+        - name: dni
+          in: path
+          required: true
+          type: string
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              nombre: { type: string }
+              apellido: { type: string }
+              telefono: { type: string }
+              email: { type: string }
+      responses:
+        "200": { description: Paciente actualizado }
+
+  /api/pacientes/dni/{dni}:
+    get:
+      tags: [pacientes]
+      summary: Obtener un paciente por DNI
+      parameters:
+        - name: dni
+          in: path
+          required: true
+          type: string
+      responses:
+        "200":
+          description: Datos del paciente
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              paciente: { type: object }
+
+  /api/pacientes/min:
+    post:
+      tags: [pacientes]
+      summary: Alta minima de paciente (solo nombre, apellido, dni, telefono)
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            required: [nombre, apellido, dni, telefono]
+            properties:
+              nombre: { type: string }
+              apellido: { type: string }
+              dni: { type: string, example: "12345678" }
+              telefono: { type: string }
+      responses:
+        "201": { description: Paciente creado }
+
+  /api/especialidades:
+    get:
+      tags: [pacientes]
+      summary: Listar especialidades
+      responses:
+        "200":
+          description: Listado de especialidades
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              especialidades:
+                type: array
+                items: { type: string }
+
+  # ---------------- CITAS (estadisticas y KPIs) ----------------
+  /api/citas/resumen_pacientes:
+    get:
+      tags: [citas]
+      summary: Resumen de citas agrupado por paciente
+      responses:
+        "200":
+          description: Resumen por paciente
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+
+  /api/estadisticas/especialistas:
+    get:
+      tags: [citas]
+      summary: Numero de citas por especialista
+      responses:
+        "200":
+          description: Citas por especialista
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+
+  /api/estadisticas/opiniones:
+    get:
+      tags: [citas]
+      summary: Opiniones publicadas
+      responses:
+        "200":
+          description: Listado de opiniones
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+
+  /api/kpis:
+    get:
+      tags: [citas]
+      summary: Indicadores del negocio (lectura de moovacloud_kpis)
+      responses:
+        "200":
+          description: Indicadores
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+
+  # ---------------- PAGOS (interno) ----------------
+  /api/pagos/anticipo:
+    post:
+      tags: [pagos]
+      summary: Crear el pago de anticipo de una cita
+      description: |
+        Lo invoca citas_service tras crear la cita, con el monto ya
+        calculado (50% del precio del terapeuta). Es interno: no lo
+        llama el navegador.
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            required: [cita_id, paciente_id, monto, metodo_pago]
+            properties:
+              cita_id: { type: integer }
+              paciente_id: { type: integer }
+              monto: { type: number, format: float }
+              metodo_pago: { type: string, example: yape }
+      responses:
+        "201": { description: Anticipo creado }
+
+  /api/pagos/configuracion/anio:
+    get:
+      tags: [pagos]
+      summary: Anio de configuracion del negocio
+      responses:
+        "200":
+          description: Anio configurado
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+
+  /api/pagos/mantenimiento/liberar_vencidos:
+    post:
+      tags: [pagos]
+      summary: Expirar pagos pendientes sin confirmar (interno)
+      description: |
+        Lo invoca scripts/liberar_pagos_vencidos.py desde cron cada hora.
+        Protegido por la API_KEY interna, no por sesion de usuario, porque
+        corre sin navegador. Marca los pendientes con mas de 'horas' como
+        'vencido' para que la cita pueda volver a reservarse.
+      parameters:
+        - name: body
+          in: body
+          required: false
+          schema:
+            type: object
+            properties:
+              horas: { type: integer, default: 24, minimum: 1, maximum: 720 }
+      responses:
+        "200":
+          description: Resultado de la expiracion
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              vencidos: { type: integer, example: 3 }
+              horas: { type: integer, example: 24 }
+
+  # ---------------- AUDITORIA ----------------
+  /api/auditoria:
+    post:
+      tags: [auditoria]
+      summary: Registrar un evento de auditoria
+      description: |
+        Destino de shared/audit.log_accion. Si el servicio esta caido el
+        registro se descarta en silencio: la auditoria nunca debe romper
+        el flujo de negocio.
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            required: [accion]
+            properties:
+              usuario_id: { type: integer }
+              accion: { type: string, example: crear_cita }
+              tabla_afectada: { type: string, example: historial_citas }
+              registro_id: { type: integer }
+              detalle: { type: string }
+              ip_origen: { type: string }
+      responses:
+        "201": { description: Evento registrado }
+
+  # ---------------- CITAS (detalle) ----------------
+  /api/citas/{cita_id}:
+    get:
+      tags: [citas]
+      summary: Obtener una cita
+      parameters:
+        - name: cita_id
+          in: path
+          required: true
+          type: integer
+      responses:
+        "200":
+          description: Datos de la cita
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              cita: { type: object }
+        "404": { description: Cita no encontrada }
+    put:
+      tags: [citas]
+      summary: Modificar una cita (reprogramar)
+      parameters:
+        - name: cita_id
+          in: path
+          required: true
+          type: integer
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              fecha: { type: string, format: date }
+              hora: { type: string }
+              terapeuta_id: { type: integer }
+      responses:
+        "200": { description: Cita modificada }
+        "404": { description: Cita no encontrada }
+    delete:
+      tags: [citas]
+      summary: Cancelar una cita
+      description: |
+        Cancela la cita en moovacloud_citas y avisa a pagos_service para
+        cancelar el pago pendiente.
+      parameters:
+        - name: cita_id
+          in: path
+          required: true
+          type: integer
+      responses:
+        "200": { description: Cita cancelada }
+        "404": { description: Cita no encontrada }
+
+  /api/citas/{cita_id}/basico:
+    get:
+      tags: [citas]
+      summary: Datos minimos de una cita (solo nombre y fecha)
+      parameters:
+        - name: cita_id
+          in: path
+          required: true
+          type: integer
+      responses:
+        "200":
+          description: Datos basicos de la cita
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              cita: { type: object }
+
+  /api/citas/{cita_id}/completar:
+    put:
+      tags: [citas]
+      summary: Marcar una cita como completada con su descripcion
+      parameters:
+        - name: cita_id
+          in: path
+          required: true
+          type: integer
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              descripcion: { type: string }
+      responses:
+        "200": { description: Cita completada }
+        "404": { description: Cita no encontrada }
+
+  /api/citas/paciente/{paciente_id}:
+    get:
+      tags: [citas]
+      summary: Historial de citas de un paciente
+      parameters:
+        - name: paciente_id
+          in: path
+          required: true
+          type: integer
+      responses:
+        "200":
+          description: Historial de citas
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+
+  # ---------------- AUTH (usuarios) ----------------
+  /api/auth/usuarios/{usuario_id}:
+    get:
+      tags: [auth]
+      summary: Obtener un usuario
+      parameters:
+        - name: usuario_id
+          in: path
+          required: true
+          type: integer
+      responses:
+        "200":
+          description: Datos del usuario
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              usuario: { type: object }
+        "404": { description: Usuario no encontrado }
+    put:
+      tags: [auth]
+      summary: Actualizar un usuario (datos, rol, clave, activo)
+      parameters:
+        - name: usuario_id
+          in: path
+          required: true
+          type: integer
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              nombre: { type: string }
+              correo: { type: string }
+              rol: { type: string, example: terapeuta }
+              clave: { type: string }
+              activo: { type: boolean }
+      responses:
+        "200": { description: Usuario actualizado }
+        "404": { description: Usuario no encontrado }
+
+  /api/auth/usuarios/por-nombre/{nombre}:
+    get:
+      tags: [auth]
+      summary: Buscar usuarios por nombre
+      parameters:
+        - name: nombre
+          in: path
+          required: true
+          type: string
+      responses:
+        "200":
+          description: Usuarios que coinciden
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+
+  # ---------------- PACIENTES (terapeutas y catalogos) ----------------
+  /api/terapeutas/{medico_id}:
+    get:
+      tags: [pacientes]
+      summary: Obtener un terapeuta
+      parameters:
+        - name: medico_id
+          in: path
+          required: true
+          type: integer
+      responses:
+        "200":
+          description: Datos del terapeuta
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              terapeuta: { type: object }
+
+  /api/terapeutas/{medico_id}/precio:
+    put:
+      tags: [pacientes]
+      summary: Actualizar el precio de un terapeuta
+      parameters:
+        - name: medico_id
+          in: path
+          required: true
+          type: integer
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              precio: { type: number, format: float }
+      responses:
+        "200": { description: Precio actualizado }
+
+  /api/terapeutas/{medico_id}/activo:
+    put:
+      tags: [pacientes]
+      summary: Activar o desactivar un terapeuta
+      parameters:
+        - name: medico_id
+          in: path
+          required: true
+          type: integer
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              activo: { type: boolean }
+      responses:
+        "200": { description: Estado actualizado }
+
+  /api/especialidades/por-nombre/{nombre}:
+    get:
+      tags: [pacientes]
+      summary: Buscar una especialidad por nombre
+      parameters:
+        - name: nombre
+          in: path
+          required: true
+          type: string
+      responses:
+        "200":
+          description: Especialidad encontrada
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+
+  # ---------------- PAGOS (consultas y paquetes) ----------------
+  /api/pagos/pacientes/{paciente_id}:
+    get:
+      tags: [pagos]
+      summary: Pagos de un paciente
+      parameters:
+        - name: paciente_id
+          in: path
+          required: true
+          type: integer
+      responses:
+        "200":
+          description: Historial de pagos
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              pagos:
+                type: array
+                items: { type: object }
+
+  /api/pagos/{cita_id}/cancelar:
+    post:
+      tags: [pagos]
+      summary: Cancelar el pago pendiente de una cita
+      description: |
+        Lo invoca citas_service al cancelar una cita. Solo afecta pagos
+        en estado 'pendiente'.
+      parameters:
+        - name: cita_id
+          in: path
+          required: true
+          type: integer
+      responses:
+        "200": { description: Pago cancelado }
+
+  /api/pagos/pacientes/{paciente_id}/paquetes:
+    get:
+      tags: [pagos]
+      summary: Paquetes de sesiones de un paciente
+      parameters:
+        - name: paciente_id
+          in: path
+          required: true
+          type: integer
+      responses:
+        "200":
+          description: Paquetes del paciente
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              paquetes:
+                type: array
+                items: { type: object }
+
+  /api/pagos/paquetes/{paquete_id}/usar:
+    post:
+      tags: [pagos]
+      summary: Consumir una sesion de un paquete
+      description: |
+        Incrementa sesiones_usadas y vincula el paquete con la cita. Es
+        idempotente por cita gracias al indice unico uq_uso_cita.
+      parameters:
+        - name: paquete_id
+          in: path
+          required: true
+          type: integer
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              cita_id: { type: integer }
+      responses:
+        "200": { description: Sesion consumida }
+        "400": { description: Paquete inactivo o sin sesiones disponibles }
 
   # ---------------- NOTAS ----------------
   /api/notas/{cita_id}:
