@@ -27,8 +27,6 @@ services:
   auth-service:
     build: .
     command: python -m services.auth_service.run
-    ports:
-      - "5001:5001"
     env_file: .env
     networks:
       - moova-net
@@ -36,8 +34,6 @@ services:
   pacientes-service:
     build: .
     command: python -m services.pacientes_service.run
-    ports:
-      - "5002:5002"
     env_file: .env
     networks:
       - moova-net
@@ -45,8 +41,6 @@ services:
   citas-service:
     build: .
     command: python -m services.citas_service.run
-    ports:
-      - "5003:5003"
     env_file: .env
     networks:
       - moova-net
@@ -54,8 +48,6 @@ services:
   pagos-service:
     build: .
     command: python -m services.pagos_service.run
-    ports:
-      - "5004:5004"
     env_file: .env
     networks:
       - moova-net
@@ -63,8 +55,6 @@ services:
   notas-service:
     build: .
     command: python -m services.notas_service.run
-    ports:
-      - "5005:5005"
     env_file: .env
     networks:
       - moova-net
@@ -72,8 +62,6 @@ services:
   audit-service:
     build: .
     command: python -m services.audit_service.run
-    ports:
-      - "5006:5006"
     env_file: .env
     networks:
       - moova-net
