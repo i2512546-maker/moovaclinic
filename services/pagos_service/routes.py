@@ -1,4 +1,6 @@
 import json
+import hmac
+import os
 from datetime import datetime
 from flask import request, jsonify
 from services.pagos_service import pagos_bp
@@ -367,6 +369,13 @@ def api_pago_tarjeta_cobrar():
 
 @pagos_bp.route("/api/pagos/webhook", methods=["POST"])
 def webhook_pago():
+    # Verificar token secreto del proveedor (preventivo contra webhooks falsos)
+    token_proveedor = request.headers.get("X-Provider-Token") or request.headers.get("X-Signature") or ""
+    token_esperado = os.getenv("WEBHOOK_PROVIDER_TOKEN") or ""
+    if token_esperado and not hmac.compare_digest(token_proveedor, token_esperado):
+        app.logger.warning("Webhook token inválido desde %s", request.remote_addr)
+        return jsonify({"ok": False, "error": "Token no autorizado"}), 401
+
     data = request.get_json(silent=True) or request.form or {}
     cita_id = data.get("cita_id") or data.get("orderId") or data.get("purchaseNumber")
     estado = str(data.get("estado") or data.get("status") or "").lower()
