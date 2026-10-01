@@ -643,15 +643,13 @@ def create_app():
         data, _ = pagos_client.get(f"/api/pagos/{cita_id}")
         pago = data.get("pago", {})
 
-        # DEMO/temporal: si la cita es la que se acaba de crear en esta
-        # sesion, se permite llegar aunque el pago figure "pendiente"
-        # (la simulacion no llama al backend). En produccion real el
-        # pago llega como "pagado" y el guard normal aplica igual.
-        es_cita_pendiente = str(session.get("cita_pendiente_id") or "") == str(cita_id)
-        if pago.get("estado_pago") != "pagado" and not es_cita_pendiente:
+        # El pago solo figura "pagado" cuando pagos_service lo confirmo
+        # contra la pasarela (yape/plin/tarjeta). No hay atajo por sesion:
+        # una cita sin confirmar vuelve al paso de pago.
+        if pago.get("estado_pago") != "pagado":
             return redirect(url_for("pago_page", cita_id=cita_id))
 
-        # Flujo terminado (pago confirmado o demo): limpiar la cita pendiente.
+        # Pago confirmado: la cita ya no esta pendiente de cobro.
         session.pop("cita_pendiente_id", None)
 
         cdata, _ = citas_client.get(f"/api/citas/{cita_id}")
