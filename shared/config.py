@@ -52,6 +52,11 @@ PLIN_CLIENT_ID = os.getenv("PLIN_CLIENT_ID") or ""
 PLIN_CLIENT_SECRET = os.getenv("PLIN_CLIENT_SECRET") or ""
 PLIN_MERCHANT_ID = os.getenv("PLIN_MERCHANT_ID") or ""
 
+# Token que el proveedor de pagos envia en cada webhook (X-Provider-Token /
+# X-Signature). Si queda vacio el webhook NO exige firma: solo queda protegido
+# por la exencion del filtro de API_KEY interna.
+WEBHOOK_PROVIDER_TOKEN = os.getenv("WEBHOOK_PROVIDER_TOKEN") or ""
+
 REDES_SOCIALES = {
     "facebook": "https://www.facebook.com/people/Moova-Clinic/61575855088670/#",
     "instagram": "https://www.instagram.com/moovaclinic/",
