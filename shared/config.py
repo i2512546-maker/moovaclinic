@@ -31,9 +31,6 @@ APIPERU_URL = os.getenv("APIPERU_URL")
 OTP_EXPIRA_MIN = int(os.getenv("OTP_EXPIRA_MIN", 10))
 OTP_MAX_INTENTOS = int(os.getenv("OTP_MAX_INTENTOS", 3))
 
-MAX_INTENTOS_IP = int(os.getenv("MAX_INTENTOS_IP", 3))
-TIEMPO_BLOQUEO = int(os.getenv("TIEMPO_BLOQUEO", 2))
-
 NIUBIZ_SANDBOX_URL = os.getenv("NIUBIZ_SANDBOX_URL", "https://apisandbox.vnforappstest.com")
 NIUBIZ_LIVE_URL = os.getenv("NIUBIZ_LIVE_URL", "https://api.viacel.com")
 NIUBIZ_MODE = (os.getenv("NIUBIZ_MODE") or "sandbox").lower()
