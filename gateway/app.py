@@ -923,7 +923,7 @@ def create_app():
         data, _ = citas_client.get("/api/citas/estadisticas")
         return jsonify(data)
 
-# Proxy publico de las pasarelas Yape/Plin (QR y consulta de estado).
+    # Proxy publico de las pasarelas Yape/Plin (QR y consulta de estado).
     # El frontend de pago.html las invoca con ruta relativa al gateway
     # (same-origin), asi que se reenvian a pagos_service preservando el
     # cuerpo JSON y el codigo de estado. No toca el flujo de tarjeta/Niubiz.
