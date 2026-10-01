@@ -42,7 +42,7 @@ def medico_disponible(medico_id, fecha_cita, excluir_cita_id=None):
 
 def _mapa_pacientes():
     """{paciente_id: fila} via pacientes_service. Se usa para enriquecer
-    las citas (nombre/apellido/dni/telefono) sin tocar pacientes_db."""
+    las citas (nombre/apellido/dni/telefono) sin tocar moovacloud_pacientes."""
     try:
         data, _ = pacientes_client.get("/api/pacientes")
         pacientes = data.get("pacientes") or []
@@ -154,7 +154,7 @@ def verificar_disponibilidad():
 
 @citas_bp.route("/api/citas/terapeutas", methods=["GET"])
 def listar_terapeutas():
-    """Ruta publica conservada. Los terapeutas viven en pacientes_db;
+    """Ruta publica conservada. Los terapeutas viven en moovacloud_pacientes;
     se obtienen por HTTP a pacientes_service."""
     data, status = pacientes_client.get("/api/terapeutas")
     return jsonify(data), status
@@ -258,7 +258,7 @@ def detalle_cita(cita_id):
 @citas_bp.route("/api/citas/<int:cita_id>/basico", methods=["GET"])
 def detalle_cita_basico(cita_id):
     """Version liviana de detalle_cita: devuelve SOLO los datos locales de
-    citas_db (paciente_id, terapeuta_id, fecha_cita, estado, ...) sin
+    moovacloud_citas (paciente_id, terapeuta_id, fecha_cita, estado, ...) sin
     enriquecer por HTTP a otros servicios. Lo usa notas_service para
     resolver el paciente_id de una cita sin pagar la cadena pesada del
     detalle enriquecido."""
