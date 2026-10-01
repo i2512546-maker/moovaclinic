@@ -265,7 +265,7 @@
                                                 <tr id="fila-{{ m.ID }}" data-precio="{{ m.precio or 0 }}">
                                                     <td>
                                                         <div class="d-flex align-items-center gap-2">
-                                                            <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center fw-bold" style="width:38px; height:38px;">{{ m.Nombre[0].upper() }}</div>
+                                                            <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center fw-bold" style="width:38px; height:38px;">{{ (m.Nombre or '?')[0]|upper }}</div>
                                                             <span>{{ m.Nombre }}</span>
                                                         </div>
                                                     </td>

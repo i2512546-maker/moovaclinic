@@ -141,7 +141,7 @@
                                 <tr>
                                     <td>
                                         <div class="d-flex align-items-center gap-2">
-                                            <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center text-white fw-bold" style="width:34px;height:34px;">{{ m.Nombre[0].upper() }}</div>
+                                            <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center text-white fw-bold" style="width:34px;height:34px;">{{ (m.Nombre or '?')[0]|upper }}</div>
                                             {{ m.Nombre }}
                                         </div>
                                     </td>
