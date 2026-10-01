@@ -8,7 +8,7 @@ from flask_wtf.csrf import CSRFProtect, CSRFError, generate_csrf
 from datetime import datetime, timedelta
 from urllib.parse import urlencode
 from shared.config import REDES_SOCIALES
-from shared.service_client import auth_client, pacientes_client, citas_client, pagos_client, notas_client
+from shared.service_client import auth_client, pacientes_client, citas_client, pagos_client, notas_client, audit_client
 from shared.audit import log_accion
 
 bcrypt = Bcrypt()
@@ -924,25 +924,19 @@ def create_app():
         return jsonify(data)
 
 # Proxy publico de las pasarelas Yape/Plin (QR y consulta de estado).
-# El frontend de pago.html las invoca con ruta relativa al gateway
-# (same-origin), asi que se reenvian a pagos_service preservando el
-# cuerpo JSON y el codigo de estado. No toca el flujo de tarjeta/Niubiz.
-# CSRF: these are public endpoints; CSRF protection is handled on the
-# frontend via meta tags, but we exempt them here since they forward
-# to the payment service without interpreting sensitive data.
-@app.route("/api/pagos/yape/iniciar", methods=["POST"])
-@app.route("/api/pagos/plin/iniciar", methods=["POST"])
-def proxy_pago_scan_iniciar():
-    data, status = pagos_client.post(request.path, request.get_json() or {})
-    return jsonify(data or {}), status
+    # El frontend de pago.html las invoca con ruta relativa al gateway
+    # (same-origin), asi que se reenvian a pagos_service preservando el
+    # cuerpo JSON y el codigo de estado. No toca el flujo de tarjeta/Niubiz.
+    @app.route("/api/pagos/yape/iniciar", methods=["POST"])
+    @app.route("/api/pagos/plin/iniciar", methods=["POST"])
+    def proxy_pago_scan_iniciar():
+        data, status = pagos_client.post(request.path, request.get_json() or {})
+        return jsonify(data or {}), status
 
-@app.route("/api/pagos/yape/estado", methods=["POST"])
-@app.route("/api/pagos/plin/estado", methods=["POST"])
-def proxy_pago_scan_estado():
-    data, status = pagos_client.post(request.path, request.get_json() or {})
-    return jsonify(data or {}), status
-
-    from services.audit_service.routes import audit_bp
-    app.register_blueprint(audit_bp)
+    @app.route("/api/pagos/yape/estado", methods=["POST"])
+    @app.route("/api/pagos/plin/estado", methods=["POST"])
+    def proxy_pago_scan_estado():
+        data, status = pagos_client.post(request.path, request.get_json() or {})
+        return jsonify(data or {}), status
 
     return app
