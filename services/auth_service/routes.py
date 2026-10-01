@@ -1,53 +1,7 @@
-from flask import request, jsonify, session
+from flask import request, jsonify
 from services.auth_service import auth_bp
 from services.auth_service.app import bcrypt
-from shared.config import OTP_EXPIRA_MIN, MAX_INTENTOS_IP, TIEMPO_BLOQUEO
 from shared.proc import call_proc, call_proc_one, call_proc_execute
-import time
-
-
-def _otp_rate_limit(session_key="_otp_intentos"):
-    """Control de intentos y bloqueo por IP/sesión usando session Flask."""
-    ahora = time.time()
-    historial = session.get(session_key, [])
-    # Filtrar intentos dentro de la ventana de tiempo (OTP_EXPIRA_MIN minutos)
-    ventana = max(60, OTP_EXPIRA_MIN * 60)  # mínimo 1 minuto
-    historial = [t for t in historial if ahora - t < ventana]
-    session[session_key] = historial
-
-    # Verificar bloqueo activo
-    if historial and historial[0] < ahora - TIEMPO_BLOQUEO * 60:
-        # Bloqueo expirado, resetear
-        session[session_key] = []
-        return None, False
-
-    if len(historial) >= MAX_INTENTOS_IP:
-        # Bloqueo activo: primer timestamp es el inicio del bloqueo
-        if not session.get("_bloqueado_hasta"):
-            session["_bloqueado_hasta"] = historial[0] + TIEMPO_BLOQUEO * 60
-        bloqueado_hasta = session.get("_bloqueado_hasta", 0)
-        if ahora < bloqueado_hasta:
-            return {"error": f"Demasiados intentos. Intenta nuevamente en {int((bloqueado_hasta - ahora) / 60)} minutos."}, True
-        # Bloqueo expirado, resetear
-        session[session_key] = []
-        session["_bloqueado_hasta"] = None
-        return None, False
-
-    return None, False
-
-
-def _registrar_intento(session_key="_otp_intentos"):
-    """Registra un intento fallido y devuelve si se activó bloqueo."""
-    ahora = time.time()
-    historial = session.get(session_key, [])
-    historial = [t for t in historial if ahora - t < (OTP_EXPIRA_MIN * 60)]
-    historial.append(ahora)
-    session[session_key] = historial
-
-    if len(historial) >= MAX_INTENTOS_IP:
-        session["_bloqueado_hasta"] = ahora + TIEMPO_BLOQUEO * 60
-        return True  # bloqueo activado
-    return False
 
 
 @auth_bp.route("/api/auth/login", methods=["POST"])
@@ -194,50 +148,3 @@ def verificar_token():
     return jsonify({"autenticado": True, "usuario": {
         "id": usuario["id"], "nombre": usuario["nombre"], "rol": usuario["rol"]
     }})
-
-
-@auth_bp.route("/api/auth/otp", methods=["POST"])
-def otp_verificar():
-    """Verificación OTP con bloqueo por intentos y IP."""
-    data = request.get_json() or {}
-    dni = data.get("dni", "").strip()
-    otp = data.get("otp", "").strip()
-
-    if not dni or not otp:
-        return jsonify({"error": "DNI y OTP requeridos."}), 400
-
-    error, bloqueado = _otp_rate_limit()
-    if bloqueado:
-        return jsonify(error), 429
-
-    # Buscar usuario por DNI
-    usuario = call_proc_one("sp_obtener_usuario_por_dni", (dni,))
-    if not usuario:
-        return jsonify({"error": "Usuario no encontrado."}), 404
-
-    # Verificar OTP almacenado
-    otp_guardado = call_proc_one("sp_obtener_otp", (dni,))
-    if not otp_guardado:
-        return jsonify({"error": "OTP expirado o no disponible."}), 400
-
-    if otp_guardado["codigo"] != otp:
-        # OTP incorrecto: registrar intento y aplicar bloqueo
-        bloqueo_activado = _registrar_intento()
-        if bloqueo_activado:
-            return jsonify({"error": "Máximo de intentos fallidos. Bloqueado por 2 minutos."}), 429
-        return jsonify({"error": "OTP incorrecto."}), 400
-
-    # OTP correcto: limpiar intentos y sesión
-    session["_otp_intentos"] = []
-    session["_bloqueado_hasta"] = None
-    # OTP usado, puede borrarse o invalidarse en la BD
-    call_proc_execute("sp_limpiar_otp", (dni,))
-
-    return jsonify({
-        "success": True,
-        "usuario": {
-            "id": usuario["id"],
-            "nombre": usuario["nombre"],
-            "rol": usuario["rol_nombre"],
-        }
-    })

@@ -161,12 +161,6 @@ BEGIN
     SELECT id FROM roles WHERE nombre = p_nombre;
 END$$
 
-DROP PROCEDURE IF EXISTS `sp_obtener_rol_id_terapeuta`$$
-CREATE PROCEDURE `sp_obtener_rol_id_terapeuta`()
-BEGIN
-    SELECT id FROM roles WHERE nombre = 'terapeuta';
-END$$
-
 DROP PROCEDURE IF EXISTS `sp_obtener_usuario_por_correo`$$
 CREATE PROCEDURE `sp_obtener_usuario_por_correo`(IN p_correo VARCHAR(120))
 BEGIN
@@ -246,17 +240,10 @@ BEGIN
     SELECT LAST_INSERT_ID() AS id;
 END$$
 
-DROP PROCEDURE IF EXISTS `sp_set_usuario_activo`$$
-CREATE PROCEDURE `sp_set_usuario_activo`(IN p_usuario_id INT, IN p_activo TINYINT)
-BEGIN
-    UPDATE usuarios SET activo = p_activo WHERE id = p_usuario_id;
-END$$
-
-DROP PROCEDURE IF EXISTS `sp_cambiar_clave_usuario`$$
-CREATE PROCEDURE `sp_cambiar_clave_usuario`(IN p_usuario_id INT, IN p_clave VARCHAR(255))
-BEGIN
-    UPDATE usuarios SET clave = p_clave WHERE id = p_usuario_id;
-END$$
+-- NOTA: cambiar clave y activar/desactivar usuario se hacen con
+-- sp_actualizar_usuario (arriba), que ya cubre nombre, correo, activo,
+-- clave y rol. Por eso no existen sp_set_usuario_activo ni
+-- sp_cambiar_clave_usuario.
 
 DELIMITER ;
 

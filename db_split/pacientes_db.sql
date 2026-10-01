@@ -557,15 +557,6 @@ BEGIN
     SELECT LAST_INSERT_ID() AS id;
 END$$
 
---
--- sp_obtener_usuario_id_terapeuta  |  LOCAL (FASE 2)
---
-DROP PROCEDURE IF EXISTS `sp_obtener_usuario_id_terapeuta`$$
-CREATE PROCEDURE `sp_obtener_usuario_id_terapeuta`(IN p_medico_id INT)
-BEGIN
-    SELECT usuario_id FROM terapeutas WHERE id = p_medico_id;
-END$$
-
 DELIMITER ;
 
 -- ============================================================
