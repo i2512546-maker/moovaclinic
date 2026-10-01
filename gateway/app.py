@@ -1,16 +1,37 @@
-import os, sys
+import os
+import sys
+
 sys.path.insert(0, os.path.dirname(__file__))
 import re
-import yaml
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, Response
-from flask_wtf.csrf import CSRFProtect, CSRFError, generate_csrf
 from datetime import datetime, timedelta
 from urllib.parse import urlencode
+
+import yaml
+from flask import (
+    Flask,
+    Response,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
+from flask_wtf.csrf import CSRFError, CSRFProtect, generate_csrf
+
+from gateway.ficha_pdf import build_ficha_clinica_pdf
+from shared.audit import log_accion
 from shared.config import REDES_SOCIALES
 from shared.fechas import fmt_fecha
-from shared.service_client import auth_client, pacientes_client, citas_client, pagos_client, notas_client, audit_client
-from shared.audit import log_accion
-from gateway.ficha_pdf import build_ficha_clinica_pdf
+from shared.service_client import (
+    audit_client,
+    auth_client,
+    citas_client,
+    notas_client,
+    pacientes_client,
+    pagos_client,
+)
 
 csrf = CSRFProtect()
 

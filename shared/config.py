@@ -1,5 +1,6 @@
 import os
-from dotenv import load_dotenv, find_dotenv
+
+from dotenv import find_dotenv, load_dotenv
 
 # Carga primero el .env del directorio de trabajo del proceso (el de cada
 # servicio al arrancar desde su propia carpeta); si no existe, cae al .env

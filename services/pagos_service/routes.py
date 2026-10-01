@@ -1,15 +1,21 @@
-import json
 import hmac
+import json
 from datetime import datetime
-from flask import request, jsonify, current_app
+
+from flask import current_app, jsonify, request
+
 from services.pagos_service import pagos_bp
 from services.pagos_service.providers import (
-    NiubizClient, YapeClient, PlinClient,
-    PaymentNotConfigured, PaymentProviderError, qr_url,
+    NiubizClient,
+    PaymentNotConfigured,
+    PaymentProviderError,
+    PlinClient,
+    YapeClient,
+    qr_url,
 )
 from shared.audit import log_accion
 from shared.config import WEBHOOK_PROVIDER_TOKEN
-from shared.proc import call_proc, call_proc_one, call_proc_execute
+from shared.proc import call_proc, call_proc_execute, call_proc_one
 from shared.service_client import auth_client, citas_client, pacientes_client
 
 
@@ -90,6 +96,7 @@ def confirmar_pago_servicio(cita_id, referencia=None, datos_respuesta=None, veri
 
     if pagado and cita:
         import requests as http_requests
+
         from shared.config import TEXTBEE_API_KEY, TEXTBEE_DEVICE_ID, TEXTBEE_URL
         try:
             fecha_fmt = datetime.strptime(str(cita["fecha_cita"]), "%Y-%m-%d").strftime("%d/%m/%Y")

@@ -22,7 +22,7 @@
 import hmac
 import os
 
-from flask import request, jsonify
+from flask import jsonify, request
 
 from shared.config import API_KEY
 

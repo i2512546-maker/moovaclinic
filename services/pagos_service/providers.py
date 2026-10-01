@@ -1,10 +1,21 @@
 import requests
 
 from shared.config import (
-    NIUBIZ_SANDBOX_URL, NIUBIZ_LIVE_URL, NIUBIZ_MODE,
-    NIUBIZ_USER, NIUBIZ_PASSWORD, NIUBIZ_MERCHANT_ID, NIUBIZ_SDK_URL,
-    YAPE_API_URL, YAPE_CLIENT_ID, YAPE_CLIENT_SECRET, YAPE_MERCHANT_ID,
-    PLIN_API_URL, PLIN_CLIENT_ID, PLIN_CLIENT_SECRET, PLIN_MERCHANT_ID,
+    NIUBIZ_LIVE_URL,
+    NIUBIZ_MERCHANT_ID,
+    NIUBIZ_MODE,
+    NIUBIZ_PASSWORD,
+    NIUBIZ_SANDBOX_URL,
+    NIUBIZ_SDK_URL,
+    NIUBIZ_USER,
+    PLIN_API_URL,
+    PLIN_CLIENT_ID,
+    PLIN_CLIENT_SECRET,
+    PLIN_MERCHANT_ID,
+    YAPE_API_URL,
+    YAPE_CLIENT_ID,
+    YAPE_CLIENT_SECRET,
+    YAPE_MERCHANT_ID,
 )
 
 API_TIMEOUT = 20
@@ -53,7 +64,7 @@ class NiubizClient:
                 data="{}", timeout=API_TIMEOUT,
             )
         except requests.RequestException as e:
-            raise PaymentProviderError(f"Niubiz: sin conexion ({e})")
+            raise PaymentProviderError(f"Niubiz: sin conexion ({e})") from e
         if resp.status_code not in (200, 201):
             raise PaymentProviderError(f"Niubiz: auth fallida ({resp.status_code})")
         return resp.json().get("security")
@@ -67,7 +78,7 @@ class NiubizClient:
                 data="{}", timeout=API_TIMEOUT,
             )
         except requests.RequestException as e:
-            raise PaymentProviderError(f"Niubiz: sin conexion ({e})")
+            raise PaymentProviderError(f"Niubiz: sin conexion ({e})") from e
         if resp.status_code not in (200, 201):
             raise PaymentProviderError(f"Niubiz: sesion fallida ({resp.status_code})")
         data = resp.json()
@@ -89,7 +100,7 @@ class NiubizClient:
                 json=body, timeout=API_TIMEOUT,
             )
         except requests.RequestException as e:
-            raise PaymentProviderError(f"Niubiz: sin conexion ({e})")
+            raise PaymentProviderError(f"Niubiz: sin conexion ({e})") from e
         if resp.status_code not in (200, 201):
             raise PaymentProviderError(f"Niubiz: cobro fallido ({resp.status_code})")
         data = resp.json() or {}
@@ -123,7 +134,7 @@ class YapeClient:
                 timeout=QR_API_TIMEOUT,
             )
         except requests.RequestException as e:
-            raise PaymentProviderError(f"Yape: sin conexion ({e})")
+            raise PaymentProviderError(f"Yape: sin conexion ({e})") from e
         if resp.status_code not in (200, 201):
             raise PaymentProviderError(f"Yape: auth fallida ({resp.status_code})")
         return resp.json().get("access_token")
@@ -139,7 +150,7 @@ class YapeClient:
                 json=body, timeout=QR_API_TIMEOUT,
             )
         except requests.RequestException as e:
-            raise PaymentProviderError(f"Yape: sin conexion ({e})")
+            raise PaymentProviderError(f"Yape: sin conexion ({e})") from e
         if resp.status_code not in (200, 201):
             raise PaymentProviderError(f"Yape: cobro fallido ({resp.status_code})")
         data = resp.json() or {}
@@ -158,7 +169,7 @@ class YapeClient:
                 timeout=QR_API_TIMEOUT,
             )
         except requests.RequestException as e:
-            raise PaymentProviderError(f"Yape: sin conexion ({e})")
+            raise PaymentProviderError(f"Yape: sin conexion ({e})") from e
         if resp.status_code not in (200, 201):
             raise PaymentProviderError(f"Yape: consulta fallida ({resp.status_code})")
         data = resp.json() or {}
@@ -189,7 +200,7 @@ class PlinClient:
                 timeout=QR_API_TIMEOUT,
             )
         except requests.RequestException as e:
-            raise PaymentProviderError(f"Plin: sin conexion ({e})")
+            raise PaymentProviderError(f"Plin: sin conexion ({e})") from e
         if resp.status_code not in (200, 201):
             raise PaymentProviderError(f"Plin: auth fallida ({resp.status_code})")
         return resp.json().get("access_token")
@@ -205,7 +216,7 @@ class PlinClient:
                 json=body, timeout=QR_API_TIMEOUT,
             )
         except requests.RequestException as e:
-            raise PaymentProviderError(f"Plin: sin conexion ({e})")
+            raise PaymentProviderError(f"Plin: sin conexion ({e})") from e
         if resp.status_code not in (200, 201):
             raise PaymentProviderError(f"Plin: cobro fallido ({resp.status_code})")
         data = resp.json() or {}
@@ -224,7 +235,7 @@ class PlinClient:
                 timeout=QR_API_TIMEOUT,
             )
         except requests.RequestException as e:
-            raise PaymentProviderError(f"Plin: sin conexion ({e})")
+            raise PaymentProviderError(f"Plin: sin conexion ({e})") from e
         if resp.status_code not in (200, 201):
             raise PaymentProviderError(f"Plin: consulta fallida ({resp.status_code})")
         data = resp.json() or {}

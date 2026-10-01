@@ -1,0 +1,45 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-q"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = [
+    ".git",
+    "__pycache__",
+    ".venv",
+    "venv",
+    "instance",
+]
+
+[tool.ruff.lint]
+# E501 (lineas largas) queda fuera: el codigo ya tiene lineas largas
+# heredadas y reformatearlas todas seria ruido en esta fase.
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "W",    # warnings
+    "B",    # bugbear
+    "I",    # isort
+]
+ignore = [
+    "E501",  # longitud de linea
+    "E731",  # asignar lambda a variable
+    "B008",  # llamada en argumento por defecto (flask route)
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Los tests declaran fixtures y parcheos que ruff marca como falsos positivos.
+"tests/*" = ["E402"]
+# Los entrypoints de cada servicio importan desde la raiz del repo.
+"services/*/run.py" = ["E402"]
+"run.py" = ["E402"]
+# E402 intencional: services/<svc>/__init__.py crea el Blueprint y despues
+# importa routes, que necesita registrarse sobre ese blueprint ya creado.
+# Subir el import rompe el registro de las rutas del servicio.
+"services/*/__init__.py" = ["E402"]

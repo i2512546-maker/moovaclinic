@@ -1,6 +1,8 @@
-import mysql.connector
 from contextlib import contextmanager
-from shared.config import DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT
+
+import mysql.connector
+
+from shared.config import DB_HOST, DB_NAME, DB_PASSWORD, DB_PORT, DB_USER
 
 
 def get_connection(db_name=None):
