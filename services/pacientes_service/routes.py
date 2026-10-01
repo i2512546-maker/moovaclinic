@@ -4,6 +4,7 @@ from services.pacientes_service import pacientes_bp
 from shared.config import APIPERU_TOKEN, APIPERU_URL
 from shared.proc import call_proc, call_proc_one, call_proc_execute
 from shared.service_client import auth_client, citas_client, pagos_client
+from shared.validators import validar_datos_paciente
 
 
 def _mapa_usuarios():
@@ -69,24 +70,6 @@ def obtener_paciente_id_por_dni(dni):
     if not paciente:
         return jsonify({"error": "Paciente no encontrado"}), 404
     return jsonify({"success": True, "id": paciente["id"]})
-
-
-def _validar_datos_paciente(nombre, apellido, dni, telefono):
-    """Valida formato estricto ANTES de tocar la DB. Devuelve None si OK,
-    o el mensaje de error. Solo letras/espacios en nombre/apellido."""
-    import re
-    if not re.fullmatch(r"[A-Za-zÁÉÍÓÚáéíóúÑñ ]{2,60}", nombre):
-        return "Nombre inválido"
-    if not re.fullmatch(r"[A-Za-zÁÉÍÓÚáéíóúÑñ ]{2,60}", apellido):
-        return "Apellido inválido"
-    if not re.fullmatch(r"\d{8}", dni):
-        return "DNI inválido, debe tener 8 dígitos"
-    tel = re.sub(r"[\s\-]", "", telefono or "")
-    if tel.startswith("+51"):
-        tel = tel[3:]
-    if not re.fullmatch(r"\d{9}", tel):
-        return "Teléfono inválido, debe tener 9 dígitos"
-    return None
 
 
 @pacientes_bp.route("/api/pacientes/min", methods=["POST"])
