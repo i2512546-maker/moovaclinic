@@ -12,6 +12,10 @@ services:
         value: "3.11.8"
       - key: SECRET_KEY
         generateValue: true
+      # Activa SESSION_COOKIE_SECURE. Sin esto Render no define
+      # FLASK_ENV y la cookie de sesion puede viajar sin HTTPS.
+      - key: FLASK_ENV
+        value: production
       - key: API_KEY
         sync: false
       - key: AUTH_SERVICE_URL
@@ -74,10 +78,8 @@ services:
         value: "10"
       - key: OTP_MAX_INTENTOS
         value: "3"
-      - key: MAX_INTENTOS_IP
-        value: "3"
-      - key: TIEMPO_BLOQUEO
-        value: "2"
+      # MAX_INTENTOS_IP y TIEMPO_BLOQUEO se eliminaron en FASE 3: ya
+      # no las lee ningun modulo y solo confundian el despliegue.
 
   # ============================================
   # PACIENTES SERVICE
@@ -198,6 +200,39 @@ services:
         value: "3306"
       - key: WEBHOOK_PROVIDER_TOKEN
         sync: false
+      # --- Pasarelas de pago ---
+      # Sin estas variables pagos_service arranca bien pero TODOS los
+      # pagos fallan con "proveedor no configurado". Se declaran aca
+      # para que Render las pida al desplegar en vez de descubrirlas
+      # en produccion. Los valores seponen en el panel (sync: false).
+      - key: NIUBIZ_MODE
+        value: sandbox
+      - key: NIUBIZ_SANDBOX_URL
+        value: https://apisandbox.vnforappstest.com
+      - key: NIUBIZ_LIVE_URL
+        value: https://api.viacel.com
+      - key: NIUBIZ_USER
+        sync: false
+      - key: NIUBIZ_PASSWORD
+        sync: false
+      - key: NIUBIZ_MERCHANT_ID
+        sync: false
+      - key: YAPE_API_URL
+        value: https://api.yape.com.pe
+      - key: YAPE_CLIENT_ID
+        sync: false
+      - key: YAPE_CLIENT_SECRET
+        sync: false
+      - key: YAPE_MERCHANT_ID
+        sync: false
+      - key: PLIN_API_URL
+        value: https://api.plin.com.pe
+      - key: PLIN_CLIENT_ID
+        sync: false
+      - key: PLIN_CLIENT_SECRET
+        sync: false
+      - key: PLIN_MERCHANT_ID
+        sync: false
       - key: AUTH_SERVICE_URL
         fromService:
           name: moova-auth
@@ -280,3 +315,43 @@ services:
         value: moovacloud_auditoria
       - key: DB_PORT
         value: "3306"
+  # ============================================
+  # JOB: expirar pagos pendientes (cron)
+  # ============================================
+  # Sin esto, una cita abandonada a mitad del pago queda bloqueada sin
+# limite. El script llama al endpoint interno de pagos_service
+  # (protegido por API_KEY) y devuelve != 0 si falla.
+  - type: cron
+    name: liberar-pagos-vencidos
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    schedule: "17 * * * *"
+    command: python scripts/liberar_pagos_vencidos.py 24
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.8"
+      - key: API_KEY
+        fromService:
+          name: moova-pagos
+          type: web
+          envVarKey: API_KEY
+      - key: PAGOS_SERVICE_URL
+        fromService:
+          name: moova-pagos
+          type: web
+          property: hostport
+      - key: DB_HOST
+        fromService:
+          name: moova-pagos
+          type: web
+          envVarKey: DB_HOST
+      - key: DB_USER
+        fromService:
+          name: moova-pagos
+          type: web
+          envVarKey: DB_USER
+      - key: DB_PASSWORD
+        fromService:
+          name: moova-pagos
+          type: web
+          envVarKey: DB_PASSWORD
