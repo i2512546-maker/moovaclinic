@@ -6,10 +6,12 @@
 # llegue al servicio, comparado en tiempo constante contra la
 # API_KEY del entorno (var compartida con el gateway).
 #
-#  - Si el servicio no tiene API_KEY configurada -> se loguea un
-#    warning y se deja pasar (modo degradado para desarrollo), de
-#    modo que la ausencia de configuracion nunca derribe al servicio
-#    pero quede visible en los logs.
+#  - Si el servicio NO tiene API_KEY configurada -> se CIERRA por
+#    defecto: se rechaza todo con 503. Permitir el paso cuando falta
+#    la clave dejaba el servicio completamente abierto ante el primer
+#    despliegue sin configurar, que es el peor escenario posible.
+#    Para desarrollo local se puede desteurear con
+#    ALLOW_INSECURE_INTERNAL_API=1, que queda logged como warning.
 #  - Se exime el path "/" y "/health" para los health checks de
 #    Render (que hacen GET al root).
 #  - Se exime el webhook de pagos (/api/pagos/webhook): el proveedor
@@ -18,10 +20,19 @@
 # ============================================================
 
 import hmac
+import os
 
 from flask import request, jsonify
 
 from shared.config import API_KEY
+
+# Desteure explicito para desarrollo local. En produccion (y en Render)
+# debe quedar ausente.
+ALLOW_INSECURE = (os.getenv("ALLOW_INSECURE_INTERNAL_API") or "").strip() in (
+    "1",
+    "true",
+    "yes",
+)
 
 
 def proteger_api_interna(app):
@@ -35,11 +46,23 @@ def proteger_api_interna(app):
             return None
         esperada = (API_KEY or "").strip()
         if not esperada:
-            app.logger.warning(
-                "[auth] API_KEY no configurada en %s: auth interna DESHABILITADA",
+            if ALLOW_INSECURE:
+                app.logger.warning(
+                    "[auth] API_KEY no configurada en %s y "
+                    "ALLOW_INSECURE_INTERNAL_API activo: auth interna ABIERTA",
+                    app.name,
+                )
+                return None
+            # Falla cerrada: sin clave no hay quien pueda llamar.
+            app.logger.error(
+                "[auth] API_KEY no configurada en %s: auth interna CERRADA. "
+                "Define API_KEY en el entorno del servicio.",
                 app.name,
             )
-            return None
+            return (
+                jsonify({"error": "Servicio sin configurar (falta API_KEY)"}),
+                503,
+            )
         recibida = (request.headers.get("X-Api-Key") or "").strip()
         if recibida and hmac.compare_digest(recibida, esperada):
             return None
