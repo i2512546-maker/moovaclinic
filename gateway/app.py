@@ -1,5 +1,19 @@
+<<<<<<< Updated upstream
 import os
 import sys
+=======
+import os, sys
+sys.path.insert(0, os.path.dirname(__file__))
+import yaml
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask_bcrypt import Bcrypt
+from datetime import datetime, timedelta
+from shared.api import register_global_error_handlers
+from shared.config import REDES_SOCIALES, SECRET_KEY
+from shared.service_client import auth_client, pacientes_client, citas_client, pagos_client, notas_client
+from shared.audit import log_accion
+from shared.proc import call_proc, call_proc_one, call_proc_execute
+>>>>>>> Stashed changes
 
 sys.path.insert(0, os.path.dirname(__file__))
 import re
@@ -120,6 +134,7 @@ def _load_swagger():
 
 def create_app():
     app = Flask(__name__, template_folder="../templates", static_folder="../static")
+<<<<<<< Updated upstream
     secret_key = os.getenv("SECRET_KEY")
     if not secret_key:
         raise RuntimeError("Falta la variable de entorno SECRET_KEY. Déjala en .env y vuelve a arrancar.")
@@ -133,6 +148,11 @@ def create_app():
 
     app.jinja_env.filters["fecha"] = lambda v: fmt_fecha(v)
     app.jinja_env.filters["fechahora"] = lambda v: fmt_fecha(v, con_hora=True)
+=======
+    app.secret_key = SECRET_KEY
+    bcrypt.init_app(app)
+    register_global_error_handlers(app)
+>>>>>>> Stashed changes
 
     try:
         from flasgger import Swagger
