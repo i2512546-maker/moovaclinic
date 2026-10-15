@@ -3,8 +3,6 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from flask import Flask
-from shared.api import register_global_error_handlers
-from shared.config import SECRET_KEY
 
 from shared.config import SECRET_KEY
 
@@ -12,10 +10,6 @@ from shared.config import SECRET_KEY
 def create_app():
     app = Flask(__name__)
     app.secret_key = SECRET_KEY
-<<<<<<< Updated upstream
-=======
-    register_global_error_handlers(app)
->>>>>>> Stashed changes
 
     from services.pagos_service.routes import pagos_bp
     app.register_blueprint(pagos_bp)

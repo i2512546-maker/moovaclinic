@@ -4,8 +4,6 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from flask import Flask
 from flask_bcrypt import Bcrypt
-from shared.api import register_global_error_handlers
-from shared.config import SECRET_KEY
 
 from shared.config import SECRET_KEY
 
@@ -15,10 +13,6 @@ bcrypt = Bcrypt()
 def create_app():
     app = Flask(__name__)
     app.secret_key = SECRET_KEY
-<<<<<<< Updated upstream
-=======
-    register_global_error_handlers(app)
->>>>>>> Stashed changes
 
     bcrypt.init_app(app)
 
