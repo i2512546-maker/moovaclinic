@@ -7,10 +7,6 @@ from dotenv import find_dotenv, load_dotenv
 # de la raiz del repo como respaldo.
 load_dotenv(find_dotenv(usecwd=True))
 
-SECRET_KEY = os.getenv("SECRET_KEY")
-if not SECRET_KEY:
-    raise RuntimeError("SECRET_KEY no está definida. Debe configurarse en el entorno antes de arrancar la aplicación.")
-
 DB_HOST = os.getenv("DB_HOST")
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
@@ -19,25 +15,16 @@ DB_PORT = int(os.getenv("DB_PORT", 3306))
 NOTAS_DB_NAME = os.getenv("NOTAS_DB_NAME", "moovacloud_notas")
 KPIS_DB_NAME = os.getenv("KPIS_DB_NAME", "moovacloud_kpis")
 
-<<<<<<< Updated upstream
 SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
     raise RuntimeError(
         "Falta la variable de entorno SECRET_KEY. Déjala en .env y vuelve a arrancar."
     )
-=======
->>>>>>> Stashed changes
 API_KEY = os.getenv("API_KEY")
-JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
-JWT_TTL_SECONDS = int(os.getenv("JWT_TTL_SECONDS", 28800))
 
 TEXTBEE_API_KEY = os.getenv("TEXTBEE_API_KEY")
 TEXTBEE_DEVICE_ID = os.getenv("TEXTBEE_DEVICE_ID")
 TEXTBEE_URL = os.getenv("TEXTBEE_URL")
-SMS_MODE = (os.getenv("SMS_MODE") or "console").lower()
-
-IDENTITY_TOKEN_TTL_SECONDS = int(os.getenv("IDENTITY_TOKEN_TTL_SECONDS", 900))
-CITA_REEMBOLSO_RETENCION_HORAS = int(os.getenv("CITA_REEMBOLSO_RETENCION_HORAS", 24))
 
 APIPERU_TOKEN = os.getenv("APIPERU_TOKEN")
 APIPERU_URL = os.getenv("APIPERU_URL")

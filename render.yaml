@@ -11,15 +11,12 @@ services:
       - key: PYTHON_VERSION
         value: "3.11.8"
       - key: SECRET_KEY
-<<<<<<< Updated upstream
         generateValue: true
       # Activa SESSION_COOKIE_SECURE. Sin esto Render no define
       # FLASK_ENV y la cookie de sesion puede viajar sin HTTPS.
       - key: FLASK_ENV
         value: production
       - key: API_KEY
-=======
->>>>>>> Stashed changes
         sync: false
       - key: AUTH_SERVICE_URL
         fromService:
@@ -65,7 +62,6 @@ services:
         value: "3.11.8"
       - key: SECRET_KEY
         sync: false
-<<<<<<< Updated upstream
       - key: API_KEY
         sync: false
       - key: DB_HOST
@@ -84,8 +80,6 @@ services:
         value: "3"
       # MAX_INTENTOS_IP y TIEMPO_BLOQUEO se eliminaron en FASE 3: ya
       # no las lee ningun modulo y solo confundian el despliegue.
-=======
->>>>>>> Stashed changes
 
   # ============================================
   # PACIENTES SERVICE
@@ -100,7 +94,6 @@ services:
         value: "3.11.8"
       - key: SECRET_KEY
         sync: false
-<<<<<<< Updated upstream
       - key: API_KEY
         sync: false
       - key: DB_HOST
@@ -132,8 +125,6 @@ services:
           name: moova-pagos
           type: web
           property: hostport
-=======
->>>>>>> Stashed changes
 
   # ============================================
   # CITAS SERVICE
@@ -148,7 +139,6 @@ services:
         value: "3.11.8"
       - key: SECRET_KEY
         sync: false
-<<<<<<< Updated upstream
       - key: API_KEY
         sync: false
       - key: DB_HOST
@@ -182,8 +172,6 @@ services:
           name: moova-audit
           type: web
           property: hostport
-=======
->>>>>>> Stashed changes
 
   # ============================================
   # PAGOS SERVICE
@@ -198,7 +186,6 @@ services:
         value: "3.11.8"
       - key: SECRET_KEY
         sync: false
-<<<<<<< Updated upstream
       - key: API_KEY
         sync: false
       - key: DB_HOST
@@ -266,8 +253,6 @@ services:
           name: moova-audit
           type: web
           property: hostport
-=======
->>>>>>> Stashed changes
 
   # ============================================
   # NOTAS SERVICE
@@ -282,7 +267,6 @@ services:
         value: "3.11.8"
       - key: SECRET_KEY
         sync: false
-<<<<<<< Updated upstream
       - key: API_KEY
         sync: false
       - key: DB_HOST
@@ -371,5 +355,3 @@ services:
           name: moova-pagos
           type: web
           envVarKey: DB_PASSWORD
-=======
->>>>>>> Stashed changes

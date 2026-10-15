@@ -1,4 +1,3 @@
-<<<<<<< Updated upstream
 import secrets
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -6,24 +5,10 @@ from zoneinfo import ZoneInfo
 import mysql.connector
 import requests as http_requests
 from flask import current_app, jsonify, request
-=======
-import hashlib
-import random
-import re
-import secrets
-import time
-from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
-
-import jwt
-from flask import current_app, g, jsonify, request
->>>>>>> Stashed changes
 
 from services.citas_service import citas_bp
-from shared.api import error, ok, token_required
 from shared.audit import log_accion
 from shared.config import (
-<<<<<<< Updated upstream
     KPIS_DB_NAME,
     OTP_EXPIRA_MIN,
     OTP_MAX_INTENTOS,
@@ -34,89 +19,23 @@ from shared.config import (
 from shared.proc import call_proc, call_proc_execute, call_proc_one
 from shared.service_client import pacientes_client, pagos_client
 from shared.validators import validar_datos_paciente
-=======
-    IDENTITY_TOKEN_TTL_SECONDS, JWT_ALGORITHM,
-    OTP_EXPIRA_MIN, OTP_MAX_INTENTOS,
-    SECRET_KEY,
-)
-from shared.db import db_connection
-from shared.proc import call_proc, call_proc_execute, call_proc_one
-from shared.sms import get_sms_provider
->>>>>>> Stashed changes
 
 
-def _mask_phone(phone):
-    if not phone:
-        return "*** ***"
-    digits = re.sub(r"\D", "", str(phone))
-    if len(digits) >= 9:
-        return f"{digits[:3]} *** {digits[-3:]}"
-    return "*** ***"
-
-
-def _hash_code(code):
-    return hashlib.sha256(str(code).encode("utf-8")).hexdigest()
-
-
-def _new_otp_code():
-    return str(secrets.randbelow(1000000)).zfill(6)
-
-
-def _issue_identity_token(dni, accion):
-    now = datetime.utcnow()
-    payload = {
-        "dni": dni,
-        "accion": accion,
-        "iat": int(now.timestamp()),
-        "exp": int((now + timedelta(seconds=IDENTITY_TOKEN_TTL_SECONDS)).timestamp()),
-    }
-    return jwt.encode(payload, SECRET_KEY, algorithm=JWT_ALGORITHM)
-
-
-def _enviar_sms(phone, message):
-    provider = get_sms_provider()
-    return bool(provider.send(phone, message))
-
-
-def _otp_rate_limit_ok(dni, ip_address):
-    window_seconds = 15 * 60
-    max_requests = 3
-    bucket = current_app.config.setdefault("otp_rate_limit", {"dni": {}, "ip": {}})
-    now = time.time()
-    by_dni = bucket["dni"]
-    by_ip = bucket["ip"]
-
-    def prune(entries):
-        return [ts for ts in entries if now - ts < window_seconds]
-
-    dni_events = prune(by_dni.get(dni, []))
-    ip_events = prune(by_ip.get(ip_address, []))
-
-    if len(dni_events) >= max_requests or len(ip_events) >= max_requests:
+def _enviar_sms(telefono, mensaje):
+    try:
+        tel = telefono.strip().replace(" ", "").replace("-", "")
+        if not tel.startswith("+"):
+            tel = "+51" + tel
+        url = TEXTBEE_URL.format(device_id=TEXTBEE_DEVICE_ID)
+        resp = http_requests.post(
+            url,
+            json={"recipients": [tel], "message": mensaje},
+            headers={"x-api-key": TEXTBEE_API_KEY},
+            timeout=10,
+        )
+        return resp.status_code in (200, 201)
+    except Exception:
         return False
-
-    dni_events.append(now)
-    ip_events.append(now)
-    by_dni[dni] = dni_events
-    by_ip[ip_address] = ip_events
-    return True
-
-
-def _parse_lima_datetime(fecha_str, hora_str):
-    lima_tz = ZoneInfo("America/Lima")
-    try:
-        fecha_dt = datetime.strptime(fecha_str, "%Y-%m-%d")
-    except ValueError:
-        raise ValueError("fecha")
-    try:
-        hora_dt = datetime.strptime(hora_str, "%H:%M")
-    except ValueError:
-        raise ValueError("hora")
-    dt = datetime.combine(fecha_dt.date(), hora_dt.time()).replace(tzinfo=lima_tz)
-    now = datetime.now(lima_tz)
-    if dt < now:
-        raise ValueError("past")
-    return dt
 
 
 def medico_disponible(medico_id, fecha_cita, excluir_cita_id=None):
@@ -358,44 +277,10 @@ def detalle_cita_basico(cita_id):
 
 @citas_bp.route("/api/citas", methods=["POST"])
 def crear_cita():
-<<<<<<< Updated upstream
     data = request.get_json() or {}
     for campo in ["nombre", "apellido", "dni", "telefono", "medico_id", "fecha_cita"]:
         if not data.get(campo):
             return jsonify({"error": f"Campo requerido: {campo}"}), 400
-=======
-    payload = request.get_json(silent=True) or request.form.to_dict() or {}
-
-    nombres = str(payload.get("nombres") or payload.get("nombre") or "").strip()
-    apellidos = str(payload.get("apellidos") or payload.get("apellido") or "").strip()
-    dni = str(payload.get("dni", "") or "").strip()
-    telefono = str(payload.get("telefono", "") or "").strip()
-    terapeuta_id = payload.get("terapeuta_id")
-    fecha = str(payload.get("fecha", "") or "").strip()
-    hora = str(payload.get("hora", "") or "").strip()
-
-    required_fields = [
-        ("nombres", nombres),
-        ("apellidos", apellidos),
-        ("dni", dni),
-        ("telefono", telefono),
-        ("terapeuta_id", terapeuta_id),
-        ("fecha", fecha),
-        ("hora", hora),
-    ]
-    for campo, valor in required_fields:
-        if valor in (None, ""):
-            return jsonify(error("4010", f"El campo {campo} es requerido", 400, detail=[{"campo": campo, "codigo": "4010", "mensaje": f"El campo {campo} es requerido"}])[0]), 400
-
-    if len(nombres) > 100:
-        return jsonify(error("4011", "El campo nombres excede el máximo permitido", 400, detail=[{"campo": "nombres", "codigo": "4011", "mensaje": "El campo nombres excede el máximo permitido"}])[0]), 400
-    if len(apellidos) > 100:
-        return jsonify(error("4011", "El campo apellidos excede el máximo permitido", 400, detail=[{"campo": "apellidos", "codigo": "4011", "mensaje": "El campo apellidos excede el máximo permitido"}])[0]), 400
-    if not dni.isdigit() or len(dni) != 8:
-        return jsonify(error("4011", "El DNI debe tener 8 dígitos numéricos", 400, detail=[{"campo": "dni", "codigo": "4011", "mensaje": "El DNI debe tener 8 dígitos numéricos"}])[0]), 400
-    if not telefono.isdigit() or len(telefono) != 9:
-        return jsonify(error("4012", "El teléfono debe tener 9 dígitos numéricos", 400, detail=[{"campo": "telefono", "codigo": "4012", "mensaje": "El teléfono debe tener 9 dígitos numéricos"}])[0]), 400
->>>>>>> Stashed changes
 
     # Validacion de formato estricta, ANTES de tocar DB o servicios.
     error_formato = validar_datos_paciente(
@@ -408,7 +293,6 @@ def crear_cita():
         return jsonify({"error": error_formato}), 400
 
     try:
-<<<<<<< Updated upstream
         fecha_obj = datetime.strptime(data["fecha_cita"], "%Y-%m-%d").date()
         if fecha_obj < _hoy_lima():
             return jsonify({"error": "La fecha no puede ser en el pasado"}), 400
@@ -445,29 +329,10 @@ def crear_cita():
     if medico_status != 200:
         return jsonify({"error": "Medico no encontrado"}), 404
     medico = medico_data.get("terapeuta") or {}
-=======
-        cita_dt = _parse_lima_datetime(fecha, hora)
-    except ValueError as exc:
-        if str(exc) == "fecha":
-            return jsonify(error("4014", "La fecha no es válida", 400, detail=[{"campo": "fecha", "codigo": "4014", "mensaje": "La fecha no es válida"}])[0]), 400
-        if str(exc) == "hora":
-            return jsonify(error("4014", "La hora no es válida", 400, detail=[{"campo": "hora", "codigo": "4014", "mensaje": "La hora no es válida"}])[0]), 400
-        return jsonify(error("4014", "La fecha y hora no pueden estar en el pasado", 400, detail=[{"campo": "fecha", "codigo": "4014", "mensaje": "La fecha y hora no pueden estar en el pasado"}])[0]), 400
 
-    if cita_dt < datetime.now(ZoneInfo("America/Lima")):
-        return jsonify(error("4014", "La fecha y hora no pueden estar en el pasado", 400, detail=[{"campo": "fecha", "codigo": "4014", "mensaje": "La fecha y hora no pueden estar en el pasado"}])[0]), 400
+    costo = float(medico["precio"]) if medico.get("precio") else 0.0
+    anticipo = round(costo / 2, 2)
 
-    try:
-        terapeuta_id = int(terapeuta_id)
-    except (TypeError, ValueError):
-        return jsonify(error("4011", "El terapeuta_id debe ser numérico", 400, detail=[{"campo": "terapeuta_id", "codigo": "4011", "mensaje": "El terapeuta_id debe ser numérico"}])[0]), 400
->>>>>>> Stashed changes
-
-    terapeuta = call_proc_one("sp_consulta_medico_precio", (terapeuta_id,))
-    if not terapeuta:
-        return jsonify(error("4040", "Terapeuta no existe o está inactivo", 404, detail=[{"campo": "terapeuta_id", "codigo": "4040", "mensaje": "Terapeuta no existe o está inactivo"}])[0]), 404
-
-<<<<<<< Updated upstream
     # FASE 2: resolver/crear paciente via pacientes_service.
     try:
         pac_data, pac_status = pacientes_client.get(f"/api/pacientes/dni/{data['dni']}")
@@ -489,41 +354,9 @@ def crear_cita():
             type(exc).__name__, exc,
         )
         return jsonify({"error": "Servicio de pacientes no disponible, intenta de nuevo"}), 502
-=======
-    precio = float(terapeuta.get("precio") or 0.0)
-    anticipo = round(precio / 2, 2)
 
-    paciente = call_proc_one("sp_obtener_paciente_id_dni", (dni,))
-    if paciente:
-        paciente_id = paciente["id"]
-    else:
-        creado = call_proc_one("sp_crear_paciente_min", (nombres, apellidos, dni, telefono))
-        paciente_id = creado["id"] if creado else None
-    if not paciente_id:
-        return jsonify(error("5000", "Error interno del servidor", 500, detail=[{"campo": "general", "codigo": "5000", "mensaje": "Error interno del servidor"}])[0]), 500
->>>>>>> Stashed changes
+    servicio_id = data.get("servicio_id")
 
-    with db_connection() as conn:
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute(
-            """
-            SELECT id FROM historial_citas
-            WHERE terapeuta_id = %s
-              AND estado = 'programada'
-              AND (
-                    (DATE(fecha_cita) = DATE(%s) AND TIME(fecha_cita) = TIME(%s))
-                    OR (DATE(fecha_cita) = DATE(%s) AND hora_cita = %s)
-              )
-            FOR UPDATE
-            """,
-            (terapeuta_id, cita_dt.date(), cita_dt.time(), cita_dt.date(), hora),
-        )
-        existing = cursor.fetchone()
-        if existing:
-            conn.rollback()
-            return jsonify(error("4090", "El horario ya está ocupado", 409, detail=[{"campo": "hora", "codigo": "4090", "mensaje": "El horario ya está ocupado"}])[0]), 409
-
-<<<<<<< Updated upstream
     try:
         cita = call_proc_one("sp_crear_cita", (paciente_id, data["medico_id"], servicio_id, data["fecha_cita"], hora_cita))
     except mysql.connector.Error as exc:
@@ -539,35 +372,18 @@ def crear_cita():
         )
         return jsonify({"error": "No se pudo procesar la solicitud, intenta de nuevo"}), 500
     cita_id = cita["id"] if cita else None
-=======
-        cursor.execute(
-            """
-            INSERT INTO historial_citas (paciente_id, terapeuta_id, servicio_id, fecha_cita, hora_cita, estado)
-            VALUES (%s, %s, NULL, %s, %s, 'programada')
-            """,
-            (paciente_id, terapeuta_id, cita_dt, hora, ),
-        )
-        cita_id = cursor.lastrowid
-        conn.commit()
->>>>>>> Stashed changes
 
     log_accion(
-        usuario_id=None,
         accion="crear_cita",
         tabla_afectada="historial_citas",
         registro_id=cita_id,
-<<<<<<< Updated upstream
         detalle=f"Cita creada para paciente_id={paciente_id}, medico_id={data['medico_id']}, fecha={data['fecha_cita']}, hora={hora_cita or 'sin hora'}",
-=======
-        detalle=f"Cita creada para paciente_id={paciente_id}, terapeuta_id={terapeuta_id}, fecha={fecha}, hora={hora}",
->>>>>>> Stashed changes
         ip_origen=request.remote_addr,
         entidad_tipo="paciente",
         entidad_id=paciente_id,
         entidad_nombre=(" ".join(x for x in (data.get("nombre"), data.get("apellido")) if x).strip() or None),
     )
 
-<<<<<<< Updated upstream
     metodo_pago = data.get("metodo_pago", "").strip()
     if metodo_pago and anticipo > 0 and cita_id:
         # FASE 2: pago anticipado via pagos_service (antes
@@ -594,21 +410,6 @@ def crear_cita():
         "success": True, "cita_id": cita_id,
         "costo": costo, "anticipo": anticipo,
     }), 201
-=======
-    payload = ok(
-        "Cita creada correctamente",
-        {
-            "cita_id": cita_id,
-            "paciente_id": paciente_id,
-            "estado": "programada",
-            "precio": round(precio, 2),
-            "monto_anticipo": round(anticipo, 2),
-            "fecha": fecha,
-            "hora": hora,
-        },
-    )
-    return jsonify(payload), 201
->>>>>>> Stashed changes
 
 
 @citas_bp.route("/api/citas/<int:cita_id>", methods=["PUT"])
@@ -699,21 +500,15 @@ def completar_cita(cita_id):
     return jsonify({"success": True})
 
 
-@citas_bp.route("/api/otp/solicitar", methods=["POST"])
-def otp_solicitar():
-    data = request.get_json(silent=True) or {}
-    dni = str(data.get("dni", "") or "").strip()
-    accion = str(data.get("accion", "modificar") or "modificar").strip().lower()
-    if accion not in {"modificar", "cancelar", "continuar"}:
-        accion = "modificar"
+@citas_bp.route("/api/citas/otp/solicitar", methods=["POST"])
+def solicitar_otp():
+    data = request.get_json() or {}
+    dni = data.get("dni", "").strip()
+    accion = data.get("accion", "modificar")
 
-    if not dni or not dni.isdigit() or len(dni) != 8:
-        return jsonify(error("4011", "El DNI debe tener 8 dígitos numéricos", 400, detail=[{"campo": "dni", "codigo": "4011", "mensaje": "El DNI debe tener 8 dígitos numéricos"}])[0]), 400
+    if not dni or len(dni) != 8 or not dni.isdigit():
+        return jsonify({"error": "DNI invalido"}), 400
 
-    if not _otp_rate_limit_ok(dni, request.remote_addr or "unknown"):
-        return jsonify(error("4290", "Demasiadas solicitudes, inténtelo más tarde", 429, detail=[{"campo": "dni", "codigo": "4290", "mensaje": "Demasiadas solicitudes, inténtelo más tarde"}])[0]), 429
-
-<<<<<<< Updated upstream
     # FASE 2: telefono y verificacion de cita programada via
     # pacientes_service (antes sp_obtener_telefono_otp, CROSS-DB).
     pac_data, pac_status = pacientes_client.get(f"/api/pacientes/{dni}")
@@ -743,26 +538,11 @@ def otp_solicitar():
             return jsonify({"error": "No se encontraron citas programadas para ese DNI."}), 404
 
     codigo = str(secrets.randbelow(900000) + 100000)
-=======
-    persona = call_proc_one("sp_obtener_telefono_otp", (dni,))
-    phone = (persona or {}).get("telefono") if persona else ""
-
-    codigo = _new_otp_code()
->>>>>>> Stashed changes
     expira = datetime.now() + timedelta(minutes=OTP_EXPIRA_MIN)
 
-    if persona:
-        call_proc_execute("sp_invalidar_otps_previos", (dni, accion))
-        call_proc_execute("sp_insertar_otp", (dni, _hash_code(codigo), accion, expira))
-        mensaje = f"MOOVA Clinic: Tu codigo para {accion} es {codigo}. Valido por {OTP_EXPIRA_MIN} min."
-        enviado = _enviar_sms(phone, mensaje)
-        if not enviado:
-            return jsonify(error("5001", "No se pudo enviar el SMS", 500, detail=[{"campo": "telefono", "codigo": "5001", "mensaje": "No se pudo enviar el SMS"}])[0]), 500
-    else:
-        # respuesta uniforme para no filtrar existencia de pacientes
-        pass
+    call_proc_execute("sp_invalidar_otps_previos", (dni, accion))
+    call_proc_execute("sp_insertar_otp", (dni, codigo, accion, expira))
 
-<<<<<<< Updated upstream
     verbo = {
         "modificar": "modificar tu cita",
         "cancelar": "cancelar tu cita",
@@ -770,215 +550,43 @@ def otp_solicitar():
     }.get(accion, "continuar tu tratamiento")
     mensaje = f"MOOVA Clinic: Tu codigo para {verbo} es {codigo}. Valido por {OTP_EXPIRA_MIN} min."
     enviado = _enviar_sms(paciente["telefono"], mensaje)
-=======
-    return jsonify(ok("OTP enviado", {
-        "telefono": _mask_phone(phone),
-        "expira_en": int(OTP_EXPIRA_MIN * 60),
-        "intentos": OTP_MAX_INTENTOS,
-    })), 200
->>>>>>> Stashed changes
 
+    if not enviado:
+        return jsonify({"error": "No se pudo enviar el SMS."}), 500
 
-<<<<<<< Updated upstream
     tel = paciente["telefono"].strip()
     tel_mask = tel[:3] + "***" + tel[-3:] if len(tel) >= 6 else "***"
     return jsonify({"success": True, "tel_mask": tel_mask})
-=======
-@citas_bp.route("/api/otp/verificar", methods=["POST"])
-def otp_verificar():
-    data = request.get_json(silent=True) or {}
-    dni = str(data.get("dni", "") or "").strip()
-    codigo = str(data.get("codigo", data.get("otp", "")) or "").strip()
-    accion = str(data.get("accion", "modificar") or "modificar").strip().lower()
-    if accion not in {"modificar", "cancelar", "continuar"}:
-        accion = "modificar"
-
-    if not dni or not dni.isdigit() or len(dni) != 8:
-        return jsonify(error("4011", "El DNI debe tener 8 dígitos numéricos", 400, detail=[{"campo": "dni", "codigo": "4011", "mensaje": "El DNI debe tener 8 dígitos numéricos"}])[0]), 400
-    if not codigo or not codigo.isdigit() or len(codigo) != 6:
-        return jsonify(error("4010", "El código OTP es requerido", 400, detail=[{"campo": "codigo", "codigo": "4010", "mensaje": "El código OTP es requerido"}])[0]), 400
-
-    otp = call_proc_one("sp_obtener_otp", (dni, accion))
-    if not otp:
-        return jsonify(error("4103", "OTP inexistente", 404, detail=[{"campo": "codigo", "codigo": "4103", "mensaje": "OTP inexistente"}])[0]), 404
-
-    if otp.get("intentos") is not None and int(otp["intentos"]) >= OTP_MAX_INTENTOS:
-        return jsonify(error("4102", "OTP agotado", 401, detail=[{"campo": "codigo", "codigo": "4102", "mensaje": "OTP agotado"}])[0]), 401
-
-    if otp.get("expira_en") and datetime.now() > otp["expira_en"]:
-        return jsonify(error("4101", "OTP expirado", 401, detail=[{"campo": "codigo", "codigo": "4101", "mensaje": "OTP expirado"}])[0]), 401
-
-    if _hash_code(codigo) != (otp.get("codigo") or ""):
-        call_proc_execute("sp_incrementar_intentos_otp", (otp["id"],))
-        restantes = max(OTP_MAX_INTENTOS - (int(otp.get("intentos") or 0) + 1), 0)
-        return jsonify(error("4100", "OTP incorrecto", 401, detail=[{"campo": "codigo", "codigo": "4100", "mensaje": f"OTP incorrecto. Intentos restantes: {restantes}"}])[0]), 401
-
-    call_proc_execute("sp_marcar_otp_usado", (otp["id"],))
-
-    paciente = call_proc_one("sp_obtener_paciente_por_dni", (dni,))
-    paciente_id = paciente["id"] if paciente else None
-    citas = []
-    paquetes = []
-    if paciente_id:
-        with db_connection() as conn:
-            cursor = conn.cursor(dictionary=True)
-            cursor.execute(
-                """
-                SELECT h.id AS cita_id, DATE(h.fecha_cita) AS fecha, h.hora_cita AS hora,
-                       CONCAT(u.nombre, ' ', u.apellido) AS especialista, h.estado
-                FROM historial_citas h
-                JOIN terapeutas t ON t.id = h.terapeuta_id
-                JOIN usuarios u ON u.id = t.usuario_id
-                WHERE h.paciente_id = %s
-                ORDER BY h.fecha_cita DESC
-                LIMIT 20
-                """,
-                (paciente_id,),
-            )
-            citas = cursor.fetchall()
-
-            cursor.execute(
-                """
-                SELECT id AS paquete_id, servicio_id, total_sesiones, sesiones_usadas,
-                       estado, fecha_vencimiento
-                FROM paquetes_sesiones
-                WHERE paciente_id = %s AND estado = 'activo'
-                ORDER BY fecha_compra DESC
-                """,
-                (paciente_id,),
-            )
-            paquetes = cursor.fetchall()
-
-    identity_token = _issue_identity_token(dni, accion)
-    return jsonify(ok("OTP verificado", {
-        "verificado": True,
-        "identity_token": identity_token,
-        "expira_en": IDENTITY_TOKEN_TTL_SECONDS,
-        "citas": [{
-            "cita_id": item.get("cita_id"),
-            "fecha": str(item.get("fecha") or ""),
-            "hora": str(item.get("hora") or ""),
-            "especialista": item.get("especialista") or "",
-            "estado": item.get("estado") or "",
-        } for item in citas],
-        "paquetes": [{
-            "paquete_id": item.get("paquete_id"),
-            "servicio_id": item.get("servicio_id"),
-            "total_sesiones": item.get("total_sesiones"),
-            "sesiones_usadas": item.get("sesiones_usadas"),
-            "estado": item.get("estado"),
-            "fecha_vencimiento": str(item.get("fecha_vencimiento") or ""),
-        } for item in paquetes],
-    })), 200
-
-
-@citas_bp.route("/api/citas/otp/solicitar", methods=["POST"])
-def solicitar_otp():
-    return otp_solicitar()
->>>>>>> Stashed changes
 
 
 @citas_bp.route("/api/citas/otp/verificar", methods=["POST"])
 def verificar_otp():
-    return otp_verificar()
+    data = request.get_json() or {}
+    dni = data.get("dni", "").strip()
+    codigo = data.get("otp", "").strip()
+    accion = data.get("accion", "modificar")
+
+    otp = call_proc_one("sp_obtener_otp", (dni, accion))
+    if not otp:
+        return jsonify({"resultado": "no_existe"})
+    if otp["intentos"] >= OTP_MAX_INTENTOS:
+        return jsonify({"resultado": "agotado"})
+    if datetime.now() > otp["expira_en"]:
+        return jsonify({"resultado": "expirado"})
+    if otp["codigo"] != codigo:
+        call_proc_execute("sp_incrementar_intentos_otp", (otp["id"],))
+        restantes = OTP_MAX_INTENTOS - otp["intentos"] - 1
+        return jsonify({"resultado": "incorrecto", "restantes": restantes})
+
+    call_proc_execute("sp_marcar_otp_usado", (otp["id"],))
+    return jsonify({"resultado": "ok"})
 
 
-@citas_bp.route("/api/citas/agenda", methods=["GET"])
-@token_required(roles=["admin", "terapeuta"])
-def agenda_citas():
-    fecha_param = (request.args.get("fecha") or "").strip()
-    terapeuta_id_param = request.args.get("terapeuta_id", type=int)
-
-    if fecha_param:
-        try:
-            fecha_dt = datetime.strptime(fecha_param, "%Y-%m-%d")
-        except ValueError:
-            return jsonify(error("4014", "La fecha no es válida", 400, detail=[{"campo": "fecha", "codigo": "4014", "mensaje": "La fecha no es válida"}])[0]), 400
-    else:
-        fecha_dt = datetime.now(ZoneInfo("America/Lima"))
-        fecha_param = fecha_dt.strftime("%Y-%m-%d")
-
-    if g.user_role == "terapeuta":
-        terapeuta = call_proc_one("SELECT id FROM terapeutas WHERE usuario_id = %s AND activo = 1 LIMIT 1", (g.user_id,))
-        if not terapeuta:
-            return jsonify(error("4030", "Sin permisos para el rol", 403, detail=[{"campo": "terapeuta_id", "codigo": "4030", "mensaje": "Sin permisos para el rol"}])[0]), 403
-        terapeuta_id = int(terapeuta["id"])
-    else:
-        if terapeuta_id_param is not None:
-            terapeuta = call_proc_one("SELECT id FROM terapeutas WHERE id = %s AND activo = 1", (terapeuta_id_param,))
-            if not terapeuta:
-                return jsonify(error("4040", "Terapeuta no existe o está inactivo", 404, detail=[{"campo": "terapeuta_id", "codigo": "4040", "mensaje": "Terapeuta no existe o está inactivo"}])[0]), 404
-            terapeuta_id = int(terapeuta_id_param)
-        else:
-            terapeuta_id = None
-
-    with db_connection() as conn:
-        cursor = conn.cursor(dictionary=True)
-        if g.user_role == "terapeuta":
-            cursor.execute(
-                """
-                SELECT h.id AS cita_id, h.hora_cita AS hora, CONCAT(p.nombre, ' ', p.apellido) AS paciente,
-                       e.nombre AS especialidad, h.estado
-                FROM historial_citas h
-                JOIN pacientes p ON p.id = h.paciente_id
-                LEFT JOIN terapeutas t ON t.id = h.terapeuta_id
-                LEFT JOIN especialidades e ON e.id = t.especialidad_id
-                WHERE h.fecha_cita = %s AND h.terapeuta_id = %s
-                ORDER BY h.hora_cita ASC
-                """,
-                (fecha_param, terapeuta_id),
-            )
-        else:
-            if terapeuta_id is None:
-                cursor.execute(
-                    """
-                    SELECT h.id AS cita_id, h.hora_cita AS hora, CONCAT(p.nombre, ' ', p.apellido) AS paciente,
-                           e.nombre AS especialidad, h.estado
-                    FROM historial_citas h
-                    JOIN pacientes p ON p.id = h.paciente_id
-                    LEFT JOIN terapeutas t ON t.id = h.terapeuta_id
-                    LEFT JOIN especialidades e ON e.id = t.especialidad_id
-                    WHERE h.fecha_cita = %s
-                    ORDER BY h.hora_cita ASC
-                    """,
-                    (fecha_param,),
-                )
-            else:
-                cursor.execute(
-                    """
-                    SELECT h.id AS cita_id, h.hora_cita AS hora, CONCAT(p.nombre, ' ', p.apellido) AS paciente,
-                           e.nombre AS especialidad, h.estado
-                    FROM historial_citas h
-                    JOIN pacientes p ON p.id = h.paciente_id
-                    LEFT JOIN terapeutas t ON t.id = h.terapeuta_id
-                    LEFT JOIN especialidades e ON e.id = t.especialidad_id
-                    WHERE h.fecha_cita = %s AND h.terapeuta_id = %s
-                    ORDER BY h.hora_cita ASC
-                    """,
-                    (fecha_param, terapeuta_id),
-                )
-        citas = cursor.fetchall()
-
-    items = []
-    for row in citas:
-        items.append({
-            "cita_id": row["cita_id"],
-            "hora": row["hora"].strftime("%H:%M") if row.get("hora") is not None and hasattr(row.get("hora"), "strftime") else (row.get("hora") or ""),
-            "paciente": row.get("paciente") or "",
-            "especialidad": row.get("especialidad") or "",
-            "estado": row.get("estado") or "",
-        })
-
-    return jsonify(ok("Agenda del día", {"total": len(items), "citas": items})), 200
-
-
-def _get_identity_from_header():
-    token = request.headers.get("X-Identity-Token", "").strip()
-    if not token:
-        return None, error("4104", "Token de identidad ausente", 401, detail=[{"campo": "x-identity-token", "codigo": "4104", "mensaje": "Token de identidad ausente"}])[0]
-
+@citas_bp.route("/api/citas/estadisticas", methods=["GET"])
+def estadisticas():
+    anio_inicio = 2023
+    recuperados = especialistas = tasa_exito = total_anios = 0
     try:
-<<<<<<< Updated upstream
         try:
             res = call_proc_one("sp_estadisticas_recuperados")
             recuperados = int(res["total"]) if res else 0
@@ -1006,303 +614,11 @@ def _get_identity_from_header():
                     tasa_exito = round((buenas / total) * 100)
         except Exception:
             pass
-=======
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[JWT_ALGORITHM], options={"require": ["exp", "dni"]})
-    except jwt.ExpiredSignatureError:
-        return None, error("4104", "Token de identidad expirado", 401, detail=[{"campo": "x-identity-token", "codigo": "4104", "mensaje": "Token de identidad expirado"}])[0]
->>>>>>> Stashed changes
     except Exception:
-        return None, error("4104", "Token de identidad inválido", 401, detail=[{"campo": "x-identity-token", "codigo": "4104", "mensaje": "Token de identidad inválido"}])[0]
-
-    dni = str(payload.get("dni") or "").strip()
-    if not dni or not dni.isdigit() or len(dni) != 8:
-        return None, error("4104", "Token de identidad inválido", 401, detail=[{"campo": "x-identity-token", "codigo": "4104", "mensaje": "Token de identidad inválido"}])[0]
-
-    return dni, None
-
-
-def _validar_cita_pertenece_al_dni(cita_id, dni):
-    cita = call_proc_one("sp_detalle_cita", (cita_id,))
-    if not cita:
-        return None, error("4040", "Cita no existe", 404, detail=[{"campo": "cita_id", "codigo": "4040", "mensaje": "Cita no existe"}])[0]
-
-    paciente = call_proc_one("sp_obtener_paciente_por_dni", (dni,))
-    if not paciente:
-        return None, error("4104", "Token no pertenece a este DNI", 401, detail=[{"campo": "dni", "codigo": "4104", "mensaje": "Token no pertenece a este DNI"}])[0]
-
-    if int(cita.get("paciente_id") or 0) != int(paciente.get("id") or 0):
-        return None, error("4104", "Cita no pertenece al DNI autenticado", 401, detail=[{"campo": "cita_id", "codigo": "4104", "mensaje": "Cita no pertenece al DNI autenticado"}])[0]
-
-    return cita, None
-
-
-@citas_bp.route("/api/citas/<int:cita_id>", methods=["PUT"])
-def modificar_cita_segura(cita_id):
-    dni, err = _get_identity_from_header()
-    if err:
-        return jsonify(err), 401
-
-    cita, err = _validar_cita_pertenece_al_dni(cita_id, dni)
-    if err:
-        return jsonify(err), 401 if "4104" in str(err) else 404
-
-    data = request.get_json(silent=True) or {}
-    fecha = str(data.get("fecha") or "").strip()
-    hora = str(data.get("hora") or "").strip()
-    terapeuta_id = data.get("terapeuta_id")
-
-    if not fecha or not hora or not terapeuta_id:
-        return jsonify(error("4010", "Los campos fecha, hora y terapeuta_id son requeridos", 400, detail=[{"campo": "general", "codigo": "4010", "mensaje": "Los campos fecha, hora y terapeuta_id son requeridos"}])[0]), 400
-
-    try:
-        cita_dt = _parse_lima_datetime(fecha, hora)
-    except ValueError:
-        return jsonify(error("4014", "La fecha y hora no son válidas", 400, detail=[{"campo": "fecha", "codigo": "4014", "mensaje": "La fecha y hora no son válidas"}])[0]), 400
-
-    try:
-        terapeuta_id = int(terapeuta_id)
-    except (TypeError, ValueError):
-        return jsonify(error("4011", "El terapeuta_id debe ser numérico", 400, detail=[{"campo": "terapeuta_id", "codigo": "4011", "mensaje": "El terapeuta_id debe ser numérico"}])[0]), 400
-
-    terapeuta = call_proc_one("sp_consulta_medico_precio", (terapeuta_id,))
-    if not terapeuta:
-        return jsonify(error("4040", "Terapeuta no existe o está inactivo", 404, detail=[{"campo": "terapeuta_id", "codigo": "4040", "mensaje": "Terapeuta no existe o está inactivo"}])[0]), 404
-
-    if str(cita.get("estado") or "").lower() not in {"programada", "confirmada"}:
-        return jsonify(error("4091", "La cita no puede ser modificada en su estado actual", 409, detail=[{"campo": "estado", "codigo": "4091", "mensaje": "La cita no puede ser modificada en su estado actual"}])[0]), 409
-
-    with db_connection() as conn:
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute(
-            """
-            SELECT id FROM historial_citas
-            WHERE terapeuta_id = %s
-              AND estado IN ('programada', 'confirmada')
-              AND id <> %s
-              AND fecha_cita = %s
-              AND hora_cita = %s
-            FOR UPDATE
-            """,
-            (terapeuta_id, cita_id, cita_dt.date(), hora),
-        )
-        if cursor.fetchone():
-            conn.rollback()
-            return jsonify(error("4090", "Horario ocupado", 409, detail=[{"campo": "hora", "codigo": "4090", "mensaje": "Horario ocupado"}])[0]), 409
-
-        cursor.execute(
-            """
-            UPDATE historial_citas
-            SET terapeuta_id = %s, fecha_cita = %s, hora_cita = %s, estado = 'programada'
-            WHERE id = %s AND paciente_id = %s
-            """,
-            (terapeuta_id, cita_dt, hora, cita_id, cita["paciente_id"]),
-        )
-        conn.commit()
-
-    log_accion(
-        usuario_id=None,
-        accion="reprogramar_cita",
-        tabla_afectada="historial_citas",
-        registro_id=cita_id,
-        detalle=f"Cita reprogramada por DNI {dni} a fecha={fecha}, hora={hora}, terapeuta_id={terapeuta_id}",
-        ip_origen=request.remote_addr,
-    )
-    return jsonify(ok("Cita modificada", {
-        "cita_id": cita_id,
-        "estado": "programada",
-        "fecha": fecha,
-        "hora": hora,
-    })), 200
-
-
-@citas_bp.route("/api/citas/<int:cita_id>", methods=["DELETE"])
-def cancelar_cita_segura(cita_id):
-    dni, err = _get_identity_from_header()
-    if err:
-        return jsonify(err), 401
-
-    cita, err = _validar_cita_pertenece_al_dni(cita_id, dni)
-    if err:
-        return jsonify(err), 401 if "4104" in str(err) else 404
-
-    if str(cita.get("estado") or "").lower() in {"cancelada", "completada"}:
-        return jsonify(error("4091", "La cita no puede ser cancelada en su estado actual", 409, detail=[{"campo": "estado", "codigo": "4091", "mensaje": "La cita no puede ser cancelada en su estado actual"}])[0]), 409
-
-    pago = call_proc_one("sp_obtener_pago", (cita_id,))
-    pago_estado = "sin_pago"
-    with db_connection() as conn:
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute(
-            """
-            UPDATE historial_citas
-            SET estado = 'cancelada'
-            WHERE id = %s AND paciente_id = %s
-            """,
-            (cita_id, cita["paciente_id"]),
-        )
-        if pago and str(pago.get("estado_pago") or "").lower() == "pendiente":
-            cursor.execute(
-                "UPDATE pagos SET estado_pago = 'cancelado' WHERE cita_id = %s AND estado_pago = 'pendiente'",
-                (cita_id,),
-            )
-            pago_estado = "cancelado"
-        elif pago and str(pago.get("estado_pago") or "").lower() == "pagado":
-            cursor.execute(
-                "UPDATE pagos SET estado_pago = 'reembolso_en_proceso' WHERE cita_id = %s AND estado_pago = 'pagado'",
-                (cita_id,),
-            )
-            pago_estado = "reembolso_en_proceso"
-        conn.commit()
-
-    if pago and str(pago.get("estado_pago") or "").lower() == "pagado":
-        try:
-            cita_dt = cita.get("fecha_cita")
-            if isinstance(cita_dt, str):
-                fecha_dt = datetime.strptime(cita_dt, "%Y-%m-%d")
-            else:
-                fecha_dt = cita_dt
-            horas = (fecha_dt - datetime.now()).total_seconds() / 3600 if hasattr(fecha_dt, "__sub__") else 0
-            if horas < 24:
-                with db_connection() as conn2:
-                    cursor2 = conn2.cursor()
-                    cursor2.execute(
-                        "UPDATE pagos SET estado_pago = 'retenido' WHERE cita_id = %s AND estado_pago = 'reembolso_en_proceso'",
-                        (cita_id,),
-                    )
-                    conn2.commit()
-                pago_estado = "retenido"
-        except Exception:
-            pass
-
-    log_accion(
-        usuario_id=None,
-        accion="cancelar_cita",
-        tabla_afectada="historial_citas",
-        registro_id=cita_id,
-        detalle=f"Cita cancelada por DNI {dni}; pago_estado={pago_estado}",
-        ip_origen=request.remote_addr,
-    )
-    return jsonify(ok("Cita cancelada", {
-        "cita_id": cita_id,
-        "estado": "cancelada",
-        "pago_estado": pago_estado,
-    })), 200
-
-
-@citas_bp.route("/api/citas/sesion", methods=["POST"])
-def crear_cita_con_paquete():
-    dni, err = _get_identity_from_header()
-    if err:
-        return jsonify(err), 401
-
-    data = request.get_json(silent=True) or {}
-    paquete_id = data.get("paquete_id")
-    fecha = str(data.get("fecha") or "").strip()
-    hora = str(data.get("hora") or "").strip()
-    terapeuta_id = data.get("terapeuta_id")
-
-    if paquete_id in (None, "") or not fecha or not hora or not terapeuta_id:
-        return jsonify(error("4010", "Los campos paquete_id, fecha, hora y terapeuta_id son requeridos", 400, detail=[{"campo": "general", "codigo": "4010", "mensaje": "Los campos paquete_id, fecha, hora y terapeuta_id son requeridos"}])[0]), 400
-
-    try:
-        paquete_id = int(paquete_id)
-    except (TypeError, ValueError):
-        return jsonify(error("4011", "El paquete_id debe ser numérico", 400, detail=[{"campo": "paquete_id", "codigo": "4011", "mensaje": "El paquete_id debe ser numérico"}])[0]), 400
-
-    try:
-        terap_id = int(terapeuta_id)
-    except (TypeError, ValueError):
-        return jsonify(error("4011", "El terapeuta_id debe ser numérico", 400, detail=[{"campo": "terapeuta_id", "codigo": "4011", "mensaje": "El terapeuta_id debe ser numérico"}])[0]), 400
-
-    try:
-        cita_dt = _parse_lima_datetime(fecha, hora)
-    except ValueError:
-        return jsonify(error("4014", "La fecha y hora no son válidas", 400, detail=[{"campo": "fecha", "codigo": "4014", "mensaje": "La fecha y hora no son válidas"}])[0]), 400
-
-    paciente = call_proc_one("sp_obtener_paciente_por_dni", (dni,))
-    if not paciente:
-        return jsonify(error("4104", "Token de identidad inválido", 401, detail=[{"campo": "dni", "codigo": "4104", "mensaje": "Token de identidad inválido"}])[0]), 401
-
-    paquete = call_proc_one("SELECT * FROM paquetes_sesiones WHERE id = %s FOR UPDATE", (paquete_id,))
-    if not paquete:
-        return jsonify(error("4040", "Paquete no existe", 404, detail=[{"campo": "paquete_id", "codigo": "4040", "mensaje": "Paquete no existe"}])[0]), 404
-    if int(paquete.get("paciente_id") or 0) != int(paciente.get("id") or 0):
-        return jsonify(error("4104", "Paquete no pertenece al DNI autenticado", 401, detail=[{"campo": "paquete_id", "codigo": "4104", "mensaje": "Paquete no pertenece al DNI autenticado"}])[0]), 401
-    if str(paquete.get("estado") or "").lower() != "activo":
-        return jsonify(error("4092", "Paquete no activo o vencido", 409, detail=[{"campo": "paquete_id", "codigo": "4092", "mensaje": "Paquete no activo o vencido"}])[0]), 409
-    if paquete.get("fecha_vencimiento") and datetime.strptime(str(paquete["fecha_vencimiento"]), "%Y-%m-%d") < datetime.now().date():
-        return jsonify(error("4092", "Paquete vencido", 409, detail=[{"campo": "paquete_id", "codigo": "4092", "mensaje": "Paquete vencido"}])[0]), 409
-
-    sesiones_usadas = int(paquete.get("sesiones_usadas") or 0)
-    total_sesiones = int(paquete.get("total_sesiones") or 0)
-    sesiones_restantes = total_sesiones - sesiones_usadas
-    if sesiones_restantes <= 0:
-        return jsonify(error("4092", "Paquete sin sesiones disponibles", 409, detail=[{"campo": "paquete_id", "codigo": "4092", "mensaje": "Paquete sin sesiones disponibles"}])[0]), 409
-
-    terapeuta = call_proc_one("SELECT id, activo FROM terapeutas WHERE id = %s AND activo = 1 LIMIT 1", (terap_id,))
-    if not terapeuta:
-        return jsonify(error("4040", "Terapeuta no existe o está inactivo", 404, detail=[{"campo": "terapeuta_id", "codigo": "4040", "mensaje": "Terapeuta no existe o está inactivo"}])[0]), 404
-
-    with db_connection() as conn:
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute(
-            """
-            SELECT id FROM historial_citas
-            WHERE terapeuta_id = %s
-              AND estado IN ('programada', 'confirmada')
-              AND fecha_cita = %s
-              AND hora_cita = %s
-            FOR UPDATE
-            """,
-            (terap_id, cita_dt.date(), hora),
-        )
-        if cursor.fetchone():
-            conn.rollback()
-            return jsonify(error("4090", "Horario ocupado", 409, detail=[{"campo": "hora", "codigo": "4090", "mensaje": "Horario ocupado"}])[0]), 409
-
-        cursor.execute(
-            """
-            INSERT INTO historial_citas (paciente_id, terapeuta_id, servicio_id, fecha_cita, hora_cita, estado)
-            VALUES (%s, %s, %s, %s, %s, 'programada')
-            """,
-            (int(paciente["id"]), terap_id, int(paquete["servicio_id"]), cita_dt, hora),
-        )
-        cita_id = cursor.lastrowid
-
-        cursor.execute(
-            """
-            UPDATE paquetes_sesiones
-            SET sesiones_usadas = sesiones_usadas + 1,
-                estado = CASE WHEN sesiones_usadas + 1 >= total_sesiones THEN 'agotado' ELSE 'activo' END
-            WHERE id = %s
-            """,
-            (paquete_id,),
-        )
-        conn.commit()
-
-    log_accion(
-        usuario_id=None,
-        accion="crear_cita_paquete",
-        tabla_afectada="historial_citas",
-        registro_id=cita_id,
-        detalle=f"Cita creada por paquete_id={paquete_id}, dni={dni}, terapeuta_id={terap_id}, fecha={fecha}, hora={hora}",
-        ip_origen=request.remote_addr,
-    )
-
-    nuevas_usadas = sesiones_usadas + 1
-    nuevas_restantes = max(total_sesiones - nuevas_usadas, 0)
-    return jsonify(ok("Cita creada con paquete", {
-        "cita_id": cita_id,
-        "sesiones_usadas": nuevas_usadas,
-        "sesiones_restantes": nuevas_restantes,
-    })), 201
-
-
-@citas_bp.route("/api/citas/<int:cita_id>", methods=["PUT"])
-def modificar_cita_legacy(cita_id):
-    return modificar_cita_segura(cita_id)
-
-
-@citas_bp.route("/api/citas/<int:cita_id>", methods=["DELETE"])
-def cancelar_cita_legacy(cita_id):
-    return cancelar_cita_segura(cita_id)
+        pass
+    return jsonify({
+        "pacientes_recuperados": recuperados,
+        "especialistas": especialistas,
+        "anios_experiencia": total_anios,
+        "tasa_exito": tasa_exito,
+    })

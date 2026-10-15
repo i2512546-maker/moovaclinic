@@ -1,99 +1,35 @@
-<<<<<<< Updated upstream
 from flask import jsonify, request
 
 from services.auth_service import auth_bp
 from services.auth_service.app import bcrypt
-=======
-from datetime import datetime, timedelta
-import jwt
-from flask import g, jsonify, request
-
-from services.auth_service import auth_bp
-from services.auth_service.app import bcrypt
-from shared.api import error, ok, token_required
-from shared.audit import log_accion
-from shared.config import JWT_ALGORITHM, JWT_TTL_SECONDS, SECRET_KEY
->>>>>>> Stashed changes
 from shared.proc import call_proc, call_proc_execute, call_proc_one
 
 
 @auth_bp.route("/api/auth/login", methods=["POST"])
 def login():
-    data = request.get_json(silent=True) or {}
-    correo = str(data.get("email", "") or "").strip()
-    clave = str(data.get("password", "") or "").strip()
+    data = request.get_json() or {}
+    correo = data.get("correo", "").strip()
+    clave = data.get("clave", "").strip()
 
-    if not correo:
-        return jsonify(error("4010", "El campo email es requerido", 400, detalle=[{"campo": "email", "codigo": "4010", "mensaje": "El campo email es requerido"}])[0]), 400
-    if len(correo) > 100:
-        return jsonify(error("4010", "El campo email excede el máximo permitido", 400, detalle=[{"campo": "email", "codigo": "4010", "mensaje": "El campo email excede el máximo permitido"}])[0]), 400
-    if not clave:
-        return jsonify(error("4010", "El campo password es requerido", 400, detalle=[{"campo": "password", "codigo": "4010", "mensaje": "El campo password es requerido"}])[0]), 400
-    if len(clave) > 100:
-        return jsonify(error("4010", "El campo password excede el máximo permitido", 400, detalle=[{"campo": "password", "codigo": "4010", "mensaje": "El campo password excede el máximo permitido"}])[0]), 400
+    if not correo or not clave:
+        return jsonify({"error": "Completa todos los campos."}), 400
 
-    usuario_existente = call_proc_one("sp_obtener_usuario_por_correo", (correo,))
     usuario = call_proc_one("sp_login", (correo,))
 
-    if usuario_existente and not usuario:
-        log_accion(
-            usuario_id=usuario_existente.get("id"),
-            accion="login_fallido",
-            tabla_afectada="usuarios",
-            registro_id=usuario_existente.get("id"),
-            detalle=f"Intento de login para cuenta inactiva: {correo}",
-            ip_origen=request.remote_addr,
-        )
-        return jsonify(error("4021", "Cuenta inactiva", 401, detalle=[{"campo": "email", "codigo": "4021", "mensaje": "Cuenta inactiva"}])[0]), 401
-
     if not usuario or not bcrypt.check_password_hash(usuario["clave"], clave):
-        log_accion(
-            usuario_id=(usuario_existente or {}).get("id"),
-            accion="login_fallido",
-            tabla_afectada="usuarios",
-            registro_id=(usuario_existente or {}).get("id"),
-            detalle=f"Intento de login fallido para {correo}",
-            ip_origen=request.remote_addr,
-        )
-        return jsonify(error("4020", "Credenciales incorrectas", 401, detalle=[{"campo": "password", "codigo": "4020", "mensaje": "Credenciales incorrectas"}])[0]), 401
-
-    payload = {
-        "user_id": usuario["id"],
-        "role": usuario["rol_nombre"],
-        "nombre": usuario["nombre"],
-        "email": usuario["correo"],
-        "exp": datetime.utcnow() + timedelta(seconds=JWT_TTL_SECONDS),
-    }
-    access_token = jwt.encode(payload, SECRET_KEY, algorithm=JWT_ALGORITHM)
+        return jsonify({"error": "Correo o contrasena incorrectos."}), 401
 
     call_proc_execute("sp_actualizar_ultimo_acceso", (usuario["id"],))
-    log_accion(
-        usuario_id=usuario["id"],
-        accion="login_exitoso",
-        tabla_afectada="usuarios",
-        registro_id=usuario["id"],
-        detalle=f"Login exitoso para {usuario['correo']}",
-        ip_origen=request.remote_addr,
-    )
 
-    response = ok(
-        "Login exitoso",
-        {
-            "access_token": access_token,
-            "token_type": "Bearer",
-            "expires_in": JWT_TTL_SECONDS,
-            "rol": usuario["rol_nombre"],
+    return jsonify({
+        "success": True,
+        "usuario": {
+            "id": usuario["id"],
             "nombre": usuario["nombre"],
-            "user_id": usuario["id"],
+            "correo": usuario["correo"],
+            "rol": usuario["rol_nombre"],
         },
-    )
-    return jsonify(response), 200
-
-
-@auth_bp.route("/api/auth/protected", methods=["GET"])
-@token_required(roles=["admin", "terapeuta"])
-def protected_demo():
-    return jsonify(ok("Acceso autorizado", {"user": {"id": g.user_id, "role": g.user_role}})), 200
+    })
 
 
 @auth_bp.route("/api/auth/usuarios", methods=["GET"])

@@ -1,70 +1,11 @@
-import time
-
 import requests
 from flask import current_app, jsonify, request
 
 from services.pacientes_service import pacientes_bp
-from shared.api import error, ok
 from shared.config import APIPERU_TOKEN, APIPERU_URL
 from shared.proc import call_proc, call_proc_execute, call_proc_one
-<<<<<<< Updated upstream
 from shared.service_client import auth_client, citas_client, pagos_client
 from shared.validators import validar_datos_paciente
-=======
-
-
-def _rate_limit_check(ip_address):
-    window_seconds = 60
-    max_requests = 10
-    attempts = current_app.config.setdefault("dni_checks", {})
-    now = time.time()
-    recent = []
-    for ts in attempts.get(ip_address, []):
-        if now - ts < window_seconds:
-            recent.append(ts)
-    if len(recent) >= max_requests:
-        return False
-    recent.append(now)
-    attempts[ip_address] = recent
-    return True
-
-
-@pacientes_bp.route("/api/pacientes/buscar_dni", methods=["POST"])
-def buscar_dni():
-    data = request.get_json(silent=True) or {}
-    dni = str(data.get("dni", "") or "").strip()
-    ip_address = request.remote_addr or "unknown"
-
-    if not dni:
-        return jsonify(error("4010", "El campo dni es requerido", 400, detail=[{"campo": "dni", "codigo": "4010", "mensaje": "El campo dni es requerido"}])[0]), 400
-
-    if not dni.isdigit() or len(dni) != 8:
-        return jsonify(error("4011", "El DNI debe tener 8 dígitos numéricos", 400, detail=[{"campo": "dni", "codigo": "4011", "mensaje": "El DNI debe tener 8 dígitos numéricos"}])[0]), 400
-
-    if not _rate_limit_check(ip_address):
-        return jsonify(error("4290", "Demasiadas consultas, inténtelo más tarde", 429, detail=[{"campo": "dni", "codigo": "4290", "mensaje": "Demasiadas consultas, inténtelo más tarde"}])[0]), 429
-
-    try:
-        url = APIPERU_URL.format(dni=dni, token=APIPERU_TOKEN)
-        response = requests.get(url, headers={"Accept": "application/json"}, timeout=5)
-        if response.status_code != 200:
-            return jsonify(error("5001", "Proveedor RENIEC no disponible", 503, detail=[{"campo": "dni", "codigo": "5001", "mensaje": "Proveedor RENIEC no disponible"}])[0]), 503
-
-        payload = response.json() or {}
-        if not payload.get("success"):
-            return jsonify(error("4013", "DNI no encontrado en RENIEC", 404, detail=[{"campo": "dni", "codigo": "4013", "mensaje": "DNI no encontrado en RENIEC"}])[0]), 404
-
-        nombres = (payload.get("nombres") or "").strip()
-        apellido_paterno = (payload.get("apellidoPaterno") or "").strip()
-        apellido_materno = (payload.get("apellidoMaterno") or "").strip()
-        apellidos = " ".join(part for part in [apellido_paterno, apellido_materno] if part).strip()
-
-        return jsonify(ok("DNI válido", {"valido": True, "nombres": nombres, "apellidos": apellidos})), 200
-    except requests.RequestException:
-        return jsonify(error("5001", "Proveedor RENIEC no disponible", 503, detail=[{"campo": "dni", "codigo": "5001", "mensaje": "Proveedor RENIEC no disponible"}])[0]), 503
-    except Exception:
-        return jsonify(error("5001", "Proveedor RENIEC no disponible", 503, detail=[{"campo": "dni", "codigo": "5001", "mensaje": "Proveedor RENIEC no disponible"}])[0]), 503
->>>>>>> Stashed changes
 
 
 def _mapa_usuarios():
@@ -251,7 +192,6 @@ def actualizar_paciente(dni):
     return jsonify({"success": True})
 
 
-<<<<<<< Updated upstream
 def _resumen_dni(api_data):
     """Reduce la respuesta de APIPERU a lo que el flujo de reserva usa.
 
@@ -303,8 +243,6 @@ def buscar_dni():
     return jsonify({"success": False, "error": "DNI no encontrado"}), 404
 
 
-=======
->>>>>>> Stashed changes
 # ============================================================
 # Servicios (catalogo)
 # ============================================================
