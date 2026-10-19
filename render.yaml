@@ -78,6 +78,14 @@ services:
         value: "10"
       - key: OTP_MAX_INTENTOS
         value: "3"
+      # Sin esto, log_accion() desde auth_service apuntaba al default
+      # 127.0.0.1:5006 y el error se tragaba en silencio: el panel de
+      # auditoria no registraba nada venga de aqui.
+      - key: AUDIT_SERVICE_URL
+        fromService:
+          name: moova-audit
+          type: web
+          property: hostport
       # MAX_INTENTOS_IP y TIEMPO_BLOQUEO se eliminaron en FASE 3: ya
       # no las lee ningun modulo y solo confundian el despliegue.
 
