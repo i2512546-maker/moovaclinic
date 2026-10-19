@@ -749,6 +749,29 @@ def create_app():
                     except ValueError:
                         flash("Precio invalido.")
 
+            elif accion == "actualizar_telefono":
+                uid = request.form.get("usuario_id")
+                telefono = request.form.get("telefono", "").strip()
+                # Mismo criterio que auth_service: movil peruano de 9 digitos
+                # que empieza por 9, o vacio para borrar el telefono.
+                if not uid:
+                    flash("Usuario no encontrado.")
+                elif telefono and not re.fullmatch(r"9\d{8}", telefono):
+                    flash("Telefono invalido: se esperan 9 digitos que empiezan por 9.")
+                else:
+                    # Igual que en el resto de la fase: si el servicio de
+                    # auth no responde, el panel no debe caerse.
+                    try:
+                        resp, estatus = auth_client.put(
+                            f"/api/auth/usuarios/{uid}", {"telefono": telefono}
+                        )
+                    except Exception:
+                        resp, estatus = None, 503
+                    if estatus in (200, 201):
+                        flash("exito:Telefono actualizado.")
+                    else:
+                        flash((resp or {}).get("error") or "No se pudo guardar el telefono.")
+
             elif accion == "eliminar":
                 mid = request.form.get("medico_id")
                 if mid:

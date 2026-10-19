@@ -299,6 +299,63 @@ hoy en America/Lima.
 
 ---
 
+## Aviso al terapeuta por SMS
+
+Cuando una cita se cancela o se reprograma, el terapeuta se entera
+en el momento en vez de al llegar a la clínica. El aviso va por SMS
+(TextBee, el mismo canal que el OTP y los recordatorios).
+
+### Cuándo se envía
+
+Solo cuando cambia algo que le afecta: **fecha, hora o terapeuta**.
+
+- **Cambio de terapeuta**: 2 SMS. Al que pierde la cita:
+  `MOOVA Clinic: Se libero tu cita del 25/10 a las 10:00 (paciente Ana).`
+  Al que la recibe: `MOOVA Clinic: Te asignaron una cita del 25/10 a las 10:00 (paciente Ana).`
+- **Cambia solo fecha u hora**: 1 SMS con la nueva fecha/hora.
+- **Cambio que no toca esos tres campos**: 0 SMS.
+
+El texto va en ASCII, sin tildes, y sin DNI ni teléfono del paciente
+(a lo sumo el nombre de pila), igual que los demás SMS.
+
+### El teléfono de dónde sale
+
+El enlace es `terapeuta → usuario → teléfono` y se resuelve **todo por
+HTTP**, sin consultas cruzadas entre bases:
+
+1. `terapeuta_id → usuario_id` con `_mapa_terapeutas()`
+   (`GET /api/terapeutas` de `pacientes_service`).
+2. `usuario_id → telefono` con `GET /api/auth/usuarios` (`auth_service`).
+
+### Si no hay teléfono
+
+Nada falla. El `DELETE`/`PUT` de la cita responde igual; lo único que
+queda es un registro de auditoría con `accion = avisar_terapeuta` y el
+motivo (`sin_telefono`, `sms_fallido`, `error`). Las llamadas HTTP del
+aviso usan timeout de 5 s.
+
+### Cargar el teléfono
+
+`/panel_admin` → *Usuarios del Sistema*: la columna **Teléfono** tiene
+un input por fila con botón guardar. Acepta 9 dígitos que empiezan por
+9 (o vacío para borrar), en el formulario y también en el servidor
+(`PUT /api/auth/usuarios/{id}`).
+
+> Si `moovacloud_auth` no tiene `AUDIT_SERVICE_URL`, los registros de
+> `avisar_terapeuta` no llegarán a la base de auditoría en producción
+> (el error se traga y nada se rompe).
+
+### Migración
+
+`db_split/migraciones/2026-10-18_telefono_usuarios.sql` sobre la base
+**`moovacloud_auth`** (no citas). Define solo 2 procedimientos:
+`sp_listar_usuarios` (ahora devuelve `telefono`) y el nuevo
+`sp_actualizar_telefono_usuario`. El orden entre migración y código es
+indiferente: al ser un procedimiento nuevo, editar usuarios sin
+teléfono sigue funcionando aunque el código llegue antes.
+
+---
+
 ## Desarrollo
 
 ### Tests y lint

@@ -1,8 +1,15 @@
+import re
+
 from flask import jsonify, request
 
 from services.auth_service import auth_bp
 from services.auth_service.app import bcrypt
+from shared.audit import log_accion
 from shared.proc import call_proc, call_proc_execute, call_proc_one
+
+# Movil peruano: 9 digitos que empiezan por 9. El SMS agrega el prefijo
+# +51, por eso en base solo se guardan digitos.
+_RE_TELEFONO_PE = re.compile(r"^9\d{8}$")
 
 
 @auth_bp.route("/api/auth/login", methods=["POST"])
@@ -104,8 +111,25 @@ def actualizar_usuario(usuario_id):
     def _val(key):
         return None if key not in data else data[key]
 
-    if not any(k in data for k in ["nombre", "correo", "activo", "clave", "rol"]):
+    # Campos que sp_actualizar_usuario sabe tocar. El telefono va por su
+    # propio procedimiento (sp_actualizar_telefono_usuario) para que el
+    # orden de despliegue entre codigo y migracion no lo afecte.
+    campos = [k for k in ("nombre", "correo", "activo", "clave", "rol") if k in data]
+    telefono_presente = "telefono" in data
+
+    if not campos and not telefono_presente:
         return jsonify({"error": "Nada que actualizar."}), 400
+
+    # Telefono: "" o null lo borra; si no viene en el cuerpo no se toca.
+    # Fuera de eso debe ser un movil peruano (9 digitos empezando por 9).
+    telefono = None
+    if telefono_presente:
+        crudo = data.get("telefono")
+        telefono = "" if crudo is None else str(crudo).strip()
+        if telefono and not _RE_TELEFONO_PE.match(telefono):
+            return jsonify({
+                "error": "telefono invalido: se esperan 9 digitos que empiezan por 9.",
+            }), 400
 
     clave_hash = None
     if "clave" in data and data["clave"]:
@@ -117,10 +141,31 @@ def actualizar_usuario(usuario_id):
         if rol_info:
             rol_id = rol_info["id"]
 
-    call_proc_execute("sp_actualizar_usuario", (
-        usuario_id, _val("nombre"), _val("correo"), _val("activo"),
-        clave_hash, rol_id,
-    ))
+    if campos:
+        call_proc_execute("sp_actualizar_usuario", (
+            usuario_id, _val("nombre"), _val("correo"), _val("activo"),
+            clave_hash, rol_id,
+        ))
+
+    if telefono_presente:
+        call_proc_execute("sp_actualizar_telefono_usuario", (usuario_id, telefono))
+
+    # Auditoria: hasta esta fase este PUT no dejaba rastro alguno.
+    # No se registra el valor del telefono (es dato personal del
+    # terapeuta); solo si se cambio o se borro.
+    detalles = f"usuario_id={usuario_id} campos={','.join(campos) or 'ninguno'}"
+    if telefono_presente:
+        detalles += f" telefono={'borrado' if not telefono else 'actualizado'}"
+    log_accion(
+        usuario_id=None,
+        accion="actualizar_usuario",
+        tabla_afectada="usuarios",
+        registro_id=usuario_id,
+        detalle=detalles,
+        ip_origen=request.remote_addr,
+        entidad_tipo="usuario",
+        entidad_id=usuario_id,
+    )
     return jsonify({"success": True})
 
 

@@ -225,6 +225,7 @@
                     <tr>
                         <th>Nombre</th>
                         <th>Correo</th>
+                        <th>Teléfono</th>
                         <th>Rol</th>
                         <th>Estado</th>
                         <th>Ultimo acceso</th>
@@ -236,6 +237,20 @@
                         <tr>
                             <td>{{ u.nombre }}</td>
                             <td>{{ u.correo }}</td>
+                            <td>
+                                <form method="POST" class="d-flex align-items-center gap-1">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
+                                    <input type="hidden" name="accion" value="actualizar_telefono">
+                                    <input type="hidden" name="usuario_id" value="{{ u.id }}">
+                                    <input type="tel" name="telefono" value="{{ u.telefono or '' }}"
+                                        placeholder="987654321" maxlength="9" pattern="9[0-9]{8}"
+                                        title="9 digitos que empiezan por 9. Vacio para borrar."
+                                        class="form-control form-control-sm" style="width:110px;">
+                                    <button type="submit" class="btn btn-icon" title="Guardar teléfono">
+                                        <i class="bi bi-save"></i>
+                                    </button>
+                                </form>
+                            </td>
                             <td><span class="badge text-bg-light">{{ u.rol|capitalize }}</span></td>
                             <td>
                                 {% if u.activo %}
@@ -248,7 +263,7 @@
                         </tr>
                         {% endfor %}
                     {% else %}
-                        <tr><td colspan="5" class="text-center text-muted py-4">No hay usuarios registrados.</td></tr>
+                        <tr><td colspan="6" class="text-center text-muted py-4">No hay usuarios registrados.</td></tr>
                     {% endif %}
                 </tbody>
             </table>
