@@ -157,6 +157,11 @@ services:
         sync: false
       - key: TEXTBEE_URL
         value: "https://api.textbee.dev/api/v1/gateway/devices/{device_id}/send-sms"
+      - key: AUTH_SERVICE_URL
+        fromService:
+          name: moova-auth
+          type: web
+          property: hostport
       - key: PACIENTES_SERVICE_URL
         fromService:
           name: moova-pacientes

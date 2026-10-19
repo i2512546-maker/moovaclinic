@@ -18,7 +18,7 @@ from shared.config import (
     TEXTBEE_URL,
 )
 from shared.proc import call_proc, call_proc_execute, call_proc_one
-from shared.service_client import pacientes_client, pagos_client
+from shared.service_client import auth_client, pacientes_client, pagos_client
 from shared.validators import validar_datos_paciente
 
 
@@ -47,21 +47,29 @@ def medico_disponible(medico_id, fecha_cita, excluir_cita_id=None):
     return count == 0
 
 
-def _mapa_pacientes():
+def _mapa_pacientes(timeout=None):
     """{paciente_id: fila} via pacientes_service. Se usa para enriquecer
-    las citas (nombre/apellido/dni/telefono) sin tocar moovacloud_pacientes."""
+    las citas (nombre/apellido/dni/telefono) sin tocar moovacloud_pacientes.
+    `timeout` es opcional; el aviso al terapeuta lo pasa a 5 s para no
+    encadenar esperas largas dentro de un DELETE/PUT."""
     try:
-        data, _ = pacientes_client.get("/api/pacientes")
+        kwargs = {"timeout": timeout} if timeout else {}
+        data, _ = pacientes_client.get("/api/pacientes", **kwargs)
         pacientes = data.get("pacientes") or []
         return {p["id"]: p for p in pacientes}
     except Exception:
         return {}
 
 
-def _mapa_terapeutas():
-    """{terapeuta_id: {Nombre, Especialidad}} via pacientes_service."""
+def _mapa_terapeutas(timeout=None):
+    """{terapeuta_id: fila} via pacientes_service.
+
+    La fila trae ID, usuario_id, Nombre, Telefono, Especialidad y
+    precio: por eso sirve para enriquecer las citas y para resolver
+    el contacto del terapeuta en el aviso (FASE 3)."""
     try:
-        data, _ = pacientes_client.get("/api/terapeutas")
+        kwargs = {"timeout": timeout} if timeout else {}
+        data, _ = pacientes_client.get("/api/terapeutas", **kwargs)
         terapeutas = data.get("terapeutas") or []
         return {t["ID"]: t for t in terapeutas}
     except Exception:
@@ -413,6 +421,202 @@ def crear_cita():
     }), 201
 
 
+# ------------------------------------------------------------------
+# Aviso al terapeuta cuando cambia o se cancela una cita (FASE 3)
+#
+# Regla principal: el aviso NUNCA puede tumbar el DELETE/PUT de la
+# cita. Sin telefono, servicio caido o SMS rechazado se convierte en
+# un registro de auditoria con el motivo, y se sigue adelante.
+# ------------------------------------------------------------------
+
+
+def _leer_cita_local(cita_id):
+    """Fila de la cita ANTES de tocarla.
+
+    sp_modificar_cita sobrescribe terapeuta_id, asi que para avisar
+    al terapeuta que PIERDE la cita hay que leerla antes del UPDATE.
+    Devuelve {} ante cualquier fallo: sin fila no se avisa, pero la
+    cancelacion/reprogramacion sigue su curso.
+    """
+    try:
+        return call_proc_one("sp_detalle_cita", (cita_id,)) or {}
+    except Exception:
+        return {}
+
+
+def _telefono_terapeuta(terapeuta_id, timeout=5):
+    """Telefono del terapeuta, siempre por HTTP (sin consultas
+    cruzadas a moovacloud_auth):
+
+        terapeuta_id -> usuario_id   via _mapa_terapeutas() (pacientes_service)
+        usuario_id   -> telefono     via GET /api/auth/usuarios (auth_service)
+
+    Devuelve None si no hay telefono o si cualquier salto falla."""
+    try:
+        te = _mapa_terapeutas(timeout=timeout).get(terapeuta_id) or {}
+        usuario_id = te.get("usuario_id")
+        if not usuario_id:
+            return None
+        data, _status = auth_client.get("/api/auth/usuarios", timeout=timeout)
+        for u in (data.get("usuarios") or []):
+            if u.get("id") == usuario_id:
+                telefono = (u.get("telefono") or "").strip()
+                return telefono or None
+        return None
+    except Exception:
+        return None
+
+
+def _nombre_pila_paciente(paciente_id, timeout=5):
+    """Solo el nombre de pila: es lo unico del paciente que se pone
+    en el SMS (sin DNI ni telefono)."""
+    try:
+        p = _mapa_pacientes(timeout=timeout).get(paciente_id) or {}
+        return ((p.get("nombre") or "").strip() or None)
+    except Exception:
+        return None
+
+
+def _mensaje_aviso(verbo, fecha_txt, hora_txt, nombre_pila):
+    """Compone el SMS del aviso.
+
+    ASCII obligatorio (sin tildes) porque el proveedor SMS no maneja
+    bien UTF-8, igual que en OTP y recordatorios. Nunca lleva DNI ni
+    telefono del paciente; a lo sumo el nombre de pila.
+    Ej: "MOOVA Clinic: Se libero tu cita del 25/10 a las 10:00 (paciente Ana)."
+    """
+    partes = [f"MOOVA Clinic: {verbo}"]
+    if fecha_txt:
+        partes.append(f" del {fecha_txt}")
+    if hora_txt:
+        partes.append(f" a las {hora_txt[:5]}")
+    if nombre_pila:
+        partes.append(f" (paciente {nombre_pila})")
+    return "".join(partes) + "."
+
+
+def _fecha_txt(fecha):
+    if hasattr(fecha, "strftime"):
+        return fecha.strftime("%d/%m")
+    return str(fecha)[:10] if fecha else None
+
+
+def _avisar_terapeuta(terapeuta_id, verbo, fecha_txt, hora_txt,
+                      nombre_pila, motivo, cita_id):
+    """Envia el SMS de aviso al terapeuta.
+
+    NUNCA lanza excepcion. Devuelve True solo si el SMS salio bien;
+    todo lo demas (sin telefono, SMS rechazado, error) queda registrado
+    en auditoria con `motivo` para poder responder despues a "por que
+    no le llego el aviso al doctor".
+    """
+    estado = "error"
+    texto = ""
+    try:
+        texto = _mensaje_aviso(verbo, fecha_txt, hora_txt, nombre_pila)
+        telefono = _telefono_terapeuta(terapeuta_id)
+        if not telefono:
+            estado = "sin_telefono"
+        elif _enviar_sms(telefono, texto):
+            estado = "enviado"
+        else:
+            estado = "sms_fallido"
+    except Exception as exc:
+        current_app.logger.error(
+            "[aviso] %s: %s: %s", motivo, type(exc).__name__, exc,
+        )
+
+    log_accion(
+        usuario_id=None,
+        accion="avisar_terapeuta",
+        tabla_afectada="historial_citas",
+        registro_id=cita_id,
+        detalle=f"{motivo} terapeuta_id={terapeuta_id} estado={estado}",
+        ip_origen=request.remote_addr,
+        entidad_tipo="medico",
+        entidad_id=terapeuta_id,
+    )
+    return estado == "enviado"
+
+
+def _avisar_cita_liberada(cita_id, previa, motivo):
+    """Un terapeuta se queda sin cita: se lo avisamos."""
+    if not previa or not previa.get("terapeuta_id"):
+        return False
+    try:
+        nombre = _nombre_pila_paciente(previa.get("paciente_id"))
+        return _avisar_terapeuta(
+            previa.get("terapeuta_id"),
+            "Se libero tu cita",
+            _fecha_txt(previa.get("fecha_cita")),
+            _fmt_hora(previa.get("hora_cita")),
+            nombre, motivo, cita_id,
+        )
+    except Exception:
+        return False
+
+
+def _avisar_cambio_cita(cita_id, previa, fecha_nueva, medico_nuevo, hora_nueva):
+    """Avisa SOLO si cambio algo que le afecta al terapeuta: fecha, hora
+    o terapeuta. Si el cambio no toco ninguno de los tres, no se manda
+    ningun SMS.
+
+    - Cambio de terapeuta: 2 avisos (al que pierde la cita y al que
+      la recibe).
+    - Solo cambio de fecha u hora: 1 aviso con la nueva fecha/hora.
+    """
+    if not previa:
+        return
+
+    try:
+        medico_viejo = previa.get("terapeuta_id")
+        fecha_vieja = previa.get("fecha_cita")
+        hora_vieja = _fmt_hora(previa.get("hora_cita"))
+        try:
+            medico_nuevo_int = int(medico_nuevo)
+        except (TypeError, ValueError):
+            medico_nuevo_int = None
+
+        cambio_medico = (
+            medico_viejo is not None and medico_nuevo_int is not None
+            and int(medico_viejo) != medico_nuevo_int
+        )
+        cambio_fecha = fecha_vieja != fecha_nueva
+        cambio_hora = (hora_vieja or None) != (hora_nueva or None)
+
+        if not (cambio_medico or cambio_fecha or cambio_hora):
+            # Cambio de descripcion u otro campo: sin SMS.
+            return
+
+        nombre = _nombre_pila_paciente(previa.get("paciente_id"))
+        hora_final = hora_nueva or hora_vieja
+
+        if cambio_medico:
+            # El que pierde se entera con la cita que se libero (fecha
+            # vieja); el que la recibe, con la nueva.
+            _avisar_terapeuta(
+                medico_viejo, "Se libero tu cita",
+                _fecha_txt(fecha_vieja), hora_vieja,
+                nombre, "cita_liberada", cita_id,
+            )
+            _avisar_terapeuta(
+                medico_nuevo_int, "Te asignaron una cita",
+                _fecha_txt(fecha_nueva), hora_final,
+                nombre, "cita_asignada", cita_id,
+            )
+        else:
+            _avisar_terapeuta(
+                medico_nuevo_int, "Tu cita quedo en",
+                _fecha_txt(fecha_nueva), hora_final,
+                nombre, "cita_reprogramada", cita_id,
+            )
+    except Exception as exc:
+        # Cinta adhesiva: ningun fallo de composicion debe romper el PUT.
+        current_app.logger.error(
+            "[aviso] cita %s: %s: %s", cita_id, type(exc).__name__, exc,
+        )
+
+
 @citas_bp.route("/api/citas/<int:cita_id>", methods=["PUT"])
 def modificar_cita(cita_id):
     data = request.get_json() or {}
@@ -433,6 +637,10 @@ def modificar_cita(cita_id):
     if not medico_disponible(nuevo_medico, nueva_fecha, excluir_cita_id=cita_id):
         return jsonify({"error": "El medico ya tiene una cita ese dia"}), 409
 
+    # ANTES del UPDATE: sp_modificar_cita sobrescribe terapeuta_id y
+    # el aviso necesita saber quien se queda sin la cita.
+    previa = _leer_cita_local(cita_id)
+
     result = call_proc_one("sp_modificar_cita", (cita_id, nueva_fecha, nuevo_medico, hora_cita))
     if not result or int(result.get("actualizadas") or 0) == 0:
         return jsonify({"error": "Cita no encontrada o ya no esta programada"}), 404
@@ -447,11 +655,20 @@ def modificar_cita(cita_id):
         entidad_id=ent_paciente_id,
         entidad_nombre=ent_paciente_nombre,
     )
+
+    # Aviso al terapeuta: solo si cambio fecha, hora o terapeuta.
+    # Internamente nunca lanza, asi que el PUT responde igual.
+    _avisar_cambio_cita(cita_id, previa, fecha_obj, nuevo_medico, hora_cita)
+
     return jsonify({"success": True})
 
 
 @citas_bp.route("/api/citas/<int:cita_id>", methods=["DELETE"])
 def cancelar_cita(cita_id):
+    # ANTES de cancelar: sp_cancelar_cita no devuelve terapeuta_id ni
+    # fecha, y el aviso necesita los dos.
+    previa = _leer_cita_local(cita_id)
+
     result = call_proc_one("sp_cancelar_cita", (cita_id,))
     if not result or int(result.get("actualizadas") or 0) == 0:
         return jsonify({"error": "Cita no encontrada"}), 404
@@ -473,6 +690,11 @@ def cancelar_cita(cita_id):
         entidad_id=ent_paciente_id,
         entidad_nombre=ent_paciente_nombre,
     )
+
+    # Aviso al terapeuta de que se libero su espacio. Nunca lanza, el
+    # DELETE responde igual aunque falle (sin telefono, SMS caido, ...).
+    _avisar_cita_liberada(cita_id, previa, "cita_cancelada")
+
     return jsonify({"success": True})
 
 

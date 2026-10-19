@@ -149,7 +149,7 @@ END$$
 DROP PROCEDURE IF EXISTS `sp_listar_usuarios`$$
 CREATE PROCEDURE `sp_listar_usuarios`()
 BEGIN
-    SELECT u.id, u.nombre, u.correo, r.nombre AS rol, u.activo, u.ultimo_acceso
+    SELECT u.id, u.nombre, u.correo, u.telefono, r.nombre AS rol, u.activo, u.ultimo_acceso
     FROM usuarios u
     JOIN roles r ON u.rol_id = r.id
     ORDER BY r.nombre, u.nombre;
@@ -189,6 +189,29 @@ BEGIN
         activo = IF(p_activo IS NOT NULL, p_activo, activo),
         clave = IF(p_clave IS NOT NULL, p_clave, clave),
         rol_id = IF(p_rol_id IS NOT NULL, p_rol_id, rol_id)
+    WHERE id = p_usuario_id;
+    SELECT ROW_COUNT() AS actualizados;
+END$$
+
+--
+-- sp_actualizar_telefono_usuario  (FASE 3: aviso al terapeuta)
+--   Solo toca la columna telefono. Va aparte de
+--   sp_actualizar_usuario a proposito: cambiar la firma de un
+--   procedimiento ya existente haria fallar por numero de
+--   parametros si el codigo y la migracion llegan a produccion en
+--   momentos distintos, y eso romperia editar usuarios.
+--
+--   NULLIF(p_telefono, ''): "" o NULL limpia el telefono (borrar),
+--   cualquier otro valor lo sobrescribe. El formato lo valida el
+--   codigo antes de llegar aqui (^9\d{8}$).
+--
+DROP PROCEDURE IF EXISTS `sp_actualizar_telefono_usuario`$$
+CREATE PROCEDURE `sp_actualizar_telefono_usuario`(
+    IN p_usuario_id INT, IN p_telefono VARCHAR(20)
+)
+BEGIN
+    UPDATE usuarios
+    SET telefono = NULLIF(p_telefono, '')
     WHERE id = p_usuario_id;
     SELECT ROW_COUNT() AS actualizados;
 END$$

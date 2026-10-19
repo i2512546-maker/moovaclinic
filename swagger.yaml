@@ -1306,7 +1306,18 @@ paths:
         "404": { description: Usuario no encontrado }
     put:
       tags: [auth]
-      summary: Actualizar un usuario (datos, rol, clave, activo)
+      summary: Actualizar un usuario (datos, rol, clave, activo, telefono)
+      description: |
+        Acepta `telefono` (FASE 3: aviso al terapeuta por SMS). Se guarda
+        solo con digitos porque el SMS agrega el prefijo +51.
+
+        - `"987654321"` se guarda.
+        - `""` o `null` borra el telefono.
+        - si `telefono` no viene en el cuerpo, no se toca.
+        - cualquier otro valor devuelve 400.
+
+        El telefono se guarda en `usuarios.telefono` a traves del
+        procedimiento `sp_actualizar_telefono_usuario`.
       parameters:
         - name: usuario_id
           in: path
@@ -1323,8 +1334,18 @@ paths:
               rol: { type: string, example: terapeuta }
               clave: { type: string }
               activo: { type: boolean }
+              telefono:
+                type: string
+                example: "987654321"
+                description: "9 digitos que empiezan por 9. Vacio/null lo borra."
       responses:
         "200": { description: Usuario actualizado }
+        "400":
+          description: Nada que actualizar, o telefono fuera de formato
+          schema:
+            type: object
+            properties:
+              error: { type: string, example: "telefono invalido: se esperan 9 digitos que empiezan por 9." }
         "404": { description: Usuario no encontrado }
 
   /api/auth/usuarios/por-nombre/{nombre}:

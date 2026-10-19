@@ -39,6 +39,8 @@ ACCIONES_VALIDAS = [
     "usar_sesion_paquete",
     "crear_usuario",
     "desactivar_usuario",
+    "actualizar_usuario",
+    "avisar_terapeuta",
 ]
 
 
