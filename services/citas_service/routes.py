@@ -622,3 +622,147 @@ def estadisticas():
         "anios_experiencia": total_anios,
         "tasa_exito": tasa_exito,
     })
+
+
+# ------------------------------------------------------------------
+# Recordatorios automaticos por SMS (sustentacion)
+#
+# La tarde anterior se envia un aviso a los pacientes que tienen
+# cita al dia siguiente. Usa la columna historial_citas
+# .recordatorio_enviado, que hasta ahora no usaba nadie.
+# ------------------------------------------------------------------
+
+
+def _mensaje_recordatorio(fecha_cita, hora_cita, terapeuta):
+    """Corto y en ASCII (sin tildes), igual que el mensaje de OTP:
+    el proveedor SMS se lleva mal con caracteres UTF-8."""
+    partes = "MOOVA Clinic: Recordatorio. Tienes cita"
+    if fecha_cita:
+        if hasattr(fecha_cita, "strftime"):
+            fecha_txt = fecha_cita.strftime("%d/%m")
+        else:
+            fecha_txt = str(fecha_cita)[:10]
+        partes += f" el {fecha_txt}"
+    hora_txt = _fmt_hora(hora_cita)
+    if isinstance(hora_txt, str) and hora_txt.strip():
+        # _fmt_hora devuelve HH:MM:SS; al SMS va HH:MM.
+        partes += f" a las {hora_txt[:5]}"
+    if terapeuta:
+        partes += f" con {terapeuta}"
+    partes += ". Si no puedes asistir, reprograma o cancela con anticipacion."
+    return partes
+
+
+def enviar_recordatorios(fecha=None):
+    """Envia SMS de recordatorio para las citas del dia siguiente
+    (por defecto) o de la fecha indicada.
+
+    Recorrido por cita, para que dos procesos jamas manden el mismo
+    SMS (el scheduler de APScheduler y el endpoint manual pueden
+    correr a la vez):
+      1. sp_citas_pendientes_recordatorio: las citas de ese dia que
+         no recibieron aviso (estado programada/confirmada).
+      2. sp_marcar_recordatorio_enviado: RECLAMA cada cita. Si otro
+         proceso gano la carrera, marcadas=0 y esta cita se salta.
+      3. Si el paciente no tiene telefono, o el SMS falla, se
+         DESMARCA con sp_desmarcar_recordatorio para que el
+         siguiente ciclo reintente.
+
+    Resumen devuelto: total = pendientes encontradas; enviados +
+    fallidos + sin_telefono = las que este proceso llego a reclamar.
+    """
+    if fecha is None:
+        fecha = _hoy_lima() + timedelta(days=1)
+
+    pendientes = call_proc("sp_citas_pendientes_recordatorio", (fecha,)) or []
+    pacientes = _mapa_pacientes()
+    terapeutas = _mapa_terapeutas()
+
+    total = len(pendientes)
+    enviados = fallidos = sin_telefono = 0
+
+    for cita in pendientes:
+        cita_id = cita.get("id")
+        reclamo = call_proc_one("sp_marcar_recordatorio_enviado", (cita_id,))
+        marcadas = int(reclamo.get("marcadas") or 0) if reclamo else 0
+        if marcadas != 1:
+            # Otro proceso la reclamo primero: no es nuestra.
+            continue
+
+        paciente = pacientes.get(cita.get("paciente_id")) or {}
+        telefono = (paciente.get("telefono") or "").strip()
+        terapeuta = (
+            terapeutas.get(cita.get("terapeuta_id")) or {}
+        ).get("Nombre") or ""
+
+        if not telefono:
+            call_proc_execute("sp_desmarcar_recordatorio", (cita_id,))
+            sin_telefono += 1
+            continue
+
+        nombre = (
+            f"{paciente.get('nombre') or ''} "
+            f"{paciente.get('apellido') or ''}"
+        ).strip() or telefono
+        mensaje = _mensaje_recordatorio(
+            cita.get("fecha_cita"), cita.get("hora_cita"), terapeuta
+        )
+
+        if _enviar_sms(telefono, mensaje):
+            enviados += 1
+            current_app.logger.info(
+                "[recordatorios] SMS enviado a %s (cita %s)", nombre, cita_id
+            )
+        else:
+            call_proc_execute("sp_desmarcar_recordatorio", (cita_id,))
+            fallidos += 1
+            current_app.logger.error(
+                "[recordatorios] SMS fallo para %s (cita %s)", nombre, cita_id
+            )
+
+    resumen = {
+        "fecha": str(fecha),
+        "total": total,
+        "enviados": enviados,
+        "fallidos": fallidos,
+        "sin_telefono": sin_telefono,
+    }
+    current_app.logger.info("[recordatorios] %s", resumen)
+    log_accion(
+        usuario_id=None,
+        accion="enviar_recordatorios",
+        tabla_afectada="historial_citas",
+        registro_id=None,
+        detalle=(
+            f"fecha={fecha} total={total} enviados={enviados} "
+            f"fallidos={fallidos} sin_telefono={sin_telefono}"
+        ),
+        ip_origen=None,
+        entidad_tipo="cita",
+    )
+    return resumen
+
+
+@citas_bp.route("/api/citas/recordatorios/enviar", methods=["POST"])
+def enviar_recordatorios_endpoint():
+    """Dispara el envio de recordatorios para un dia.
+
+    El cuerpo es opcional: {"fecha": "YYYY-MM-DD"}. Sin fecha, usa
+    el dia siguiente (America/Lima). Es interno: va protegido por
+    la API_KEY (proteger_api_interna), no por sesion de usuario.
+    """
+    data = request.get_json(silent=True) or {}
+    fecha_txt = str(data.get("fecha") or "").strip()
+
+    fecha = None
+    if fecha_txt:
+        try:
+            fecha = datetime.strptime(fecha_txt, "%Y-%m-%d").date()
+        except ValueError:
+            return jsonify({
+                "success": False,
+                "error": "Formato de fecha invalido (YYYY-MM-DD).",
+            }), 400
+
+    resumen = enviar_recordatorios(fecha)
+    return jsonify({"success": True, **resumen}), 200

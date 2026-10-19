@@ -32,6 +32,16 @@ APIPERU_URL = os.getenv("APIPERU_URL")
 OTP_EXPIRA_MIN = int(os.getenv("OTP_EXPIRA_MIN", 10))
 OTP_MAX_INTENTOS = int(os.getenv("OTP_MAX_INTENTOS", 3))
 
+# Recordatorios automaticos por SMS (citas_service + APScheduler).
+# Deshabilitados por defecto: el envio se activa por entorno y
+# jamas se enciende solo en una instalacion nueva.
+RECORDATORIOS_ENABLED = os.getenv("RECORDATORIOS_ENABLED", "0").strip()
+# Hora (America/Lima) a partir de la cual el job tiene permitido
+# enviar los SMS del dia siguiente. Evita mandar mensajes a las 7am.
+RECORDATORIO_HORA = os.getenv("RECORDATORIO_HORA", "18:00").strip()
+# Cada cuantos minutos corre el job que revisa el pendiente.
+RECORDATORIO_INTERVALO_MIN = int(os.getenv("RECORDATORIO_INTERVALO_MIN", 15))
+
 NIUBIZ_SANDBOX_URL = os.getenv("NIUBIZ_SANDBOX_URL", "https://apisandbox.vnforappstest.com")
 NIUBIZ_LIVE_URL = os.getenv("NIUBIZ_LIVE_URL", "https://api.viacel.com")
 NIUBIZ_MODE = (os.getenv("NIUBIZ_MODE") or "sandbox").lower()

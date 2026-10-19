@@ -193,6 +193,71 @@ petición**: defínela siempre, también en desarrollo.
 
 ---
 
+## Recordatorios automáticos
+
+El paciente llegaba el día de la cita sin saber que tenía una. Ahora
+`citas_service` envía un SMS de aviso la tarde anterior a las citas del
+día siguiente, usando la columna `historial_citas.recordatorio_enviado`,
+que hasta ahora no usaba nadie.
+
+### Cómo funciona
+
+- `enviar_recordatorios()` pide las citas del día con
+  `sp_citas_pendientes_recordatorio` (solo `programada` y `confirmada`;
+  una cancelada no debe recibir SMS).
+- Cada cita se **reclama** con `sp_marcar_recordatorio_enviado`. Si dos
+  procesos corren a la vez, solo uno recibe `marcadas=1` y el otro la
+  salta, así no se mandan SMS duplicados.
+- Si el paciente no tiene teléfono, o el SMS falla, se desmarca con
+  `sp_desmarcar_recordatorio` para que el siguiente ciclo reintente.
+
+Los datos del paciente y del terapeuta se piden por HTTP a
+`pacientes_service`: no hay consultas cruzadas entre bases.
+
+### Envío automático (APScheduler)
+
+Deshabilitado por defecto. Para encenderlo, en el `.env` de
+`citas_service`:
+
+```env
+RECORDATORIOS_ENABLED=1
+RECORDATORIO_HORA=18:00
+RECORDATORIO_INTERVALO_MIN=15
+```
+
+El scheduler arranca desde `create_app()` solo si
+`RECORDATORIOS_ENABLED=1`. Corre un job cada
+`RECORDATORIO_INTERVALO_MIN` minutos, pero solo actúa si en
+**America/Lima** ya se alcanzó `RECORDATORIO_HORA`, para no mandar
+mensajes a cualquier hora. El job nunca tumbaría el proceso: si algo
+falla, se loguea y sigue.
+
+### Envío manual
+
+`POST /api/citas/recordatorios/enviar` dispara el envío en el momento.
+Va protegido con la API_KEY interna. El cuerpo es opcional:
+
+```json
+{ "fecha": "2026-10-19" }
+```
+
+Sin `fecha` usa el día siguiente (America/Lima). Devuelve
+`{total, enviados, fallidos, sin_telefono}`.
+
+Funciona aunque el scheduler esté apagado: sirve para un disparo
+manual o para pruebas.
+
+### Migración sobre una base existente
+
+Los tres procedimientos nuevos están en `db_split/citas_db.sql`
+(instalación nueva) y en
+`db_split/migraciones/2026-10-18_recordatorios_citas.sql` (base con
+datos). La migración solo define procedimientos: no toca tablas ni
+inserta nada. Tampoco hace falta `ALTER TABLE`, porque la columna
+`recordatorio_enviado` ya existía.
+
+---
+
 ## Desarrollo
 
 ### Tests y lint
