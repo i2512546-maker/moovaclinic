@@ -659,6 +659,40 @@ paths:
               especialistas: { type: integer }
               anios_experiencia: { type: integer }
               tasa_exito: { type: integer }
+  /api/citas/recordatorios/enviar:
+    post:
+      tags: [citas]
+      summary: Enviar recordatorios SMS de las citas del dia siguiente
+      description: |
+        Dispara el envio de recordatorios por SMS. Protegido por la
+        API_KEY interna (no por sesion de usuario). Sin cuerpo usa el
+        dia siguiente en America/Lima. Funciona aunque el scheduler
+        automatico este deshabilitado: sirve para un envio manual.
+      parameters:
+        - name: body
+          in: body
+          required: false
+          schema:
+            type: object
+            properties:
+              fecha:
+                type: string
+                example: "2026-10-19"
+                description: "YYYY-MM-DD. Por defecto, el dia siguiente."
+      responses:
+        "200":
+          description: Resumen del envio
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              fecha: { type: string, example: "2026-10-19" }
+              total: { type: integer, example: 3, description: Citas pendientes encontradas }
+              enviados: { type: integer, example: 2 }
+              fallidos: { type: integer, example: 1, description: SMS que no se pudieron enviar }
+              sin_telefono: { type: integer, example: 0, description: Pacientes sin telefono }
+        "400": { description: Formato de fecha invalido }
+        "401": { description: Falta la API_KEY interna }
 
   # ---------------- PAGOS ----------------
   /api/pagos/{cita_id}:

@@ -17,4 +17,16 @@ def create_app():
     from shared.service_auth import proteger_api_interna
     proteger_api_interna(app)
 
+    # Recordatorios automaticos por SMS: solo si RECORDATORIOS_ENABLED=1.
+    # Es infraestructura secundaria: si APScheduler no esta instalado o
+    # no puede arrancar, las citas deben seguir funcionando igual.
+    try:
+        from services.citas_service.scheduler import iniciar_scheduler
+        iniciar_scheduler(app)
+    except Exception as exc:
+        app.logger.error(
+            "[recordatorios] no se pudo arrancar el scheduler: %s: %s",
+            type(exc).__name__, exc,
+        )
+
     return app

@@ -35,6 +35,7 @@ ACCIONES_VALIDAS = [
     "completar_cita",
     "marcar_pago",
     "liberar_pagos_vencidos",
+    "enviar_recordatorios",
     "usar_sesion_paquete",
     "crear_usuario",
     "desactivar_usuario",
