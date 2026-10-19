@@ -12,6 +12,7 @@ from shared.config import (
     KPIS_DB_NAME,
     OTP_EXPIRA_MIN,
     OTP_MAX_INTENTOS,
+    RIESGO_DIAS_UMBRAL,
     TEXTBEE_API_KEY,
     TEXTBEE_DEVICE_ID,
     TEXTBEE_URL,
@@ -765,4 +766,130 @@ def enviar_recordatorios_endpoint():
             }), 400
 
     resumen = enviar_recordatorios(fecha)
+    return jsonify({"success": True, **resumen}), 200
+
+
+# ------------------------------------------------------------------
+# Reporte de pacientes en riesgo de fuga (sustentacion)
+#
+# El paciente dejo de venir sin avisar: nadie se entera hasta que
+# se pregunta por el. Aqui se listan los que muestran senales de
+# abandono para que reception pueda llamarlos.
+# ------------------------------------------------------------------
+
+
+def _motivo_riesgo(dias, faltas, programadas, umbral):
+    """Texto corto para el panel: por que este paciente esta en riesgo."""
+    motivos = []
+    if programadas == 0 and dias is not None and dias >= umbral:
+        motivos.append(f"Sin cita programada hace {dias} dias")
+    if faltas >= 3:
+        motivos.append(f"{faltas} citas perdidas")
+    return "; ".join(motivos) or "Revisar"
+
+
+def pacientes_en_riesgo(fecha=None, dias_umbral=None):
+    """Lista los pacientes con senales de abandono.
+
+    sp_pacientes_en_riesgo decide quien esta en riesgo usando solo
+    datos de moovacloud_citas (no hay consultas cruzadas). Aqui se
+    agrega el nombre y el telefono, que viven en moovacloud_pacientes
+    y se piden por HTTP a pacientes_service, mas el nivel de
+    criticidad para ordenar la llamada de reception.
+
+    Nivel 'alto': falto tres o mas veces, o ya paso el doble del
+    umbral sin venir.
+    """
+    if fecha is None:
+        fecha = _hoy_lima()
+    umbral = int(dias_umbral or RIESGO_DIAS_UMBRAL)
+
+    filas = call_proc("sp_pacientes_en_riesgo", (fecha, umbral)) or []
+    pacientes = _mapa_pacientes()
+
+    riesgos = []
+    for fila in filas:
+        paciente_id = fila.get("paciente_id")
+        p = pacientes.get(paciente_id) or {}
+        dias = fila.get("dias_desde_ultima")
+        dias = int(dias) if dias is not None else None
+        faltas = int(fila.get("faltas") or 0)
+        programadas = int(fila.get("citas_programadas") or 0)
+
+        nivel = "alto" if (
+            faltas >= 3 or (dias is not None and dias >= umbral * 2)
+        ) else "medio"
+
+        ultima = fila.get("ultima_cita")
+        if hasattr(ultima, "strftime"):
+            ultima = ultima.strftime("%Y-%m-%d")
+
+        riesgos.append({
+            "paciente_id": paciente_id,
+            "nombre": (p.get("nombre") or "").strip(),
+            "apellido": (p.get("apellido") or "").strip(),
+            "dni": p.get("dni"),
+            "telefono": p.get("telefono"),
+            "ultima_cita": ultima,
+            "dias_desde_ultima": dias,
+            "citas_programadas": programadas,
+            "completadas": int(fila.get("completadas") or 0),
+            "canceladas": int(fila.get("canceladas") or 0),
+            "faltas": faltas,
+            "nivel": nivel,
+            "motivo": _motivo_riesgo(dias, faltas, programadas, umbral),
+        })
+
+    alto = sum(1 for r in riesgos if r["nivel"] == "alto")
+    current_app.logger.info(
+        "[riesgo] fecha=%s umbral=%s total=%s alto=%s",
+        fecha, umbral, len(riesgos), alto,
+    )
+    return {
+        "fecha": str(fecha),
+        "dias_umbral": umbral,
+        "total": len(riesgos),
+        "alto": alto,
+        "medio": len(riesgos) - alto,
+        "pacientes": riesgos,
+    }
+
+
+@citas_bp.route("/api/citas/riesgo", methods=["GET"])
+def pacientes_en_riesgo_endpoint():
+    """Reporte de pacientes con senales de abandono.
+
+    Query opcional:
+      fecha=YYYY-MM-DD   dia de referencia (default: hoy en Lima)
+      dias_umbral=N      dias sin cita para marcar riesgo
+                         (default: RIESGO_DIAS_UMBRAL, 30)
+    """
+    fecha_txt = (request.args.get("fecha") or "").strip()
+    fecha = None
+    if fecha_txt:
+        try:
+            fecha = datetime.strptime(fecha_txt, "%Y-%m-%d").date()
+        except ValueError:
+            return jsonify({
+                "success": False,
+                "error": "Formato de fecha invalido (YYYY-MM-DD).",
+            }), 400
+
+    umbral_txt = (request.args.get("dias_umbral") or "").strip()
+    umbral = None
+    if umbral_txt:
+        try:
+            umbral = int(umbral_txt)
+        except ValueError:
+            return jsonify({
+                "success": False,
+                "error": "dias_umbral debe ser un entero.",
+            }), 400
+        if umbral < 1 or umbral > 365:
+            return jsonify({
+                "success": False,
+                "error": "dias_umbral fuera de rango (1..365).",
+            }), 400
+
+    resumen = pacientes_en_riesgo(fecha, umbral)
     return jsonify({"success": True, **resumen}), 200

@@ -42,6 +42,11 @@ RECORDATORIO_HORA = os.getenv("RECORDATORIO_HORA", "18:00").strip()
 # Cada cuantos minutos corre el job que revisa el pendiente.
 RECORDATORIO_INTERVALO_MIN = int(os.getenv("RECORDATORIO_INTERVALO_MIN", 15))
 
+# Reporte de pacientes en riesgo de fuga (citas_service).
+# Dias desde la ultima cita a partir de los cuales un paciente sin
+# cita programada pasa a considerarse "en riesgo".
+RIESGO_DIAS_UMBRAL = int(os.getenv("RIESGO_DIAS_UMBRAL", 30))
+
 NIUBIZ_SANDBOX_URL = os.getenv("NIUBIZ_SANDBOX_URL", "https://apisandbox.vnforappstest.com")
 NIUBIZ_LIVE_URL = os.getenv("NIUBIZ_LIVE_URL", "https://api.viacel.com")
 NIUBIZ_MODE = (os.getenv("NIUBIZ_MODE") or "sandbox").lower()
