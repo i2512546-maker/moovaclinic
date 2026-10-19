@@ -876,6 +876,45 @@ def create_app():
         return render_template("kpis.html", resumen=resumen, por_terapeuta=por_terapeuta,
                                desde=desde.isoformat(), hasta=hasta.isoformat(), error=error)
 
+    @app.route("/panel_admin/riesgo")
+    @_admin_required
+    def panel_admin_riesgo():
+        """Reporte de pacientes en riesgo de fuga.
+
+        Pide el listado a citas_service (/api/citas/riesgo). Si el
+        servicio no responde, se muestra el panel vacio con el aviso
+        en vez de una pagina en blanco.
+        """
+        fecha = (request.args.get("fecha") or "").strip()
+        dias_umbral = (request.args.get("dias_umbral") or "").strip()
+
+        params = {}
+        if fecha:
+            params["fecha"] = fecha
+        if dias_umbral:
+            params["dias_umbral"] = dias_umbral
+        ruta = "/api/citas/riesgo"
+        if params:
+            ruta += "?" + urlencode(params)
+
+        resumen, error = None, None
+        try:
+            data, status = citas_client.get(ruta)
+            if status == 200 and data.get("success"):
+                resumen = data
+            else:
+                error = (data or {}).get("error") or "No se pudo cargar el reporte de riesgo"
+        except Exception:
+            error = "Servicio de citas no disponible"
+
+        return render_template(
+            "riesgo.html",
+            resumen=resumen,
+            error=error,
+            fecha=fecha,
+            dias_umbral=dias_umbral,
+        )
+
     @app.route("/panel_admin/cancelar_cita/<int:cita_id>", methods=["POST"])
     @_admin_required
     def admin_cancelar_cita(cita_id):

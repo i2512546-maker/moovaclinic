@@ -693,6 +693,68 @@ paths:
               sin_telefono: { type: integer, example: 0, description: Pacientes sin telefono }
         "400": { description: Formato de fecha invalido }
         "401": { description: Falta la API_KEY interna }
+  /api/citas/riesgo:
+    get:
+      tags: [citas]
+      summary: Reporte de pacientes en riesgo de fuga
+      description: |
+        Lista los pacientes con senales de abandono, para que
+        reception llame antes de perderlos. Protegido por la API_KEY
+        interna.
+
+        El nivel de riesgo se calcula SOLO con datos de citas:
+          - sin cita futura programada/confirmada y mas de
+            `dias_umbral` dias desde la ultima cita, o
+          - tres o mas citas perdidas (estado `no_asistio`).
+
+        El nombre y el telefono los agrega el servicio consultando a
+        pacientes_service por HTTP (no hay consultas cruzadas entre
+        bases).
+      parameters:
+        - name: fecha
+          in: query
+          required: false
+          type: string
+          example: "2026-10-18"
+          description: "Dia de referencia (YYYY-MM-DD). Por defecto, hoy en America/Lima."
+        - name: dias_umbral
+          in: query
+          required: false
+          type: integer
+          example: 30
+          description: "Dias sin cita para marcar riesgo. Por defecto RIESGO_DIAS_UMBRAL (30)."
+      responses:
+        "200":
+          description: Reporte de riesgo
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              fecha: { type: string, example: "2026-10-18" }
+              dias_umbral: { type: integer, example: 30 }
+              total: { type: integer, example: 4 }
+              alto: { type: integer, example: 2 }
+              medio: { type: integer, example: 2 }
+              pacientes:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    paciente_id: { type: integer, example: 7 }
+                    nombre: { type: string, example: "Ana" }
+                    apellido: { type: string, example: "Torres" }
+                    dni: { type: string, example: "47896066" }
+                    telefono: { type: string, example: "999888777" }
+                    ultima_cita: { type: string, example: "2026-08-30" }
+                    dias_desde_ultima: { type: integer, example: 48 }
+                    citas_programadas: { type: integer, example: 0 }
+                    completadas: { type: integer, example: 5 }
+                    canceladas: { type: integer, example: 1 }
+                    faltas: { type: integer, example: 2 }
+                    nivel: { type: string, enum: ["alto", "medio"], example: "alto" }
+                    motivo: { type: string, example: "Sin cita programada hace 48 dias" }
+        "400": { description: Parametros invalidos }
+        "401": { description: Falta la API_KEY interna }
 
   # ---------------- PAGOS ----------------
   /api/pagos/{cita_id}:

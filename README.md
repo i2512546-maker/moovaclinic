@@ -258,6 +258,47 @@ inserta nada. Tampoco hace falta `ALTER TABLE`, porque la columna
 
 ---
 
+## Reporte de riesgo de fuga
+
+Un paciente que deja de venir casi nunca avisa: nadie se entera hasta
+que alguien lo pregunta. El reporte lista a los que muestran señales
+de abandono para que reception los llame antes de perderlos.
+
+Se ve en **`/panel_admin/riesgo`** (solo admin) y se sirve en
+`GET /api/citas/riesgo`.
+
+### Cómo se decide quién está en riesgo
+
+Todo se calcula con datos de `moovacloud_citas`: no hay consultas
+cruzadas entre bases. `sp_pacientes_en_riesgo` marca a un paciente si:
+
+- no tiene ninguna cita futura `programada`/`confirmada` y ya pasaron
+  más de `RIESGO_DIAS_UMBRAL` días desde su última cita, o
+- faltó (`estado = no_asistio`) tres o más veces.
+
+El SP devuelve las métricas crudas (última cita, días, citas
+programadas/completadas/canceladas/perdidas). El servicio agrega el
+nombre y el teléfono, que se piden por HTTP a `pacientes_service`, más
+el nivel y un motivo en texto para el panel.
+
+### Nivel de criticidad
+
+- **alto**: faltó tres o más veces, o ya pasó el doble del umbral sin
+  venir.
+- **medio**: el resto.
+
+### Configuración
+
+```env
+RIESGO_DIAS_UMBRAL=30
+```
+
+Se puede cambiar por petición con
+`?fecha=YYYY-MM-DD&dias_umbral=N`. Las fechas se interpretan como
+hoy en America/Lima.
+
+---
+
 ## Desarrollo
 
 ### Tests y lint
