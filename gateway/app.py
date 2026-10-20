@@ -3,6 +3,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 import re
+import time
 from datetime import datetime, timedelta
 from urllib.parse import urlencode
 
@@ -22,7 +23,7 @@ from flask_wtf.csrf import CSRFError, CSRFProtect, generate_csrf
 
 from gateway.ficha_pdf import build_ficha_clinica_pdf
 from shared.audit import log_accion
-from shared.config import REDES_SOCIALES
+from shared.config import OTP_SESION_MIN, REDES_SOCIALES
 from shared.fechas import fmt_fecha
 from shared.service_client import (
     audit_client,
@@ -64,6 +65,103 @@ def _is_ajax():
 
 def _dni_ok(valor):
     return bool(re.fullmatch(r"\d{8}", (valor or "").strip()))
+
+
+# Acciones de cliente que exigen identidad verificada por OTP antes de
+# mostrar datos de salud o de mutar una cita (S1). Cada una tiene su
+# propio sello en la sesion: verificar para cancelar no habilita a
+# modificar, ni a tratar.
+ACCIONES_OTP = ("cancelar", "modificar", "tratamiento")
+
+# Vista a la que vuelve el usuario cuando no tiene la verificacion.
+VISTA_ACCION = {
+    "cancelar": "cancelar_cita_page",
+    "modificar": "modificar_cita_page",
+    "tratamiento": "tratamiento_page",
+}
+
+
+def _marcar_otp_verificado(dni, accion):
+    """Anota en la sesion que `dni` supero el OTP para `accion`.
+
+    Guarda {dni, accion, ts} por accion. El ts es el sello con el que
+    despues se mide la caducidad (OTP_SESION_MIN). Solo se llama desde
+    el camino de exito de /api/citas/otp/verificar.
+    """
+    verificaciones = dict(session.get("otp_verificado") or {})
+    verificaciones[accion] = {"dni": str(dni), "ts": time.time()}
+    session["otp_verificado"] = verificaciones
+
+
+def _otp_vigente(dni, accion, ahora=None):
+    """True si `dni` tiene verificacion OTP vigente para `accion`.
+
+    Tres condiciones y ninguna de mas: que exista el sello, que sea del
+    MISMO dni (la verificacion de un paciente no sirve para otro) y que
+    no hayan pasado OTP_SESION_MIN minutos desde que se marco.
+    """
+    verificacion = (session.get("otp_verificado") or {}).get(accion)
+    if not verificacion:
+        return False
+    if str(verificacion.get("dni") or "") != str(dni or ""):
+        return False
+    ts = verificacion.get("ts") or 0
+    transcurrido = (time.time() if ahora is None else ahora) - ts
+    return 0 <= transcurrido <= OTP_SESION_MIN * 60
+
+
+def _dni_verificado(accion):
+    """DNI verificado vigente para `accion`, o None si no lo hay.
+
+    Es lo que usan los POST: el cuerpo solo trae un cita_id, asi que el
+    dni con el que se contrasta sale de la sesion, nunca del pedido.
+    """
+    verificacion = (session.get("otp_verificado") or {}).get(accion)
+    if not verificacion:
+        return None
+    dni = str(verificacion.get("dni") or "")
+    if not dni or not _otp_vigente(dni, accion):
+        return None
+    return dni
+
+
+def _cita_pertenece_al_dni(dni, cita_id):
+    """True si `cita_id` figura en las citas programadas de `dni`.
+
+    Consulta las citas de ESE dni por HTTP (sin consultas cruzadas a la
+    base) para que un codigo verificado no sirva para cancelar o
+    mover la cita de otro paciente pasando un id al azar. Ante cualquier
+    fallo responde False: la operacion queda denegada, no abierta.
+    """
+    if not dni or cita_id in (None, ""):
+        return False
+    try:
+        data, status = citas_client.get(f"/api/citas?dni={dni}&estado=programada")
+        if status != 200:
+            return False
+        return any(str(c.get("id")) == str(cita_id) for c in (data.get("citas") or []))
+    except Exception:
+        return False
+
+
+def _proteccion_otp(dni, accion):
+    """Guardia de GET: devuelve la respuesta de proteccion (redirect al
+    primer paso, o 401 si viene de la cadena AJAX) y None cuando la
+    verificacion esta vigente."""
+    if _otp_vigente(dni, accion):
+        return None
+    if _is_ajax():
+        return jsonify({"error": "Verifica tu identidad para continuar."}), 401
+    return redirect(url_for(VISTA_ACCION[accion]))
+
+
+def _otp_negado():
+    """Guardia de POST: la verificacion falta, caduco o no alcanza para
+    esa cita. Siempre 403, y se llama antes de tocar al microservicio,
+    de modo que ni el PUT ni el DELETE llegan a emitirse."""
+    return jsonify({
+        "error": "No se pudo verificar tu identidad para esta operacion.",
+    }), 403
 
 
 def _tel_ok(valor):
@@ -336,6 +434,11 @@ def create_app():
                 paso, dni_val = "verificar", q_dni
                 tel_mask = session.get("otp_tel_mask", "")
             elif q_paso == "citas" and _dni_ok(q_dni):
+                # S1: sin verificacion vigente para ESE dni no se piden
+                # ni se muestran las citas; se vuelve al paso 1.
+                proteccion = _proteccion_otp(q_dni, "modificar")
+                if proteccion is not None:
+                    return proteccion
                 cdata, _ = citas_client.get(f"/api/citas?dni={q_dni}&estado=programada")
                 citas_encontradas = cdata.get("citas", [])
 
@@ -369,6 +472,9 @@ def create_app():
                 result, _ = citas_client.post("/api/citas/otp/verificar", {"dni": dni, "otp": otp, "accion": "modificar"})
                 r = result.get("resultado", "")
                 if r == "ok":
+                    # S1: sin este sello el paso siguiente (paso=citas)
+                    # no se abre, ni se acepta un cita_id en el POST.
+                    _marcar_otp_verificado(dni, "modificar")
                     if _is_ajax():
                         return jsonify({
                             "success": True,
@@ -385,6 +491,14 @@ def create_app():
                     error_msg = msg
                     paso, dni_val = "verificar", dni
             elif accion == "guardar":
+                # S1: igual que al cancelar. Sin verificacion vigente o
+                # con un cita_id que no es del dni verificado, 403 y no
+                # se emite el PUT.
+                dni_verificado = _dni_verificado("modificar")
+                if not dni_verificado or not _cita_pertenece_al_dni(
+                    dni_verificado, request.form.get("cita_id")
+                ):
+                    return _otp_negado()
                 cita_id = request.form.get("cita_id")
                 nueva_fecha = request.form.get("fecha_cita", "").strip()
                 nuevo_medico = request.form.get("medico_id", "").strip()
@@ -423,6 +537,11 @@ def create_app():
                 paso, dni_val = "verificar", q_dni
                 tel_mask = session.get("otp_tel_mask", "")
             elif q_paso == "citas" and _dni_ok(q_dni):
+                # S1: sin verificacion vigente para ESE dni no se piden
+                # ni se muestran las citas; se vuelve al paso 1.
+                proteccion = _proteccion_otp(q_dni, "cancelar")
+                if proteccion is not None:
+                    return proteccion
                 cdata, _ = citas_client.get(f"/api/citas?dni={q_dni}&estado=programada")
                 citas_encontradas = cdata.get("citas", [])
 
@@ -456,6 +575,7 @@ def create_app():
                 result, _ = citas_client.post("/api/citas/otp/verificar", {"dni": dni, "otp": otp, "accion": "cancelar"})
                 r = result.get("resultado", "")
                 if r == "ok":
+                    _marcar_otp_verificado(dni, "cancelar")
                     if _is_ajax():
                         return jsonify({
                             "success": True,
@@ -472,6 +592,15 @@ def create_app():
                     error_msg = msg
                     paso, dni_val = "verificar", dni
             elif accion == "confirmar":
+                # S1: el cuerpo solo trae un cita_id, asi que la
+                # identidad sale de la sesion y ademas hay que probar
+                # que esa cita es del dni verificado. Si no, 403 antes
+                # de llamar a citas_service.
+                dni_verificado = _dni_verificado("cancelar")
+                if not dni_verificado or not _cita_pertenece_al_dni(
+                    dni_verificado, request.form.get("cita_id")
+                ):
+                    return _otp_negado()
                 cita_id = request.form.get("cita_id")
                 result, status = citas_client.delete(f"/api/citas/{cita_id}")
                 if status == 200:
@@ -517,6 +646,11 @@ def create_app():
                 paso, dni_val = "verificar", q_dni
                 tel_mask = session.get("otp_tel_mask", "")
             elif q_paso in ("menu", "sin_paquetes") and _dni_ok(q_dni):
+                # S1: el menu de paquetes son datos de salud; sin
+                # verificacion vigente para ESE dni se vuelve al paso 1.
+                proteccion = _proteccion_otp(q_dni, "tratamiento")
+                if proteccion is not None:
+                    return proteccion
                 paso, dni_val = q_paso, q_dni
                 paciente, paquetes = _paquetes_activos_dni(q_dni)
                 if paso == "menu" and not paquetes:
@@ -553,6 +687,10 @@ def create_app():
                 result, _ = citas_client.post("/api/citas/otp/verificar", {"dni": dni, "otp": otp, "accion": "tratamiento"})
                 r = result.get("resultado", "")
                 if r == "ok":
+                    # S1: OTP superado. Se sella antes de resolver el
+                    # paciente para que valga igual en el camino AJAX
+                    # y en el normal.
+                    _marcar_otp_verificado(dni, "tratamiento")
                     paciente, paquetes = _paquetes_activos_dni(dni)
                     if not paciente:
                         msg = "No se encontró el paciente asociado a ese DNI."
