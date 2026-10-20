@@ -150,6 +150,45 @@ en <http://127.0.0.1:5000/apidocs/>.
 - **`buscar_dni` devuelve lo mínimo**: el flujo de reserva solo necesita
   nombres y apellidos, así que no se retransmite el expediente completo que
   devuelve APIPERU.
+- **El login tiene límite de intentos** (`shared/rate_limit.py`), ver
+  detalle más abajo.
+
+### Límite de intentos de login
+
+`/login` aceptaba prueba tras prueba de clave sin que nada se lo
+impidiera. El gateway ahora cuenta los fallos y corta el intento
+**antes** de llamar a `auth_service`, así el microservicio ni se entera
+de los que ya no valen.
+
+Hay dos contadores independientes y **ambos tienen que pasar**:
+
+| Clave | Corta a |
+| --- | --- |
+| `ip:<ip>` | quien prueba muchas claves desde un solo equipo |
+| `correo:<correo>` | quien prueba un mismo correo desde muchas IPs |
+
+Defaults: `LOGIN_MAX_INTENTOS=5` fallos dentro de `LOGIN_VENTANA_MIN=10`
+minutos bloquean `LOGIN_BLOQUEO_MIN=15` minutos. Al entrar bien se borra
+el historial de esas claves, para que cinco typos de la mañana no dejen
+al usuario real bloqueado.
+
+Los mensajes son fijos y no dependen de lo que devuelva el
+microservicio: ni el bloqueo ni la clave incorrecta dicen si el correo
+existe o no, y son indistinguibles entre sí.
+
+Detrás de un proxy (Render, nginx) `request.remote_addr` es la IP del
+proxy y todas las peticiones parecen venir del mismo sitio. Con
+`TRUST_PROXY=1` se toma el primer valor de `X-Forwarded-For`, que es el
+que anotó el proxy. **Sin esa variable el header se ignora**: cualquiera
+podría mandarlo inventado y quedar sin contador.
+
+> **Limitación conocida.** El contador vive en un `dict` en memoria del
+> proceso, sin base de datos ni dependencias nuevas. Eso significa que
+> **cada worker tiene el suyo** (con dos workers un atacante tiene el
+> doble de intentos) y que **un reinicio del servicio lo pone a cero**.
+> Es suficiente para el alcance actual y es deliberado; si algún día hace
+> falta compartirlo entre procesos, lo que hay que reemplazar es el
+> almacenamiento del `LimitadorIntentos`, no su lógica.
 
 ---
 
