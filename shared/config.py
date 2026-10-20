@@ -31,6 +31,11 @@ APIPERU_URL = os.getenv("APIPERU_URL")
 
 OTP_EXPIRA_MIN = int(os.getenv("OTP_EXPIRA_MIN", 10))
 OTP_MAX_INTENTOS = int(os.getenv("OTP_MAX_INTENTOS", 3))
+# Minutos que el gateway considera vigente una verificacion OTP en la
+# sesion del navegador (S1). Sirve para ver los datos de una cita y
+# para cancelarla/modificarla sin volver a pedir el codigo. No es el
+# tiempo de vida del codigo en si, que sigue siendo OTP_EXPIRA_MIN.
+OTP_SESION_MIN = int(os.getenv("OTP_SESION_MIN", 15))
 
 # Recordatorios automaticos por SMS (citas_service + APScheduler).
 # Deshabilitados por defecto: el envio se activa por entorno y
