@@ -74,6 +74,43 @@ def _guardar_referencia(cita_id, cobro_id):
     call_proc_execute("sp_guardar_referencia", (cita_id, cobro_id))
 
 
+# Campos en los que la pasarela suele devolver lo que nosotros le
+# mandamos al crear el cobro. Se miran varios nombres porque Yape y
+# Plin no estan fijados a un esquema en este repo.
+_CAMPOS_REFERENCIA = ("referencia", "reference", "referenciaExterna", "externalReference")
+_CAMPOS_MONTO = ("monto", "amount", "importe", "total", "totalAmount")
+
+
+def _cobro_valido_para_cita(respuesta, cita_id, monto_pendiente):
+    """True solo si el cobro consultado ES el de esta cita y por EL
+    monto pendiente.
+
+    Al crear el cobro enviamos referencia=str(cita_id) y monto=precio
+    (providers.crear_cobro), asi que se pueden comparar con lo que el
+    proveedor devuelve. Si alguno de los dos no viene, NO se da el pago
+    por bueno: sin poder comparar, mas vale no marcarlo pagado.
+    """
+    datos = (respuesta or {}).get("datos_respuesta") or {}
+    if not isinstance(datos, dict):
+        return False
+
+    referencia = next(
+        (datos[c] for c in _CAMPOS_REFERENCIA if datos.get(c) not in (None, "")), None
+    )
+    if referencia is None or str(referencia).strip() != str(cita_id):
+        return False
+
+    monto_respuesta = next(
+        (datos[c] for c in _CAMPOS_MONTO if datos.get(c) not in (None, "")), None
+    )
+    if monto_respuesta is None:
+        return False
+    try:
+        return abs(float(monto_respuesta) - float(monto_pendiente)) < 0.01
+    except (TypeError, ValueError):
+        return False
+
+
 def confirmar_pago_servicio(cita_id, referencia=None, datos_respuesta=None, verificado_por=None):
     cita = _obtener_cita_info(cita_id)
 
@@ -360,18 +397,30 @@ def api_pago_yape_iniciar():
 def api_pago_yape_estado():
     data = request.get_json(silent=True) or {}
     cita_id = data.get("cita_id")
-    cobro_id = data.get("cobro_id")
+    # El cobro NO se toma del pedido: el cliente puede mandar cualquier
+    # id. Se consulta siempre el que esta guardado en la base para
+    # ESTA cita. data.get("cobro_id") se ignora a proposito.
     cita = _obtener_pago_pendiente(cita_id)
     if not cita:
         return jsonify({"ok": False, "error": "Cita no encontrada o ya pagada."}), 400
+    referencia = cita.get("referencia")
+    if not referencia:
+        return jsonify({"ok": False, "error": "Esta cita no tiene un cobro iniciado."}), 400
     try:
-        res = YapeClient().consultar_pago(cobro_id or cita.get("referencia"))
+        res = YapeClient().consultar_pago(referencia)
     except (PaymentNotConfigured, PaymentProviderError) as e:
         return jsonify({"ok": False, "error": str(e)}), 400
-    if res["pagado"]:
-        confirmar_pago_servicio(cita_id, referencia=cobro_id, datos_respuesta=res.get("datos_respuesta"))
-        return jsonify({"ok": True, "pagado": True})
-    return jsonify({"ok": True, "pagado": False})
+    if not res.get("pagado"):
+        return jsonify({"ok": True, "pagado": False})
+    if not _cobro_valido_para_cita(res, cita_id, cita.get("monto")):
+        current_app.logger.warning(
+            "Yape devolvio un cobro pagado que no coincide con la cita %s "
+            "(referencia guardada %r); no se marca el pago", cita_id, referencia
+        )
+        return jsonify({"ok": False, "error": "No se pudo verificar el pago."}), 400
+    confirmar_pago_servicio(cita_id, referencia=referencia,
+                            datos_respuesta=res.get("datos_respuesta"))
+    return jsonify({"ok": True, "pagado": True})
 
 
 @pagos_bp.route("/api/pagos/plin/iniciar", methods=["POST"])
@@ -394,18 +443,29 @@ def api_pago_plin_iniciar():
 def api_pago_plin_estado():
     data = request.get_json(silent=True) or {}
     cita_id = data.get("cita_id")
-    cobro_id = data.get("cobro_id")
+    # Igual que en Yape: el cobro se toma de la base, nunca del pedido
+    # (data.get("cobro_id") se ignora a proposito).
     cita = _obtener_pago_pendiente(cita_id)
     if not cita:
         return jsonify({"ok": False, "error": "Cita no encontrada o ya pagada."}), 400
+    referencia = cita.get("referencia")
+    if not referencia:
+        return jsonify({"ok": False, "error": "Esta cita no tiene un cobro iniciado."}), 400
     try:
-        res = PlinClient().consultar_pago(cobro_id or cita.get("referencia"))
+        res = PlinClient().consultar_pago(referencia)
     except (PaymentNotConfigured, PaymentProviderError) as e:
         return jsonify({"ok": False, "error": str(e)}), 400
-    if res["pagado"]:
-        confirmar_pago_servicio(cita_id, referencia=cobro_id, datos_respuesta=res.get("datos_respuesta"))
-        return jsonify({"ok": True, "pagado": True})
-    return jsonify({"ok": True, "pagado": False})
+    if not res.get("pagado"):
+        return jsonify({"ok": True, "pagado": False})
+    if not _cobro_valido_para_cita(res, cita_id, cita.get("monto")):
+        current_app.logger.warning(
+            "Plin devolvio un cobro pagado que no coincide con la cita %s "
+            "(referencia guardada %r); no se marca el pago", cita_id, referencia
+        )
+        return jsonify({"ok": False, "error": "No se pudo verificar el pago."}), 400
+    confirmar_pago_servicio(cita_id, referencia=referencia,
+                            datos_respuesta=res.get("datos_respuesta"))
+    return jsonify({"ok": True, "pagado": True})
 
 
 @pagos_bp.route("/api/pagos/tarjeta/iniciar", methods=["POST"])
