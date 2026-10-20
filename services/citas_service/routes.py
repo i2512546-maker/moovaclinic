@@ -35,7 +35,14 @@ def _enviar_sms(telefono, mensaje):
             timeout=10,
         )
         return resp.status_code in (200, 201)
-    except Exception:
+    except Exception as exc:
+        # False es el contrato: el envio de SMS nunca rompe el flujo
+        # que lo pide (cita, recordatorio, OTP). Se loguea igual para
+        # poder distinguir "nadie lo pidio" de "TextBee esta caido".
+        current_app.logger.warning(
+            "No se pudo enviar el SMS al telefono %s: %s: %s",
+            telefono, type(exc).__name__, exc,
+        )
         return False
 
 
@@ -677,8 +684,14 @@ def cancelar_cita(cita_id):
     # hacia dentro de sp_cancelar_cita, CROSS-DB a pagos_db).
     try:
         pagos_client.post(f"/api/pagos/{cita_id}/cancelar", {})
-    except Exception:
-        pass
+    except Exception as exc:
+        # La cancelacion de la cita ya quedo hecha en la base propia.
+        # Lo que se pierde es el cierre del pago pendiente, y eso se
+        # recupera con scripts/liberar_pagos_vencidos.py.
+        current_app.logger.warning(
+            "No se pudo cancelar el pago pendiente de la cita %s: %s: %s",
+            cita_id, type(exc).__name__, exc,
+        )
 
     ent_paciente_id, ent_paciente_nombre = _datos_paciente_cita(cita_id)
     log_accion(
@@ -813,20 +826,29 @@ def estadisticas():
         try:
             res = call_proc_one("sp_estadisticas_recuperados")
             recuperados = int(res["total"]) if res else 0
-        except Exception:
-            pass
+        except Exception as exc:
+            current_app.logger.warning(
+                "No se pudieron calcular las estadisticas de recuperados: %s: %s",
+                type(exc).__name__, exc,
+            )
         try:
             esp_data, _ = pacientes_client.get("/api/estadisticas/especialistas")
             especialistas = int(esp_data.get("total") or 0) if esp_data else 0
-        except Exception:
-            pass
+        except Exception as exc:
+            current_app.logger.warning(
+                "No se pudo pedir el total de especialistas a pacientes_service: %s: %s",
+                type(exc).__name__, exc,
+            )
         try:
             cfg_data, _ = pagos_client.get("/api/pagos/configuracion/anio")
             cfg = cfg_data.get("valor") if cfg_data else None
             if cfg:
                 anio_inicio = int(cfg)
-        except Exception:
-            pass
+        except Exception as exc:
+            current_app.logger.warning(
+                "No se pudo leer el anio de inicio de la configuracion de pagos: %s: %s",
+                type(exc).__name__, exc,
+            )
         total_anios = datetime.now().year - anio_inicio
         try:
             op_data, _ = pacientes_client.get("/api/estadisticas/opiniones")
@@ -835,10 +857,18 @@ def estadisticas():
                 buenas = int(op_data.get("buenas") or 0)
                 if total > 0:
                     tasa_exito = round((buenas / total) * 100)
-        except Exception:
-            pass
-    except Exception:
-        pass
+        except Exception as exc:
+            current_app.logger.warning(
+                "No se pudo calcular la tasa de exito con las opiniones: %s: %s",
+                type(exc).__name__, exc,
+            )
+    except Exception as exc:
+        # Cada bloque ya aviso de lo suyo; esto es por si algo mas
+        # revienta por el medio y el dashboard devolviera ceros sin mas.
+        current_app.logger.warning(
+            "Las estadisticas del dashboard se devuelven con valores por defecto: %s: %s",
+            type(exc).__name__, exc,
+        )
     return jsonify({
         "pacientes_recuperados": recuperados,
         "especialistas": especialistas,

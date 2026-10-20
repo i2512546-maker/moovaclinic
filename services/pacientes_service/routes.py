@@ -52,8 +52,13 @@ def listar_pacientes():
     try:
         data, _ = citas_client.get("/api/citas/resumen_pacientes")
         resumen = {r["paciente_id"]: r for r in (data.get("resumen") or [])}
-    except Exception:
-        pass
+    except Exception as exc:
+        # El listado se devuelve igual; lo que se pierde son las
+        # columnas de citas por paciente.
+        current_app.logger.warning(
+            "No se pudo cargar el resumen de citas para el listado: %s: %s",
+            type(exc).__name__, exc,
+        )
 
     for p in pacientes:
         info = resumen.get(p["id"]) or {}
@@ -117,8 +122,12 @@ def detalle_paciente(dni):
     try:
         citas_data, _ = citas_client.get(f"/api/citas/paciente/{paciente_id}")
         historial = citas_data.get("citas") or []
-    except Exception:
-        pass
+    except Exception as exc:
+        # La ficha se responde igual; solo se pierde el historial.
+        current_app.logger.warning(
+            "No se pudo cargar el historial de citas del paciente %s: %s: %s",
+            paciente_id, type(exc).__name__, exc,
+        )
 
     pagos = {}
     try:
@@ -126,8 +135,13 @@ def detalle_paciente(dni):
         for pg in (pagos_data.get("pagos") or []):
             if pg.get("cita_id") not in pagos:
                 pagos[pg["cita_id"]] = pg
-    except Exception:
-        pass
+    except Exception as exc:
+        # Mismo criterio que arriba: la ficha no depende de los pagos
+        # para abrirse, solo para enriquecer el historial.
+        current_app.logger.warning(
+            "No se pudo cargar los pagos del paciente %s: %s: %s",
+            paciente_id, type(exc).__name__, exc,
+        )
 
     mapa = _mapa_terapeutas()
     for c in historial:

@@ -21,6 +21,10 @@ def get_connection(db_name=None):
         cursor.execute("SET SESSION innodb_lock_wait_timeout = 5")
         cursor.close()
     except Exception:
+        # Se deja en pass a proposito: si no se pudo aplicar (permisos,
+        # version), la conexion sigue sirviendo y queda con el timeout
+        # por defecto de InnoDB. Un aviso aqui se repetiria en cada
+        # conexion de cada request.
         pass
     return conn
 
