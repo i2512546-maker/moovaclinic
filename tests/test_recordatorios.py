@@ -136,7 +136,7 @@ class RecordatoriosTest(unittest.TestCase):
 
     def test_por_defecto_usa_el_dia_siguiente(self):
         with patch(
-            "services.citas_service.routes._hoy_lima", return_value=date(2026, 10, 18)
+            "services.citas_service.routes.hoy_lima", return_value=date(2026, 10, 18)
         ), patch(
             "services.citas_service.routes.call_proc", return_value=[]
         ) as proc, patch(

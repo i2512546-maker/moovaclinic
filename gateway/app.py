@@ -6,7 +6,6 @@ import re
 import time
 from datetime import datetime, timedelta
 from urllib.parse import urlencode
-from zoneinfo import ZoneInfo
 
 import yaml
 from flask import (
@@ -32,7 +31,7 @@ from shared.config import (
     REDES_SOCIALES,
     TRUST_PROXY,
 )
-from shared.fechas import fmt_fecha
+from shared.fechas import fmt_fecha, hoy_lima
 from shared.rate_limit import LimitadorIntentos, ip_del_request
 from shared.service_client import (
     audit_client,
@@ -244,16 +243,6 @@ MAX_CITAS_PAGABLES = 10
 # Texto generico: no distingue entre "no existe", "no es tuya" y
 # "caduco", que es lo que hace que el mensaje no sirva de sonda.
 MENSAJE_PAGO_NO_PERMITIDO = "No se puede procesar el pago con estos datos."
-
-
-def _hoy_lima():
-    """Fecha actual en America/Lima.
-
-    El servidor puede correr en otra zona (en Render es UTC); usar el
-    reloj de la maquina dejaba el panel de KPIs mostrando "hoy" con un
-    dia de diferencia a partir de las 19:00 de Lima.
-    """
-    return datetime.now(ZoneInfo("America/Lima")).date()
 
 
 def create_app():
@@ -472,18 +461,21 @@ def create_app():
         if "usuario_id" not in session:
             return redirect(url_for("login"))
 
-        fecha_str = request.args.get("fecha", datetime.today().strftime("%Y-%m-%d"))
+        fecha_str = request.args.get("fecha", hoy_lima().strftime("%Y-%m-%d"))
         try:
             fecha_obj = datetime.strptime(fecha_str, "%Y-%m-%d")
         except ValueError:
-            fecha_obj = datetime.today()
+            # Fecha ilegible: se vuelve a HOY en Lima. Es un date y no
+            # un datetime, pero lo que se le pide abajo (sumar y restar
+            # dias, weekday, strftime) se comporta igual.
+            fecha_obj = hoy_lima()
 
         ayer = (fecha_obj - timedelta(days=1)).strftime("%Y-%m-%d")
         manana = (fecha_obj + timedelta(days=1)).strftime("%Y-%m-%d")
         dias = ["Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"]
         dia_semana = dias[fecha_obj.weekday() + 1 if fecha_obj.weekday() < 6 else 0]
         fecha_display = fecha_obj.strftime("%d/%m/%Y")
-        es_hoy = fecha_str == datetime.today().strftime("%Y-%m-%d")
+        es_hoy = fecha_str == hoy_lima().strftime("%Y-%m-%d")
         es_admin = session.get("rol") == "admin"
 
         params = f"?fecha={fecha_str}&estado=programada"
@@ -505,7 +497,7 @@ def create_app():
             return redirect(url_for("login"))
         historial_id = request.form.get("historial_id")
         descripcion = request.form.get("descripcion", "").strip()
-        fecha = request.form.get("fecha", datetime.today().strftime("%Y-%m-%d"))
+        fecha = request.form.get("fecha", hoy_lima().strftime("%Y-%m-%d"))
 
         # FASE 2: completar cita es responsabilidad de citas_service.
         citas_client.put(f"/api/citas/{historial_id}/completar", {"descripcion": descripcion})
@@ -1131,7 +1123,7 @@ def create_app():
         udata, _ = auth_client.get("/api/auth/usuarios")
         usuarios = udata.get("usuarios", [])
 
-        params = "?fecha=" + datetime.today().strftime("%Y-%m-%d") + "&estado=programada"
+        params = "?fecha=" + hoy_lima().strftime("%Y-%m-%d") + "&estado=programada"
         cdata, _ = citas_client.get(f"/api/citas{params}")
         proximas_citas = cdata.get("citas", [])[:20]
 
@@ -1186,7 +1178,7 @@ def create_app():
     @_admin_required
     def panel_admin_kpis():
 
-        hoy = _hoy_lima()
+        hoy = hoy_lima()
         try:
             desde = datetime.strptime((request.args.get("desde") or "").strip(), "%Y-%m-%d").date() if (request.args.get("desde") or "").strip() else hoy - timedelta(days=30)
             hasta = datetime.strptime((request.args.get("hasta") or "").strip(), "%Y-%m-%d").date() if (request.args.get("hasta") or "").strip() else hoy

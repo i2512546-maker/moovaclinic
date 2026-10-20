@@ -109,7 +109,7 @@ class AvisoTerapeutaBase(unittest.TestCase):
         log = self._stack.enter_context(
             patch("services.citas_service.routes.log_accion"))
         self._stack.enter_context(
-            patch("services.citas_service.routes._hoy_lima", return_value=Hoy))
+            patch("services.citas_service.routes.hoy_lima", return_value=Hoy))
         return sms, log
 
     def _avisos(self, log):

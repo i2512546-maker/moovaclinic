@@ -107,7 +107,7 @@ class RiesgoEndpointTest(unittest.TestCase):
 
     def test_usa_hoy_en_lima_por_defecto(self):
         with patch(
-            "services.citas_service.routes._hoy_lima", return_value=date(2026, 10, 18)
+            "services.citas_service.routes.hoy_lima", return_value=date(2026, 10, 18)
         ), patch(
             "services.citas_service.routes.call_proc", return_value=[]
         ) as proc, patch(
