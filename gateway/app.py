@@ -23,8 +23,16 @@ from flask_wtf.csrf import CSRFError, CSRFProtect, generate_csrf
 
 from gateway.ficha_pdf import build_ficha_clinica_pdf
 from shared.audit import log_accion
-from shared.config import OTP_SESION_MIN, REDES_SOCIALES
+from shared.config import (
+    LOGIN_BLOQUEO_MIN,
+    LOGIN_MAX_INTENTOS,
+    LOGIN_VENTANA_MIN,
+    OTP_SESION_MIN,
+    REDES_SOCIALES,
+    TRUST_PROXY,
+)
 from shared.fechas import fmt_fecha
+from shared.rate_limit import LimitadorIntentos, ip_del_request
 from shared.service_client import (
     audit_client,
     auth_client,
@@ -216,6 +224,16 @@ def _load_swagger():
         return None
 
 
+# Mensajes fijos del limite de login (S2). Nunca se reutiliza el texto
+# que devuelva auth_service: el de "bloqueado" y el de "clave mala"
+# tienen que ser indistinguibles entre si y no pueden depender de si el
+# correo existe o no.
+MENSAJE_LOGIN_BLOQUEADO = (
+    "Demasiados intentos. Espera unos minutos y vuelve a intentarlo."
+)
+MENSAJE_LOGIN_INVALIDO = "Correo o clave incorrectos."
+
+
 def create_app():
     app = Flask(__name__, template_folder="../templates", static_folder="../static")
     secret_key = os.getenv("SECRET_KEY")
@@ -228,6 +246,13 @@ def create_app():
     if os.getenv("FLASK_ENV") == "production":
         app.config["SESSION_COOKIE_SECURE"] = True
     csrf.init_app(app)
+
+    # Contador de intentos de login (S2). Cada worker tiene el suyo y
+    # un reinicio lo pone a cero: esta limitacion esta documentada en
+    # el README.
+    app.extensions["rate_limit"] = LimitadorIntentos(
+        LOGIN_MAX_INTENTOS, LOGIN_VENTANA_MIN, LOGIN_BLOQUEO_MIN
+    )
 
     app.jinja_env.filters["fecha"] = lambda v: fmt_fecha(v)
     app.jinja_env.filters["fechahora"] = lambda v: fmt_fecha(v, con_hora=True)
@@ -293,8 +318,21 @@ def create_app():
                 flash("Completa todos los campos.")
                 return redirect(url_for("login"))
 
+            # Dos contadores independientes y ambos tienen que pasar:
+            # por IP corta a quien prueba claves desde un solo equipo,
+            # por correo corta a quien prueba un correo desde muchos.
+            # El corte ocurre ANTES de llamar a auth_service, que asi
+            # ni se entera de los intentos que ya no valen.
+            limite = app.extensions["rate_limit"]
+            claves = (f"ip:{ip_del_request(request, TRUST_PROXY)}", f"correo:{correo.lower()}")
+            bloqueado, _ = limite.bloqueado(claves)
+            if bloqueado:
+                flash(MENSAJE_LOGIN_BLOQUEADO)
+                return redirect(url_for("login"))
+
             data, status = auth_client.post("/api/auth/login", {"correo": correo, "clave": clave})
             if status == 200 and data.get("success"):
+                limite.registrar_exito(claves)
                 u = data["usuario"]
                 session["usuario_id"] = u["id"]
                 session["usuario_nombre"] = u["nombre"]
@@ -304,7 +342,8 @@ def create_app():
                     return redirect(url_for("panel_admin"))
                 return redirect(url_for("interfaz"))
             else:
-                flash(data.get("error", "Credenciales incorrectas."))
+                limite.registrar_fallo(claves)
+                flash(MENSAJE_LOGIN_INVALIDO)
 
         return render_template("login.html")
 

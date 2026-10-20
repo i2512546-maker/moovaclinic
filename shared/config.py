@@ -37,6 +37,19 @@ OTP_MAX_INTENTOS = int(os.getenv("OTP_MAX_INTENTOS", 3))
 # tiempo de vida del codigo en si, que sigue siendo OTP_EXPIRA_MIN.
 OTP_SESION_MIN = int(os.getenv("OTP_SESION_MIN", 15))
 
+# Limite de intentos de login en el gateway (S2). No hay captcha ni
+# dependencias de terceros: el gateway corta el intento ANTES de llamar
+# a auth_service.
+LOGIN_MAX_INTENTOS = int(os.getenv("LOGIN_MAX_INTENTOS", 5))
+# Ventana (minutos) en la que se acumulan los fallos.
+LOGIN_VENTANA_MIN = int(os.getenv("LOGIN_VENTANA_MIN", 10))
+# Minutos que dura el bloqueo una vez superado el maximo.
+LOGIN_BLOQUEO_MIN = int(os.getenv("LOGIN_BLOQUEO_MIN", 15))
+# 1 = detras de un proxy (Render/ nginx): la IP real se toma del
+# PRIMER valor de X-Forwarded-For. En 0 (default) el header se ignora,
+# porque cualquiera podria inventarlo y quedar sin contador.
+TRUST_PROXY = os.getenv("TRUST_PROXY", "0").strip().lower() in ("1", "true", "yes")
+
 # Recordatorios automaticos por SMS (citas_service + APScheduler).
 # Deshabilitados por defecto: el envio se activa por entorno y
 # jamas se enciende solo en una instalacion nueva.
