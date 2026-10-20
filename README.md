@@ -129,7 +129,8 @@ python -m services.audit_service.run     # :5006
 ```
 
 La app queda en <http://127.0.0.1:5000>. La API interna está documentada
-en <http://127.0.0.1:5000/apidocs/>.
+en <http://127.0.0.1:5000/apidocs/>, que pide sesión de administrador
+(ver `Documentación de la API solo para administradores`).
 
 ---
 
@@ -155,6 +156,8 @@ en <http://127.0.0.1:5000/apidocs/>.
 - **Limitación aceptada**: `/pago` y `/retorno` no comprueban que la
   cita pertenezca al usuario de la sesión, ver el apartado
   `Oráculo de existencia de citas` más abajo.
+- **La documentación de la API es de administradores** (`/apidocs`,
+  `/apispec_1.json`), ver detalle más abajo.
 
 ### Límite de intentos de login
 
@@ -253,6 +256,27 @@ cita.
 > A mitad del recorrido tampoco se distingue "no existe" de "ya estaba
 > pagada": `pagos_service` devuelve el mismo texto en los dos casos, así
 > que el detalle fino solo sale de `/pago`.
+
+### Documentación de la API solo para administradores
+
+flasgger monta `/apidocs` y `/apispec_1.json` sin proteger nada y el
+gateway no tenía ningún `before_request`, así que cualquiera podía
+leer el plano completo de la API interna: las 54 rutas del
+`swagger.yaml`, con los endpoints de Yape/Plin incluidos. No es un
+agujero de datos por sí solo —no devuelve nombres, importes ni
+claves—, pero sí es el mapa de la casa y el modo de usar cada
+endpoint.
+
+Un `before_request` del gateway (`_documentacion_interna`) deja pasar
+solo a quien tiene sesión de **administrador**; todo lo demás acaba en
+`/login`, igual que hace `_admin_required` con el resto de rutas de
+gestión. Cubre `/apidocs`, `/apidocs/...` y cualquier
+`/apispec_<n>.json`, de modo que si flasgger sirve otro spec algún día
+sigue cubierto.
+
+Sin sesión de admin la documentación sigue disponible en el propio
+`swagger.yaml` del repositorio: lo que se restringe es el servicio
+publicado, no el código.
 
 ---
 
@@ -557,8 +581,9 @@ tests/              pytest
 ## Documentación adicional
 
 - `INFO_INTERFACES.md` — detalle de cada endpoint interno.
-- `swagger.yaml` — especificación de la API interna (52 rutas).
-- <http://127.0.0.1:5000/apidocs/> — documentación interactiva.
+- `swagger.yaml` — especificación de la API interna (54 rutas).
+- <http://127.0.0.1:5000/apidocs/> — documentación interactiva (solo
+  con sesión de administrador; sin ella manda a `/login`).
 - `.env.example` — todas las variables, con las de cada servicio comentadas.
 
 ---

@@ -326,6 +326,27 @@ def create_app():
             respuesta.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
         return respuesta
 
+    @app.before_request
+    def _documentacion_interna():
+        """Swagger (flasgger) solo para administradores (S7 e).
+
+        flasgger monta /apidocs y /apispec_1.json sin proteger ninguna
+        y el gateway no tiene before_request: cualquiera podia leer el
+        plano completo de la API (54 rutas, con los endpoints de pago).
+        No es un agujero de datos por si solo, pero es el mapa de la
+        casa. Sin sesión de admin se manda a /login, igual que hace
+        _admin_required con las rutas de gestion.
+        """
+        ruta = request.path
+        es_docs = (
+            ruta.rstrip("/") == "/apidocs"
+            or ruta.startswith("/apidocs/")
+            or re.match(r"^/apispec_\d+\.json$", ruta) is not None
+        )
+        if es_docs and not ("usuario_id" in session and session.get("rol") == "admin"):
+            return redirect(url_for("login"))
+        return None
+
     # --- Protección de rutas que requieren sesión activa ---
     def _login_required(f):
         from functools import wraps
