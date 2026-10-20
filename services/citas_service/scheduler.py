@@ -11,6 +11,7 @@
 # y se loguea.
 # ============================================================
 
+import logging
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -105,11 +106,19 @@ def iniciar_scheduler(app):
 
 
 def detener_scheduler():
-    """Para el scheduler y limpia el singleton (util en tests)."""
+    """Para el scheduler y limpia el singleton (util en tests).
+
+    No recibe la app, asi que aqui no hay app.logger: se usa el logger
+    del modulo, que solo se vera si alguien configura el logging raiz
+    (ningun servicio lo hace hoy; en los tests se recoge con caplog).
+    """
     global _scheduler
     if _scheduler is not None and _scheduler.running:
         try:
             _scheduler.shutdown(wait=False)
-        except Exception:
-            pass
+        except Exception as exc:
+            logging.getLogger(__name__).warning(
+                "[recordatorios] no se pudo parar el scheduler: %s: %s",
+                type(exc).__name__, exc,
+            )
     _scheduler = None

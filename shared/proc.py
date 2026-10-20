@@ -34,6 +34,11 @@ def _run(proc_name, params, dictionary, fetch, commit, drain=False, db_name=None
                 for result in cursor.stored_results():
                     result.fetchall()
             except Exception:
+                # Se deja en pass a proposito: drain lo usa
+                # call_proc_execute para DML, y muchos procedimientos
+                # no dejan result set ninguno, asi que stored_results()
+                # revienta en el caso NORMAL. Avisaria en cada
+                # INSERT/UPDATE/DELETE valido.
                 pass
         if commit:
             conn.commit()

@@ -28,8 +28,13 @@ def _obtener_cita_info(cita_id):
         data, status = citas_client.get(f"/api/citas/{cita_id}")
         if status == 200:
             return data.get("cita") or {}
-    except Exception:
-        pass
+    except Exception as exc:
+        # Best effort: quien llama recibe {} y decide. Se loguea para
+        # poder ver cuando citas_service no responde.
+        current_app.logger.warning(
+            "No se pudo leer la cita %s desde citas_service: %s: %s",
+            cita_id, type(exc).__name__, exc,
+        )
     return {}
 
 
@@ -56,8 +61,12 @@ def _nombre_paciente(paciente_id):
             if p.get("id") == paciente_id:
                 nombre = " ".join(x for x in (p.get("nombre"), p.get("apellido")) if x).strip()
                 return nombre or None
-    except Exception:
-        pass
+    except Exception as exc:
+        # Solo se pierde el nombre en la auditoria/respuesta, no el dato.
+        current_app.logger.warning(
+            "No se pudo resolver el nombre del paciente %s: %s: %s",
+            paciente_id, type(exc).__name__, exc,
+        )
     return None
 
 
@@ -91,8 +100,13 @@ def confirmar_pago_servicio(cita_id, referencia=None, datos_respuesta=None, veri
                 entidad_id=paciente_id,
                 entidad_nombre=entidad_nombre,
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            # El pago ya quedo confirmado en la base; lo que se pierde
+            # es la linea de auditoria, y conviene verlo igual.
+            current_app.logger.warning(
+                "Pago de la cita %s confirmado pero sin registrar en auditoria: %s: %s",
+                cita_id, type(exc).__name__, exc,
+            )
 
     if pagado and cita:
         import requests as http_requests
@@ -113,8 +127,13 @@ def confirmar_pago_servicio(cita_id, referencia=None, datos_respuesta=None, veri
                     json={"recipients": [t], "message": msg},
                     headers={"x-api-key": TEXTBEE_API_KEY}, timeout=10,
                 )
-            except Exception:
-                pass
+            except Exception as exc:
+                # False/None no se propaga: el aviso SMS es secundario
+                # respecto al pago, que ya quedo confirmado.
+                current_app.logger.warning(
+                    "No se pudo enviar el SMS de aviso de pago a %s: %s: %s",
+                    tel, type(exc).__name__, exc,
+                )
 
         # FASE 2: el telefono del medico vive en moovacloud_auth (usuarios);
         # se resuelve por HTTP: terapeuta (pacientes) -> usuario_id ->
@@ -293,8 +312,13 @@ def usar_sesion_paquete(paquete_id):
             entidad_id=paciente_id,
             entidad_nombre=_nombre_paciente(paciente_id),
         )
-    except Exception:
-        pass
+    except Exception as exc:
+        # La sesion ya quedo descontada del paquete; lo que se pierde
+        # es la linea de auditoria.
+        current_app.logger.warning(
+            "Sesion del paquete %s usada (cita %s) pero sin registrar en auditoria: %s: %s",
+            paquete_id, cita_id, type(exc).__name__, exc,
+        )
     return jsonify({"success": True, "usadas": usadas})
 
 

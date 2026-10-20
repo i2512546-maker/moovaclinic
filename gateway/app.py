@@ -809,8 +809,16 @@ def create_app():
                             # (paso posterior a la creacion de la cita).
                             try:
                                 pagos_client.post(f"/api/pagos/paquetes/{paquete_id}/usar", {"cita_id": cita_id})
-                            except Exception:
-                                pass
+                            except Exception as exc:
+                                # La cita ya quedo creada; lo que se
+                                # pierde aqui es el vinculo con el
+                                # paquete, no el cobro. Se loguea para
+                                # poder cazarlo, pero no se rompe el
+                                # alta.
+                                app.logger.warning(
+                                    "No se pudo vincular la cita %s al paquete %s: %s: %s",
+                                    cita_id, paquete_id, type(exc).__name__, exc,
+                                )
                             redirect_to = url_for("pago_page", cita_id=cita_id)
                             if _is_ajax():
                                 return jsonify({
@@ -879,8 +887,14 @@ def create_app():
         fecha_fmt = cita.get("fecha_cita", "")
         try:
             fecha_fmt = datetime.strptime(str(cita["fecha_cita"]), "%Y-%m-%d").strftime("%d/%m/%Y")
-        except Exception:
-            pass
+        except Exception as exc:
+            # Se queda con el texto crudo de la fecha en la plantilla;
+            # avisar para que no pase desapercibido si llega otro
+            # formato.
+            app.logger.warning(
+                "No se pudo formatear la fecha %r de la cita %s: %s: %s",
+                cita.get("fecha_cita"), cita_id, type(exc).__name__, exc,
+            )
 
         return render_template("retorno.html", cita_id=cita_id, cita=cita, fecha_fmt=fecha_fmt)
 

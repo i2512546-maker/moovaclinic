@@ -19,8 +19,11 @@
 #              detalle="Cita creada para paciente X")
 #
 # La escritura jamas debe romper el flujo principal del negocio:
-# cualquier error (servicio caido, timeout) se ignora silenciosamente.
+# cualquier error (servicio caido, timeout) no se propaga, pero si se
+# avisa por el logger para que no quede invisible.
 # ============================================================
+
+import logging
 
 from shared.service_client import audit_client
 
@@ -52,6 +55,21 @@ def _sesion_valor(clave, por_defecto=None):
         return session.get(clave, por_defecto)
     except Exception:
         return por_defecto
+
+
+def _avisar(mensaje):
+    """Aviso de fallo de auditoria, por el logger de la app si la hay.
+
+    log_accion se llama desde rutas (hay app) y tambien desde scripts
+    sueltos (no la hay). En el primer caso se usa app.logger, que es
+    el unico con handler garantizado; si no, el logger del modulo.
+    """
+    from flask import current_app, has_app_context
+
+    if has_app_context():
+        current_app.logger.warning(mensaje)
+    else:
+        logging.getLogger(__name__).warning(mensaje)
 
 
 def log_accion(usuario_id=None, accion="", tabla_afectada=None,
@@ -90,6 +108,10 @@ def log_accion(usuario_id=None, accion="", tabla_afectada=None,
             "entidad_nombre": entidad_nombre,
         }
         audit_client.post("/api/auditoria", payload)
-    except Exception:
-        # La auditoria jamas debe romper el flujo principal.
-        pass
+    except Exception as exc:
+        # La auditoria jamas debe romper el flujo principal, pero el
+        # fallo tampoco deberia quedar invisible.
+        _avisar(
+            f"No se pudo registrar en auditoria la accion {accion!r} sobre "
+            f"{tabla_afectada!r}/{registro_id!r}: {type(exc).__name__}: {exc}"
+        )
