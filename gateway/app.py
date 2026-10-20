@@ -234,6 +234,17 @@ MENSAJE_LOGIN_BLOQUEADO = (
 )
 MENSAJE_LOGIN_INVALIDO = "Correo o clave incorrectos."
 
+# Los proxies de Yape/Plin del gateway no estaban atras de ninguna
+# sesion: con el id de una cita y el de un cobro pagado bastaba para
+# iniciar o consultar cobros ajenos. Ahora solo se dejan pasar las
+# citas cuya pagina de pago abrio esta misma sesion, y dentro de la
+# vigencia de VIGENCIA_PAGO_SEG desde esa apertura.
+VIGENCIA_PAGO_SEG = 2 * 60 * 60
+MAX_CITAS_PAGABLES = 10
+# Texto generico: no distingue entre "no existe", "no es tuya" y
+# "caduco", que es lo que hace que el mensaje no sirva de sonda.
+MENSAJE_PAGO_NO_PERMITIDO = "No se puede procesar el pago con estos datos."
+
 
 def _hoy_lima():
     """Fecha actual en America/Lima.
@@ -334,6 +345,59 @@ def create_app():
                 return redirect(url_for("login"))
             return f(*args, **kwargs)
         return decorated_function
+
+    # ---- Citas que ESTA sesion tiene habilitadas para pagar (S7) ----
+
+    def _registrar_cita_pagable(cita_id):
+        """Anota en la sesion que se acaba de abrir /pago para esa cita.
+
+        Se llama desde pago_page: es el unico punto por el que un
+        navegador llega al formulario de pago, de ahi sale la lista de
+        lo que los proxies de abajo van a dejar iniciar.
+        """
+        if not cita_id:
+            return
+        ahora = time.time()
+        clave = str(cita_id)
+        entradas = [
+            e for e in (session.get("citas_pagables") or [])
+            if isinstance(e, dict)
+            and str(e.get("cita_id")) != clave
+            and _vigente(e, ahora)
+        ]
+        entradas.append({"cita_id": clave, "ts": ahora})
+        # Si pasan de MAX_CITAS_PAGABLES se caen las mas antiguas.
+        session["citas_pagables"] = entradas[-MAX_CITAS_PAGABLES:]
+
+    def _vigente(entrada, ahora):
+        ts = entrada.get("ts")
+        return isinstance(ts, (int, float)) and 0 <= ahora - ts <= VIGENCIA_PAGO_SEG
+
+    def _cita_pagable_en_sesion(cita_id):
+        """True solo si esta sesion abrio /pago para esa cita y la
+        vigencia (2 h) sigue abierta. Se compara como texto porque el
+        id viaja por query en una ruta y por JSON en otra."""
+        if cita_id in (None, ""):
+            return False
+        ahora = time.time()
+        return any(
+            isinstance(e, dict)
+            and str(e.get("cita_id")) == str(cita_id)
+            and _vigente(e, ahora)
+            for e in (session.get("citas_pagables") or [])
+        )
+
+    def _pago_denegado(cuerpo):
+        """Respuesta 403 si la cita del cuerpo no esta habilitada para
+        esta sesion; None si se puede seguir."""
+        if not _cita_pagable_en_sesion(cuerpo.get("cita_id")):
+            app.logger.warning(
+                "[pagos] cobro rechazado: la sesion no tiene habilitada la "
+                "cita %r (usuario %s)",
+                cuerpo.get("cita_id"), session.get("usuario_id"),
+            )
+            return jsonify({"ok": False, "error": MENSAJE_PAGO_NO_PERMITIDO}), 403
+        return None
 
     @app.route("/")
     def index():
@@ -864,6 +928,10 @@ def create_app():
         if pago.get("estado_pago") == "pagado":
             return redirect(url_for("retorno_page", cita_id=cita_id))
 
+        # Se muestra el formulario: esta sesion queda habilitada para
+        # iniciar y consultar el cobro de esta cita (ver _pago_denegado).
+        _registrar_cita_pagable(cita_id)
+
         cita["monto"] = float(pago.get("monto") or 0)
         cita["metodo_pago"] = pago.get("metodo_pago", "")
         cita["estado_pago"] = pago.get("estado_pago", "pendiente")
@@ -1268,16 +1336,30 @@ def create_app():
     # El frontend de pago.html las invoca con ruta relativa al gateway
     # (same-origin), asi que se reenvian a pagos_service preservando el
     # cuerpo JSON y el codigo de estado. No toca el flujo de tarjeta/Niubiz.
+    #
+    # Son publicos (no tienen _login_required, porque el navegador llega
+    # con su cookie de sesion y no con la API_KEY interna), asi que el
+    # filtro es _pago_denegado: solo la sesion que abrio /pago para esa
+    # cita puede iniciarle o consultarle un cobro. /api/pagos/webhook y el
+    # retorno de Niubiz no pasan por aqui y quedan tal cual estaban.
     @app.route("/api/pagos/yape/iniciar", methods=["POST"])
     @app.route("/api/pagos/plin/iniciar", methods=["POST"])
     def proxy_pago_scan_iniciar():
-        data, status = pagos_client.post(request.path, request.get_json() or {})
+        cuerpo = request.get_json(silent=True) or {}
+        denegado = _pago_denegado(cuerpo)
+        if denegado:
+            return denegado
+        data, status = pagos_client.post(request.path, cuerpo)
         return jsonify(data or {}), status
 
     @app.route("/api/pagos/yape/estado", methods=["POST"])
     @app.route("/api/pagos/plin/estado", methods=["POST"])
     def proxy_pago_scan_estado():
-        data, status = pagos_client.post(request.path, request.get_json() or {})
+        cuerpo = request.get_json(silent=True) or {}
+        denegado = _pago_denegado(cuerpo)
+        if denegado:
+            return denegado
+        data, status = pagos_client.post(request.path, cuerpo)
         return jsonify(data or {}), status
 
     return app
