@@ -6,6 +6,7 @@ import re
 import time
 from datetime import datetime, timedelta
 from urllib.parse import urlencode
+from zoneinfo import ZoneInfo
 
 import yaml
 from flask import (
@@ -232,6 +233,16 @@ MENSAJE_LOGIN_BLOQUEADO = (
     "Demasiados intentos. Espera unos minutos y vuelve a intentarlo."
 )
 MENSAJE_LOGIN_INVALIDO = "Correo o clave incorrectos."
+
+
+def _hoy_lima():
+    """Fecha actual en America/Lima.
+
+    El servidor puede correr en otra zona (en Render es UTC); usar el
+    reloj de la maquina dejaba el panel de KPIs mostrando "hoy" con un
+    dia de diferencia a partir de las 19:00 de Lima.
+    """
+    return datetime.now(ZoneInfo("America/Lima")).date()
 
 
 def create_app():
@@ -1086,7 +1097,7 @@ def create_app():
     @_admin_required
     def panel_admin_kpis():
 
-        hoy = datetime.now().date()
+        hoy = _hoy_lima()
         try:
             desde = datetime.strptime((request.args.get("desde") or "").strip(), "%Y-%m-%d").date() if (request.args.get("desde") or "").strip() else hoy - timedelta(days=30)
             hasta = datetime.strptime((request.args.get("hasta") or "").strip(), "%Y-%m-%d").date() if (request.args.get("hasta") or "").strip() else hoy
