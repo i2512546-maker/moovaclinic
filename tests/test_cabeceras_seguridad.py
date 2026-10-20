@@ -15,6 +15,7 @@ os.environ.setdefault("API_KEY", "clave-api")
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from flask import jsonify  # noqa: E402
+
 from gateway.app import create_app as crear_gateway  # noqa: E402
 
 CABECERAS_FIJAS = {
