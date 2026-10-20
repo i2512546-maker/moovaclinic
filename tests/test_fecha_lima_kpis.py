@@ -17,8 +17,8 @@ os.environ.setdefault("SECRET_KEY", "clave-de-prueba")
 os.environ.setdefault("API_KEY", "clave-api")
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from gateway.app import _hoy_lima  # noqa: E402
 from gateway.app import create_app as crear_gateway
+from shared.fechas import hoy_lima  # noqa: E402
 
 # 03:00 UTC del 20 de octubre = 22:00 del 19 de octubre en Lima (UTC-5).
 _INSTANTE = datetime(2026, 10, 20, 3, 0, tzinfo=timezone.utc)
@@ -39,13 +39,13 @@ class _RelojFalso(datetime):
 
 class HoyLimaTest(unittest.TestCase):
     def test_devuelve_la_fecha_de_lima_no_la_del_servidor(self):
-        with patch("gateway.app.datetime", _RelojFalso):
-            hoy = _hoy_lima()
+        with patch("shared.fechas.datetime", _RelojFalso):
+            hoy = hoy_lima()
         self.assertEqual(hoy, _FECHA_LIMA)
         self.assertNotEqual(hoy, _FECHA_UTC)
 
     def test_devuelve_un_date(self):
-        self.assertIsInstance(_hoy_lima(), date)
+        self.assertIsInstance(hoy_lima(), date)
 
 
 class PanelKpisTest(unittest.TestCase):
@@ -67,7 +67,7 @@ class PanelKpisTest(unittest.TestCase):
 
     def test_sin_rango_usa_la_fecha_de_lima(self):
         self._entrar_como_admin()
-        with patch("gateway.app.datetime", _RelojFalso), \
+        with patch("shared.fechas.datetime", _RelojFalso), \
                 patch("gateway.app.citas_client.get", side_effect=self._falso_get_kpis):
             self.client.get("/panel_admin/kpis")
         self.assertEqual(len(self.pedidos), 1)
@@ -78,14 +78,14 @@ class PanelKpisTest(unittest.TestCase):
 
     def test_con_rango_explicito_no_se_toca(self):
         self._entrar_como_admin()
-        with patch("gateway.app.datetime", _RelojFalso), \
+        with patch("shared.fechas.datetime", _RelojFalso), \
                 patch("gateway.app.citas_client.get", side_effect=self._falso_get_kpis):
             self.client.get("/panel_admin/kpis?desde=2026-01-01&hasta=2026-02-01")
         self.assertIn("desde=2026-01-01&hasta=2026-02-01", self.pedidos[0])
 
     def test_rango_al_reves_usa_la_fecha_de_lima_como_tope(self):
         self._entrar_como_admin()
-        with patch("gateway.app.datetime", _RelojFalso), \
+        with patch("shared.fechas.datetime", _RelojFalso), \
                 patch("gateway.app.citas_client.get", side_effect=self._falso_get_kpis):
             self.client.get("/panel_admin/kpis?desde=2026-02-01&hasta=2026-01-01")
         self.assertIn("hasta=2026-10-19", self.pedidos[0])

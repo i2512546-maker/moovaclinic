@@ -1,6 +1,5 @@
 import secrets
 from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
 
 import mysql.connector
 import requests as http_requests
@@ -17,6 +16,7 @@ from shared.config import (
     TEXTBEE_DEVICE_ID,
     TEXTBEE_URL,
 )
+from shared.fechas import hoy_lima
 from shared.proc import call_proc, call_proc_execute, call_proc_one
 from shared.service_client import auth_client, pacientes_client, pagos_client
 from shared.validators import validar_datos_paciente
@@ -104,13 +104,6 @@ def _fmt_fecha(fila):
     if "hora_cita" in fila:
         fila["hora_cita"] = _fmt_hora(fila["hora_cita"])
     return fila
-
-
-def _hoy_lima():
-    """Fecha actual en America/Lima. El servidor puede correr en otra zona
-    (hoy: UTC+2); no se usa el reloj de la maquina para decidir si una cita
-    ya es 'pasada'."""
-    return datetime.now(ZoneInfo("America/Lima")).date()
 
 
 def _normalizar_hora_cita(hora):
@@ -310,7 +303,7 @@ def crear_cita():
 
     try:
         fecha_obj = datetime.strptime(data["fecha_cita"], "%Y-%m-%d").date()
-        if fecha_obj < _hoy_lima():
+        if fecha_obj < hoy_lima():
             return jsonify({"error": "La fecha no puede ser en el pasado"}), 400
     except ValueError:
         return jsonify({"error": "Formato de fecha invalido (YYYY-MM-DD)"}), 400
@@ -633,7 +626,7 @@ def modificar_cita(cita_id):
         return jsonify({"error": "Se requieren fecha_cita y medico_id"}), 400
     try:
         fecha_obj = datetime.strptime(nueva_fecha, "%Y-%m-%d").date()
-        if fecha_obj < _hoy_lima():
+        if fecha_obj < hoy_lima():
             return jsonify({"error": "La fecha no puede ser en el pasado"}), 400
     except ValueError:
         return jsonify({"error": "Formato invalido"}), 400
@@ -774,6 +767,10 @@ def solicitar_otp():
             return jsonify({"error": "No se encontraron citas programadas para ese DNI."}), 404
 
     codigo = str(secrets.randbelow(900000) + 100000)
+    # Reloj de duracion y no de calendario: lo escribe y lo lee este
+    # mismo servidor, asi que "ahora" aqui y "ahora" en verificar_otp
+    # son el mismo reloj y el OTP caduca a los N minutos pase el dia
+    # que pase. Por eso NO pasa por hoy_lima().
     expira = datetime.now() + timedelta(minutes=OTP_EXPIRA_MIN)
 
     call_proc_execute("sp_invalidar_otps_previos", (dni, accion))
@@ -849,7 +846,9 @@ def estadisticas():
                 "No se pudo leer el anio de inicio de la configuracion de pagos: %s: %s",
                 type(exc).__name__, exc,
             )
-        total_anios = datetime.now().year - anio_inicio
+        # El anio se cuenta en Lima, igual que el resto de "hoy": en
+        # UTC el cambio de anio llegaria cinco horas tarde.
+        total_anios = hoy_lima().year - anio_inicio
         try:
             op_data, _ = pacientes_client.get("/api/estadisticas/opiniones")
             if op_data:
@@ -925,7 +924,7 @@ def enviar_recordatorios(fecha=None):
     fallidos + sin_telefono = las que este proceso llego a reclamar.
     """
     if fecha is None:
-        fecha = _hoy_lima() + timedelta(days=1)
+        fecha = hoy_lima() + timedelta(days=1)
 
     pendientes = call_proc("sp_citas_pendientes_recordatorio", (fecha,)) or []
     pacientes = _mapa_pacientes()
@@ -1053,7 +1052,7 @@ def pacientes_en_riesgo(fecha=None, dias_umbral=None):
     umbral sin venir.
     """
     if fecha is None:
-        fecha = _hoy_lima()
+        fecha = hoy_lima()
     umbral = int(dias_umbral or RIESGO_DIAS_UMBRAL)
 
     filas = call_proc("sp_pacientes_en_riesgo", (fecha, umbral)) or []

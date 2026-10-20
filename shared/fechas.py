@@ -7,6 +7,11 @@ mysql-connector-python lo representa asi. Estas funciones cubren los tres
 casos para poder formatear en plantilla y en el PDF sin romper la pagina.
 """
 from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
+
+# La clinica esta en Lima y el servidor puede no estarlo (en Render es
+# UTC): "hoy" se decide aqui y no con el reloj de la maquina.
+ZONA_LIMA = ZoneInfo("America/Lima")
 
 FORMATOS_FECHA = (
     "%Y-%m-%d %H:%M:%S",
@@ -58,3 +63,22 @@ def fmt_hora(valor):
     if dt is None:
         return "" if valor in (None, "") else str(valor)
     return dt.strftime("%H:%M")
+
+
+def ahora_lima():
+    """Fecha y hora actuales en America/Lima (con zona, no naive).
+
+    Para lo que se muestra al usuario ("emitido el ... a las ...") o se
+    compara con lo que ha elegido en Lima.
+    """
+    return datetime.now(ZONA_LIMA)
+
+
+def hoy_lima():
+    """Fecha de hoy en America/Lima.
+
+    Todo lo que pregunta "que dia es hoy" pasa por aqui: con el reloj
+    de la maquina en UTC, a partir de las 19:00 de Lima el sistema ya
+    estaba mirando al dia siguiente.
+    """
+    return ahora_lima().date()

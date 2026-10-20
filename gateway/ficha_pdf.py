@@ -10,7 +10,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-from shared.fechas import fmt_fecha, fmt_hora
+from shared.fechas import ahora_lima, fmt_fecha, fmt_hora
 
 _MORADO = colors.HexColor("#5B2B82")
 _MORADO_CLARO = colors.HexColor("#EDE3F5")
@@ -224,7 +224,7 @@ def build_ficha_clinica_pdf(paciente, historial, paquetes, evaluaciones,
     # --- Firma ---
     e.append(Spacer(1, 12 * mm))
     e.append(_p(
-        f"Emitido el {datetime.now().strftime('%d/%m/%Y a las %H:%M')}"
+        f"Emitido el {ahora_lima().strftime('%d/%m/%Y a las %H:%M')}"
         + (f" por {generado_por}" if generado_por else "")
         + ". Este documento refleja el estado de la informacion al momento de su descarga.",
         st["pie"]))
