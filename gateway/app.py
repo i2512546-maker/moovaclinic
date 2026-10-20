@@ -285,6 +285,25 @@ def create_app():
         flash("error:Tu sesión expiró o el token de seguridad no es válido. Vuelve a cargar la página e inténtalo de nuevo.")
         return redirect(request.referrer or url_for("index"))
 
+    @app.after_request
+    def _cabeceras_de_seguridad(respuesta):
+        """Cabeceras de seguridad en TODA respuesta del gateway (S3).
+
+        En un solo after_request y no en cada ruta: asi no depende de
+        que alguien no se le olvide una, y cubre tambien los 404, los
+        500 y las respuestas de error. `setdefault` para no pisar lo
+        que una ruta ya haya fijado a proposito.
+        """
+        respuesta.headers.setdefault("X-Content-Type-Options", "nosniff")
+        respuesta.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+        respuesta.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        # HSTS solo en produccion: en localhost por http, avisarle al
+        # navegador que use https siempre dejaria la app inaccesible
+        # en desarrollo, sin forma facil de deshacerlo.
+        if os.getenv("FLASK_ENV") == "production":
+            respuesta.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
+        return respuesta
+
     # --- Protección de rutas que requieren sesión activa ---
     def _login_required(f):
         from functools import wraps
