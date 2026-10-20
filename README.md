@@ -152,6 +152,9 @@ en <http://127.0.0.1:5000/apidocs/>.
   devuelve APIPERU.
 - **El login tiene límite de intentos** (`shared/rate_limit.py`), ver
   detalle más abajo.
+- **Limitación aceptada**: `/pago` y `/retorno` no comprueban que la
+  cita pertenezca al usuario de la sesión, ver el apartado
+  `Oráculo de existencia de citas` más abajo.
 
 ### Límite de intentos de login
 
@@ -214,6 +217,42 @@ todavía. Plantillas con scripts en línea, `report-uri` y las fuentes de
 Google Fonts hacen que una política estricta rompa páginas en cuanto se
 mueva una plantilla; plantearlo bien merece una fase aparte con revisión
 página por página, no un encabezado de relleno.
+
+### Oráculo de existencia de citas (limitación aceptada)
+
+`/pago` y `/retorno` piden `cita_id` por query y **no comprueban que la
+cita pertenezca al usuario de la sesión**: ahí solo hay `_login_required`.
+Con una sesión cualquiera, recorrer `GET /pago?cita_id=N` distingue tres
+casos (comprobado con el flujo de prueba real):
+
+| Respuesta | Significa |
+| --- | --- |
+| `302` a `/retorno` | la cita existe y ya está pagada |
+| `200` con `S/ 0.00` | no existe |
+| `200` con el importe | existe y está pendiente, con su monto |
+
+Y cuando la cita existe, la página se pinta con lo que enriquece
+`citas_service`: nombre y apellido del paciente, terapeuta, especialidad
+y fecha; en `/retorno` se añade además la referencia del cobro. No salen
+ni el DNI ni el teléfono ni datos clínicos, pero sí a quién pertenece la
+cita.
+
+> **Limitación aceptada (FASE S7, punto d).** Es un oráculo de
+> existencia, no un robo de dinero: no toca pasarelas ni saldos, y no
+> exige nada más que una sesión abierta. **Se documenta en lugar de
+> arreglarse** porque corregirlo exige que el gateway resuelva el dueño
+> de la cita (usuario → paciente → citas) y filtre `/pago`, `/retorno`
+> y la lista `session["citas_pagables"]` con esa comprobación; eso es
+> un cambio de la ruta de sesión, no de las pasarelas, y queda fuera de
+> S7. Lo que S7 sí cerró está en los puntos a, b y c:
+> `/estado` solo confirma con la referencia guardada y comprobando
+> referencia y monto, `sp_guardar_referencia` ya no pisa pagos pagados,
+> y los cuatro proxies de Yape/Plin exigen que esta misma sesión haya
+> abierto `/pago` para esa cita.
+>
+> A mitad del recorrido tampoco se distingue "no existe" de "ya estaba
+> pagada": `pagos_service` devuelve el mismo texto en los dos casos, así
+> que el detalle fino solo sale de `/pago`.
 
 ---
 
@@ -531,3 +570,7 @@ tests/              pytest
   pendiente, pero no hay flujo de devolución de dinero.
 - El rol `paciente` existe en la tabla de roles pero no tiene login: el
   acceso del paciente es por DNI + OTP.
+- Cualquier usuario con sesión puede mirar `/pago?cita_id=N` y saber si
+  la cita existe, si está pagada y a quién pertenece: el gateway no
+  valida la propiedad de la cita. Limitación aceptada de la FASE S7,
+  detallada en `Oráculo de existencia de citas` (apartado Seguridad).
