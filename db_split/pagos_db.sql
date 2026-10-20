@@ -221,7 +221,12 @@ DELIMITER $$
 DROP PROCEDURE IF EXISTS `sp_guardar_referencia`$$
 CREATE PROCEDURE `sp_guardar_referencia`(IN p_cita_id INT, IN p_cobro_id VARCHAR(100))
 BEGIN
-    UPDATE pagos SET referencia = p_cobro_id WHERE cita_id = p_cita_id;
+    -- Solo mientras el pago sigue pendiente. Sin esta condicion cualquier
+    -- /iniciar pisaba la referencia de un pago ya pagado, y con ella
+    -- pasaba a ser el cobro "valido" de la cita.
+    UPDATE pagos
+    SET referencia = p_cobro_id
+    WHERE cita_id = p_cita_id AND estado_pago = 'pendiente';
 END$$
 
 DROP PROCEDURE IF EXISTS `sp_obtener_pago`$$
