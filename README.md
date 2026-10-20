@@ -190,6 +190,31 @@ podría mandarlo inventado y quedar sin contador.
 > falta compartirlo entre procesos, lo que hay que reemplazar es el
 > almacenamiento del `LimitadorIntentos`, no su lógica.
 
+### Cabeceras de seguridad
+
+Un `after_request` único del gateway (`_cabeceras_de_seguridad`) pone en
+**todas** las respuestas, incluidas las de error y las de las plantillas:
+
+| Cabecera | Valor |
+| --- | --- |
+| `X-Content-Type-Options` | `nosniff` |
+| `X-Frame-Options` | `SAMEORIGIN` |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` |
+
+`Strict-Transport-Security: max-age=31536000` se añade **solo con
+`FLASK_ENV=production`**. En desarrollo por `http` avisarle al navegador
+que use `https` siempre dejaría la app inaccesible en local y no hay una
+forma cómoda de deshacerlo.
+
+Se usa `setdefault`, de modo que una ruta que fije una de estas cabeceras
+a propósito no la ve pisada.
+
+**Mejora futura pendiente: CSP.** No se define `Content-Security-Policy`
+todavía. Plantillas con scripts en línea, `report-uri` y las fuentes de
+Google Fonts hacen que una política estricta rompa páginas en cuanto se
+mueva una plantilla; plantearlo bien merece una fase aparte con revisión
+página por página, no un encabezado de relleno.
+
 ---
 
 ## Pagos
