@@ -6,7 +6,7 @@ services:
     name: moova-gateway
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn "gateway.app:create_app()" --bind 0.0.0.0:$PORT
+    startCommand: gunicorn "gateway.app:create_app()" --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 60
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.8"
@@ -56,7 +56,7 @@ services:
     name: moova-auth
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn "services.auth_service.app:create_app()" --bind 0.0.0.0:$PORT
+    startCommand: gunicorn "services.auth_service.app:create_app()" --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 60
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.8"
@@ -96,7 +96,7 @@ services:
     name: moova-pacientes
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn "services.pacientes_service.app:create_app()" --bind 0.0.0.0:$PORT
+    startCommand: gunicorn "services.pacientes_service.app:create_app()" --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 60
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.8"
@@ -141,7 +141,7 @@ services:
     name: moova-citas
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn "services.citas_service.app:create_app()" --bind 0.0.0.0:$PORT
+    startCommand: gunicorn "services.citas_service.app:create_app()" --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 60
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.8"
@@ -193,7 +193,7 @@ services:
     name: moova-pagos
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn "services.pagos_service.app:create_app()" --bind 0.0.0.0:$PORT
+    startCommand: gunicorn "services.pagos_service.app:create_app()" --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 60
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.8"
@@ -274,7 +274,7 @@ services:
     name: moova-notas
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn "services.notas_service.app:create_app()" --bind 0.0.0.0:$PORT
+    startCommand: gunicorn "services.notas_service.app:create_app()" --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 60
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.8"

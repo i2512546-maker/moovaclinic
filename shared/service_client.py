@@ -15,39 +15,43 @@ class ServiceClient:
         }
 
     def get(self, path, **kwargs):
+        timeout = kwargs.pop("timeout", None) or self.timeout
         resp = requests.get(
             f"{self.base_url}{path}",
             headers=self.headers,
-            timeout=self.timeout,
+            timeout=timeout,
             **kwargs,
         )
         return resp.json(), resp.status_code
 
     def post(self, path, json_data=None, **kwargs):
+        timeout = kwargs.pop("timeout", None) or self.timeout
         resp = requests.post(
             f"{self.base_url}{path}",
             json=json_data,
             headers=self.headers,
-            timeout=self.timeout,
+            timeout=timeout,
             **kwargs,
         )
         return resp.json(), resp.status_code
 
     def put(self, path, json_data=None, **kwargs):
+        timeout = kwargs.pop("timeout", None) or self.timeout
         resp = requests.put(
             f"{self.base_url}{path}",
             json=json_data,
             headers=self.headers,
-            timeout=self.timeout,
+            timeout=timeout,
             **kwargs,
         )
         return resp.json(), resp.status_code
 
     def delete(self, path, **kwargs):
+        timeout = kwargs.pop("timeout", None) or self.timeout
         resp = requests.delete(
             f"{self.base_url}{path}",
             headers=self.headers,
-            timeout=self.timeout,
+            timeout=timeout,
             **kwargs,
         )
         return resp.json(), resp.status_code
