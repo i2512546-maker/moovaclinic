@@ -43,6 +43,7 @@ from shared.service_client import (
     notas_client,
     pacientes_client,
     pagos_client,
+    set_internal_app,
 )
 
 csrf = CSRFProtect()
@@ -281,6 +282,7 @@ def create_app():
     ):
         app.register_blueprint(blueprint, url_prefix="/_internal")
     proteger_api_interna(app, prefijo="/_internal")
+    set_internal_app(app)
 
     # Contador de intentos de login (S2). Cada worker tiene el suyo y
     # un reinicio lo pone a cero: esta limitacion esta documentada en
