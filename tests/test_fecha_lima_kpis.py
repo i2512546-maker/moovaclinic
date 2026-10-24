@@ -69,7 +69,7 @@ class PanelKpisTest(unittest.TestCase):
         self._entrar_como_admin()
         with patch("shared.fechas.datetime", _RelojFalso), \
                 patch("gateway.app.citas_client.get", side_effect=self._falso_get_kpis):
-            self.client.get("/panel_admin/kpis")
+            self.client.get("/panel_admin/kpis.json")
         self.assertEqual(len(self.pedidos), 1)
         self.assertIn("hasta=2026-10-19", self.pedidos[0])
         self.assertIn("desde=2026-09-19", self.pedidos[0])
@@ -80,14 +80,14 @@ class PanelKpisTest(unittest.TestCase):
         self._entrar_como_admin()
         with patch("shared.fechas.datetime", _RelojFalso), \
                 patch("gateway.app.citas_client.get", side_effect=self._falso_get_kpis):
-            self.client.get("/panel_admin/kpis?desde=2026-01-01&hasta=2026-02-01")
+            self.client.get("/panel_admin/kpis.json?desde=2026-01-01&hasta=2026-02-01")
         self.assertIn("desde=2026-01-01&hasta=2026-02-01", self.pedidos[0])
 
     def test_rango_al_reves_usa_la_fecha_de_lima_como_tope(self):
         self._entrar_como_admin()
         with patch("shared.fechas.datetime", _RelojFalso), \
                 patch("gateway.app.citas_client.get", side_effect=self._falso_get_kpis):
-            self.client.get("/panel_admin/kpis?desde=2026-02-01&hasta=2026-01-01")
+            self.client.get("/panel_admin/kpis.json?desde=2026-02-01&hasta=2026-01-01")
         self.assertIn("hasta=2026-10-19", self.pedidos[0])
 
 
