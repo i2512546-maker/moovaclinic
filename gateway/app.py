@@ -2,6 +2,7 @@ import math
 import os
 import random
 import sys
+import threading
 
 sys.path.insert(0, os.path.dirname(__file__))
 import re
@@ -266,6 +267,8 @@ def create_app():
     app.extensions["rate_limit"] = LimitadorIntentos(
         LOGIN_MAX_INTENTOS, LOGIN_VENTANA_MIN, LOGIN_BLOQUEO_MIN
     )
+    app.extensions["consultas_dni_por_ip"] = {}
+    app.extensions["consultas_dni_por_ip_lock"] = threading.Lock()
 
     app.jinja_env.filters["fecha"] = lambda v: fmt_fecha(v)
     app.jinja_env.filters["fechahora"] = lambda v: fmt_fecha(v, con_hora=True)
@@ -1385,19 +1388,31 @@ def create_app():
         return render_template("notas_cita.html", cita=cita, notas=ndata.get("notas", []))
 
     @app.route("/api/verificar_dni", methods=["POST"])
-    @_login_required
     def verificar_dni():
         dni = (request.json or {}).get("dni", "").strip()
         # Rate limit simple: máximo 5 consultas DNI por sesión para evitar force brute
         historial = session.get("_dn_consultas", [])
-        ahora = __import__("time").time()
+        ahora = time.time()
         historial = [t for t in historial if ahora - t < 60]  # último minuto
         if len(historial) >= 5:
             return jsonify({"error": "Demasiadas consultas DNI. Intenta más tarde."}), 429
         session["_dn_consultas"] = historial + [ahora]
 
-        # Consultamos pero no filtramos datos sensibles por privacidad DNI.
-        # Respondemos éxito y dejamos que el frontend maneje la información.
+        ip = ip_del_request(request, TRUST_PROXY)
+        consultas_por_ip = app.extensions["consultas_dni_por_ip"]
+        with app.extensions["consultas_dni_por_ip_lock"]:
+            for ip_registrada, tiempos in list(consultas_por_ip.items()):
+                tiempos = [t for t in tiempos if ahora - t < 60]
+                if tiempos:
+                    consultas_por_ip[ip_registrada] = tiempos
+                else:
+                    del consultas_por_ip[ip_registrada]
+            historial_ip = consultas_por_ip.get(ip, [])
+            if len(historial_ip) >= 15:
+                return jsonify({"error": "Demasiadas consultas DNI. Intenta más tarde."}), 429
+            consultas_por_ip[ip] = historial_ip + [ahora]
+
+        # El servicio de pacientes ya devuelve solo nombres y apellidos.
         try:
             data, status = pacientes_client.post("/api/pacientes/buscar_dni", {"dni": dni})
             return jsonify({"success": True, "data": data}), status
