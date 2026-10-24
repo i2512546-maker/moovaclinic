@@ -22,6 +22,7 @@ from shared.config import (
     RECORDATORIO_INTERVALO_MIN,
     RECORDATORIOS_ENABLED,
 )
+from shared.db import dominio
 
 ZONA = ZoneInfo("America/Lima")
 
@@ -56,7 +57,8 @@ def _job_recordatorios(app):
         return
     try:
         with app.app_context():
-            resumen = enviar_recordatorios()
+            with dominio("citas"):
+                resumen = enviar_recordatorios()
         app.logger.info("[recordatorios] %s", resumen)
     except Exception as exc:
         app.logger.error(

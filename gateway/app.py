@@ -269,6 +269,8 @@ def create_app():
     from services.notas_service import notas_bp
     from services.pacientes_service import pacientes_bp
     from services.pagos_service import pagos_bp
+    from shared.config import RECORDATORIOS_ENABLED
+    from shared.db import dominio
     from shared.service_auth import proteger_api_interna
 
     bcrypt.init_app(app)
@@ -283,6 +285,18 @@ def create_app():
         app.register_blueprint(blueprint, url_prefix="/_internal")
     proteger_api_interna(app, prefijo="/_internal")
     set_internal_app(app)
+
+    if RECORDATORIOS_ENABLED == "1":
+        try:
+            from services.citas_service.scheduler import iniciar_scheduler
+
+            with app.app_context(), dominio("citas"):
+                iniciar_scheduler(app)
+        except Exception as exc:
+            app.logger.error(
+                "[recordatorios] no se pudo arrancar el scheduler: %s: %s",
+                type(exc).__name__, exc,
+            )
 
     # Contador de intentos de login (S2). Cada worker tiene el suyo y
     # un reinicio lo pone a cero: esta limitacion esta documentada en
