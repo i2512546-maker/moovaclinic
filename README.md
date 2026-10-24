@@ -3,44 +3,39 @@
 Sistema de gestión de una clínica de fisioterapia: agenda de citas,
 historia clínica, notas, paquetes de sesiones y cobros por pasarela.
 
-Arquitectura de microservicios sobre Flask. El gateway es la única cara
-visible; toda la lógica de negocio vive en los servicios, que se comunican
-por HTTP interno y nunca se exponen al público.
+Arquitectura de monolito modular sobre Flask: un solo proceso ejecuta el
+gateway y los seis módulos de dominio. Sus rutas se llaman dentro del proceso
+bajo `/_internal`; los módulos no se despliegan ni se comunican como procesos
+separados.
 
 ---
 
 ## Arquitectura
 
 ```
-                    ┌──────────────┐
-                    │   Gateway    │  :5000  (único puerto público)
-                    │  Flask + Jinja│
-                    └──────┬───────┘
-                           │  X-Api-Key (auth interna)
-        ┌──────────┬───────┼───────┬──────────┬──────────┐
-        ▼          ▼       ▼       ▼          ▼          ▼
-    ┌───────┐ ┌─────────┐ ┌─────┐ ┌───────┐ ┌───────┐ ┌──────┐
-    │ auth  │ │pacientes│ │citas│ │pagos  │ │notas  │ │audit │
-    │ :5001 │ │  :5002  │ │:5003│ │ :5004 │ │ :5005 │ │ :5006│
-    └───┬───┘ └────┬────┘ └──┬──┘ └───┬───┘ └───┬───┘ └──┬───┘
-        │         │         │        │         │        │
-   moovacloud_ moovacloud_ moovacloud_ moovacloud_ moovacloud_ moovacloud_
-     _auth       _pacientes  _citas     _pagos    _notas    _auditoria
-                                                              │
-                                              ┌───────────────┴──┐
-                                              │  moovacloud_kpis │
-                                              │  (solo lectura)  │
-                                              └──────────────────┘
+                   ┌─────────────────────────────────────────┐
+                   │ Un proceso Flask/Gunicorn: gateway       │
+                   │ páginas + módulos bajo /_internal        │
+                   └────────────────────┬────────────────────┘
+                                        │ llamadas en proceso
+          ┌─────────┬──────────┬────────┼─────────┬────────┐
+          ▼         ▼          ▼        ▼         ▼        ▼
+       auth     pacientes    citas    pagos     notas   auditoría
+          │         │          │        │         │        │
+          ▼         ▼          ▼        ▼         ▼        ▼
+       esquema   esquema    esquema  esquema   esquema  esquema
+          └─────────┴──────────┴────────┴─────────┴────────┘
+                       + esquema moovacloud_kpis
 ```
 
-Cada servicio tiene su propia base de datos en el mismo servidor MySQL.
-**No hay consultas cruzadas entre bases**: cuando un servicio necesita
-datos de otro, lo pide por HTTP (`shared/service_client.py`). Ese fue el
-cambio central de la FASE 2.
+Cada módulo conserva su propio esquema MySQL. Son siete esquemas en total,
+incluido el esquema de KPIs. `shared/service_client.py` mantiene la interfaz
+de cliente entre módulos, pero despacha todas las llamadas dentro del mismo
+proceso, sin peticiones de red internas.
 
-`services/*/` contiene un servicio, `shared/` el código común
-(configuración, acceso a BD por procedimientos, auditoría, validación,
-fechas, cliente HTTP entre servicios, auth interna).
+`services/*/` contiene los módulos de dominio y sus blueprints; `shared/`
+contiene configuración, acceso a BD por procedimientos, auditoría,
+validación, fechas y el cliente interno.
 
 ---
 
@@ -89,15 +84,16 @@ Copiar `.env.example` a `.env` y completar:
 cp .env.example .env
 ```
 
-Obligatorias en todas partes:
+Variables esenciales del gateway:
 
 | Variable | Para qué |
 |---|---|
 | `SECRET_KEY` | Firma de la sesión. El arranque falla si falta. |
-| `API_KEY` | Auth interna. Sin ella los servicios responden 503. |
+| `API_KEY` | Protege las llamadas internas; sin ella se rechazan con 503. |
 
-Cada servicio necesita además sus credenciales de BD en
-`services/<servicio>/.env` (ver `services/<servicio>/.env.example`).
+El gateway usa las credenciales de conexión comunes y los nombres de esquema
+por dominio definidos en `.env.example`; no hace falta crear archivos `.env`
+por módulo.
 
 Los `.env` están en `.gitignore`. No se suben nunca.
 
@@ -123,12 +119,15 @@ en <http://127.0.0.1:5000/apidocs/>, que pide sesión de administrador
 
 ## Seguridad
 
-- **La auth interna no falla abierta.** Sin `API_KEY`, un servicio
-  responde `503` y rechaza todo. Para desarrollo local se puede desteure
-  con `ALLOW_INSECURE_INTERNAL_API=1` (solo con warning en el log).
+- **La auth interna no falla abierta.** Sin `API_KEY`, las rutas internas
+  responden `503` y rechazan las llamadas. Para desarrollo local se puede
+  desactivar la validación con `ALLOW_INSECURE_INTERNAL_API=1` (solo con
+  warning en el log).
   Nunca en producción.
-- **Solo el gateway es público.** En Docker Compose los servicios no
-  publican puertos; en Render cada uno exige el `X-Api-Key` del gateway.
+- **Solo el gateway es público.** Las rutas de los módulos bajo `/_internal`
+  rechazan llamadas externas; las invocaciones del proceso se autentican con
+  `X-Api-Key`. El webhook y el job de mantenimiento tienen excepciones
+  específicas.
 - **CSRF** activo en todos los POST (`flask_wtf.csrf.CSRFProtect`).
 - **`SECRET_KEY` es obligatoria**: el arranque falla sin ella, en lugar de
   generar una que invalide las sesiones en cada reinicio.
@@ -150,8 +149,8 @@ en <http://127.0.0.1:5000/apidocs/>, que pide sesión de administrador
 
 `/login` aceptaba prueba tras prueba de clave sin que nada se lo
 impidiera. El gateway ahora cuenta los fallos y corta el intento
-**antes** de llamar a `auth_service`, así el microservicio ni se entera
-de los que ya no valen.
+**antes** de llamar al módulo de autenticación, que no recibe los intentos
+que ya superaron el límite.
 
 Hay dos contadores independientes y **ambos tienen que pasar**:
 
@@ -274,7 +273,7 @@ agendar. Pasarelas: **Yape**, **Plin** (QR) y **Niubiz** (tarjeta).
 
 Los clientes están en `services/pagos_service/providers.py` y son reales:
 consultan la API del proveedor y no simulan éxito. Si faltan
-credenciales, el servicio responde "proveedor no configurado" en vez de
+credenciales, el módulo responde "proveedor no configurado" en vez de
 dar el pago por bueno.
 
 `/retorno` no marca nada como pagado por su cuenta: consulta el estado en
@@ -290,9 +289,9 @@ Una cita abandonada a mitad del pago quedaba bloqueada sin límite. El job
 python scripts/liberar_pagos_vencidos.py 24
 ```
 
-Requiere `PAGOS_SERVICE_URL` y `API_KEY`. Sale con código distinto de 0 si
-falla, para que cron lo reporte. En Render ya está configurado el cron
-`liberar-pagos-vencidos` (cada hora).
+Requiere `GATEWAY_URL` y `API_KEY`. Sale con código distinto de 0 si
+falla, para que cron lo reporte. En Render está configurado el cron
+`liberar-pagos-vencidos` (cada hora), que llama al gateway.
 
 Un pago que el proveedor confirme después de expirado sigue
 confirmándose: `sp_confirmar_pago` acepta `pendiente` y `vencido`. El
@@ -300,17 +299,18 @@ dinero entró igual y descartarlo dejaría al paciente cobrado sin cita.
 
 ### Webhook
 
-`POST /api/pagos/webhook` es la única ruta exenta de la API_KEY interna.
-Se autentica con `WEBHOOK_PROVIDER_TOKEN` en `X-Provider-Token` o
-`X-Signature`. **Si la variable está vacía, el webhook acepta cualquier
-petición**: defínela siempre, también en desarrollo.
+La URL del webhook es
+`https://<dominio-del-gateway>/_internal/api/pagos/webhook`. Está exenta de
+la API_KEY interna y se autentica con `WEBHOOK_PROVIDER_TOKEN` en
+`X-Provider-Token` o `X-Signature`. Si no hay token configurado, responde
+503; si el token no coincide, responde 401.
 
 ---
 
 ## Recordatorios automáticos
 
 El paciente llegaba el día de la cita sin saber que tenía una. Ahora
-`citas_service` envía un SMS de aviso la tarde anterior a las citas del
+el módulo de citas envía un SMS de aviso la tarde anterior a las citas del
 día siguiente, usando la columna `historial_citas.recordatorio_enviado`,
 que hasta ahora no usaba nadie.
 
@@ -325,13 +325,13 @@ que hasta ahora no usaba nadie.
 - Si el paciente no tiene teléfono, o el SMS falla, se desmarca con
   `sp_desmarcar_recordatorio` para que el siguiente ciclo reintente.
 
-Los datos del paciente y del terapeuta se piden por HTTP a
-`pacientes_service`: no hay consultas cruzadas entre bases.
+Los datos necesarios de pacientes y terapeutas se obtienen mediante
+llamadas en proceso al módulo de pacientes.
 
 ### Envío automático (APScheduler)
 
-Deshabilitado por defecto. Para encenderlo, en el `.env` de
-`citas_service`:
+Deshabilitado por defecto. Para encenderlo, configura estas variables en
+el `.env` único del gateway:
 
 ```env
 RECORDATORIOS_ENABLED=1
@@ -348,8 +348,9 @@ falla, se loguea y sigue.
 
 ### Envío manual
 
-`POST /api/citas/recordatorios/enviar` dispara el envío en el momento.
-Va protegido con la API_KEY interna. El cuerpo es opcional:
+La ruta interna `/_internal/api/citas/recordatorios/enviar` dispara el envío
+en el momento. Solo es accesible desde el proceso con la API_KEY interna;
+no se expone como endpoint público. El cuerpo es opcional:
 
 ```json
 { "fecha": "2026-10-19" }
@@ -358,8 +359,8 @@ Va protegido con la API_KEY interna. El cuerpo es opcional:
 Sin `fecha` usa el día siguiente (America/Lima). Devuelve
 `{total, enviados, fallidos, sin_telefono}`.
 
-Funciona aunque el scheduler esté apagado: sirve para un disparo
-manual o para pruebas.
+La invocación interna funciona aunque el scheduler esté apagado y sirve
+para pruebas controladas.
 
 ### Migración sobre una base existente
 
@@ -391,9 +392,9 @@ cruzadas entre bases. `sp_pacientes_en_riesgo` marca a un paciente si:
 - faltó (`estado = no_asistio`) tres o más veces.
 
 El SP devuelve las métricas crudas (última cita, días, citas
-programadas/completadas/canceladas/perdidas). El servicio agrega el
-nombre y el teléfono, que se piden por HTTP a `pacientes_service`, más
-el nivel y un motivo en texto para el panel.
+programadas/completadas/canceladas/perdidas). El módulo agrega el
+nombre y el teléfono mediante llamadas en proceso al módulo de pacientes,
+más el nivel y un motivo en texto para el panel.
 
 ### Nivel de criticidad
 
@@ -434,19 +435,18 @@ El texto va en ASCII, sin tildes, y sin DNI ni teléfono del paciente
 
 ### El teléfono de dónde sale
 
-El enlace es `terapeuta → usuario → teléfono` y se resuelve **todo por
-HTTP**, sin consultas cruzadas entre bases:
+El enlace es `terapeuta → usuario → teléfono` y se resuelve mediante
+llamadas internas en proceso:
 
 1. `terapeuta_id → usuario_id` con `_mapa_terapeutas()`
-   (`GET /api/terapeutas` de `pacientes_service`).
-2. `usuario_id → telefono` con `GET /api/auth/usuarios` (`auth_service`).
+   (módulo de pacientes).
+2. `usuario_id → telefono` (módulo de autenticación).
 
 ### Si no hay teléfono
 
 Nada falla. El `DELETE`/`PUT` de la cita responde igual; lo único que
 queda es un registro de auditoría con `accion = avisar_terapeuta` y el
-motivo (`sin_telefono`, `sms_fallido`, `error`). Las llamadas HTTP del
-aviso usan timeout de 5 s.
+motivo (`sin_telefono`, `sms_fallido`, `error`).
 
 ### Cargar el teléfono
 
@@ -455,9 +455,8 @@ un input por fila con botón guardar. Acepta 9 dígitos que empiezan por
 9 (o vacío para borrar), en el formulario y también en el servidor
 (`PUT /api/auth/usuarios/{id}`).
 
-> Si `moovacloud_auth` no tiene `AUDIT_SERVICE_URL`, los registros de
-> `avisar_terapeuta` no llegarán a la base de auditoría en producción
-> (el error se traga y nada se rompe).
+Los registros de `avisar_terapeuta` se guardan en el esquema
+`moovacloud_auditoria` mediante el módulo interno de auditoría.
 
 ### Migración
 
@@ -509,13 +508,14 @@ Ambos salen con código 1 si algo no cuadra, y corren en CI.
 
 ### Render
 
-`render.yaml` define los 7 servicios web más el cron de pagos. Las
-credenenciales se definen en el panel (`sync: false`), nunca en el archivo.
+`render.yaml` define un solo servicio web, `moova-gateway`, más el cron de
+pagos vencidos. Las credenciales se definen en el panel (`sync: false`),
+nunca con valores reales en el archivo.
 La base de datos **no** se crea desde Render: es el MySQL del hosting.
 
-Al desplegar hay que definir como mínimo: `SECRET_KEY`, `API_KEY`,
-credenciales de BD en los 6 servicios, credenciales de las pasarelas y
-`WEBHOOK_PROVIDER_TOKEN`.
+Las variables y credenciales de base de datos, proveedores, recordatorios y
+webhook se configuran en `moova-gateway`; el cron recibe `GATEWAY_URL` y
+`API_KEY`.
 
 ### Backups
 
@@ -541,7 +541,7 @@ cubre las 7 bases de una vez.
 gateway/            Flask + plantillas Jinja (la UI)
   app.py            rutas, sesión, CSRF, decoradores de acceso
   ficha_pdf.py      generador de la ficha clínica en PDF
-services/           un microservicio por dominio
+services/           seis módulos registrados bajo /_internal
   auth_service/     usuarios, roles, login
   pacientes_service/ pacientes, terapeutas, DNI (APIPERU)
   citas_service/    agenda, disponibilidad, OTP por SMS, KPIs
@@ -550,8 +550,8 @@ services/           un microservicio por dominio
   audit_service/    registro de auditoría
 shared/             código común
   config.py         variables de entorno (falla si falta SECRET_KEY)
-  service_auth.py   auth interna del header X-Api-Key
-  service_client.py cliente HTTP entre servicios
+  service_auth.py   protección interna del header X-Api-Key
+  service_client.py cliente en proceso entre módulos
   proc.py           llamadas a procedimientos almacenados
   db.py             conexión MySQL
   audit.py          auditoría centralizada
@@ -571,7 +571,7 @@ tests/              pytest
 - `swagger.yaml` — especificación de la API interna (54 rutas).
 - <http://127.0.0.1:5000/apidocs/> — documentación interactiva (solo
   con sesión de administrador; sin ella manda a `/login`).
-- `.env.example` — todas las variables, con las de cada servicio comentadas.
+- `.env.example` — variables consolidadas del gateway.
 
 ---
 

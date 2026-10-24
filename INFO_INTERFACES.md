@@ -4,9 +4,10 @@
 
 - **Nombre:** MOOVA Clinic
 - **Tipo:** Aplicación web de gestión de clínica de rehabilitación (cita, tratamiento, pago)
-- **Stack:** Flask 3.1.3 (gateway) + 6 microservicios Python (auth 5001, pacientes 5002, citas 5003, pagos 5004, notas 5005, audit 5006), MySQL 8.0, mysql-connector-python 9.1.0, Bootstrap 5.3.3, HTML5, CSS3, JavaScript, Jinja2 templates
+- **Stack:** Flask 3.1.3, Python, seis módulos internos (auth, pacientes, citas, pagos, notas y auditoría), MySQL 8.0, mysql-connector-python 9.1.0, Bootstrap 5.3.3, HTML5, CSS3, JavaScript y plantillas Jinja2
+- **Arquitectura:** monolito modular; un solo proceso Flask en el gateway registra la interfaz web y los seis blueprints de dominio. Los módulos se llaman dentro del proceso bajo `/_internal`, no por HTTP entre procesos.
 - **Roles:** admin, terapeuta (personal staff), sin rol (público)
-- **Base de datos:** 7 bases divididas (`moovacloud_auth`, `moovacloud_pacientes`, `moovacloud_citas`, `moovacloud_pagos`, `moovacloud_notas`, `moovacloud_kpis`) + archivo `procedures.sql` legado monolítico
+- **Base de datos:** siete esquemas MySQL, uno por módulo/dominio (`moovacloud_auth`, `moovacloud_pacientes`, `moovacloud_citas`, `moovacloud_pagos`, `moovacloud_notas`, `moovacloud_auditoria` y `moovacloud_kpis`)
 - **Endpoints API principal:** 24 rutas públicas y protegidas (`/api/auth/*`, `/api/citas/*`, `/api/pacientes/*`, `/api/pagos/*`, `/api/terapeutas/*`, `/api/servicios/*`, `/api/estadisticas`, `/api/kpis`, `/api/auditoria`, `/api/notas/*`, `/api/verificar_dni`)
 - **15 pantallas `.html`** definidas en `templates/`, con rutas Flask correspondientes en `gateway/app.py`
 
@@ -395,9 +396,20 @@ flowchart TD
 
 ---
 
+## Arquitectura de ejecución
+
+La aplicación se despliega como un único proceso Flask/Gunicorn. El gateway
+sirve las páginas y registra bajo `/_internal` los seis módulos de dominio:
+auth, pacientes, citas, pagos, notas y auditoría. Las rutas internas no se
+exponen directamente al público; el `ServiceClient` las despacha en proceso
+y cada módulo conserva sus propias rutas, lógica y esquema MySQL. El esquema
+`moovacloud_kpis` se mantiene para reportes.
+
+---
+
 ## 5. Conclusión
 
-MOOVA Clinic presenta una arquitectura de microservicios Flask totalmente separada por dominio (auth, pacientes, citas, pagos, notas, auditoría) sobre bases de datos divididas, lo que garantiza aislamiento y escalabilidad. El flujo de usuario cubre todo el ciclo de vida de una cita: desde la primera visita en la página pública, pasando por la autenticación del personal, la agendación con validaciones de formato y disponibilidad, la elección y cobro del método de pago (Yape, Plin y tarjeta Niubiz, todos confirmados en el backend) hasta la confirmación final y la gestión administrativa. Todas las pantallas están cubiertas por vistas HTML con Bootstrap 5 y Javascript interactivo, y los datos de origen se obtienen mediante endpoints API bien definidos y stored procedures sobre las 7 bases de datos `moovacloud_*`. Queda pendiente únicamente la configuración de credenciales reales en producción (APIPERU, TextBEE, Yape, Plin y Niubiz) y la confirmación de los roles más allá de `admin`/`terapeuta`.
+MOOVA Clinic es un monolito modular: un proceso Flask en el gateway registra seis módulos de dominio, cuyas rutas se invocan internamente bajo `/_internal`. Cada módulo conserva su lógica y su esquema MySQL; en total se usan siete esquemas, incluido el de KPIs. El flujo de usuario cubre el ciclo de vida de una cita, desde la página pública y la autenticación del personal hasta la agendación, el pago y la gestión administrativa. Las pantallas usan Bootstrap y JavaScript, y la lógica de datos opera mediante endpoints internos y procedimientos almacenados. Para producción se deben configurar las credenciales reales de APIPERU, TextBee y las pasarelas de pago.
 
 ---
 
