@@ -1,7 +1,4 @@
 services:
-  # ============================================
-  # GATEWAY — Reverse proxy + sirve HTML
-  # ============================================
   - type: web
     name: moova-gateway
     runtime: python
@@ -10,58 +7,10 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.8"
-      - key: SECRET_KEY
-        generateValue: true
-      # Activa SESSION_COOKIE_SECURE. Sin esto Render no define
-      # FLASK_ENV y la cookie de sesion puede viajar sin HTTPS.
       - key: FLASK_ENV
         value: production
-      - key: API_KEY
-        sync: false
-      - key: AUTH_SERVICE_URL
-        fromService:
-          name: moova-auth
-          type: web
-          property: hostport
-      - key: PACIENTES_SERVICE_URL
-        fromService:
-          name: moova-pacientes
-          type: web
-          property: hostport
-      - key: CITAS_SERVICE_URL
-        fromService:
-          name: moova-citas
-          type: web
-          property: hostport
-      - key: PAGOS_SERVICE_URL
-        fromService:
-          name: moova-pagos
-          type: web
-          property: hostport
-      - key: NOTAS_SERVICE_URL
-        fromService:
-          name: moova-notas
-          type: web
-          property: hostport
-      - key: AUDIT_SERVICE_URL
-        fromService:
-          name: moova-audit
-          type: web
-          property: hostport
-
-  # ============================================
-  # AUTH SERVICE
-  # ============================================
-  - type: web
-    name: moova-auth
-    runtime: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn "services.auth_service.app:create_app()" --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 60
-    envVars:
-      - key: PYTHON_VERSION
-        value: "3.11.8"
       - key: SECRET_KEY
-        sync: false
+        generateValue: true
       - key: API_KEY
         sync: false
       - key: DB_HOST
@@ -74,150 +23,32 @@ services:
         value: moovacloud_auth
       - key: DB_PORT
         value: "3306"
-      - key: OTP_EXPIRA_MIN
-        value: "10"
-      - key: OTP_MAX_INTENTOS
-        value: "3"
-      # Sin esto, log_accion() desde auth_service apuntaba al default
-      # 127.0.0.1:5006 y el error se tragaba en silencio: el panel de
-      # auditoria no registraba nada venga de aqui.
-      - key: AUDIT_SERVICE_URL
-        fromService:
-          name: moova-audit
-          type: web
-          property: hostport
-      # MAX_INTENTOS_IP y TIEMPO_BLOQUEO se eliminaron en FASE 3: ya
-      # no las lee ningun modulo y solo confundian el despliegue.
-
-  # ============================================
-  # PACIENTES SERVICE
-  # ============================================
-  - type: web
-    name: moova-pacientes
-    runtime: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn "services.pacientes_service.app:create_app()" --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 60
-    envVars:
-      - key: PYTHON_VERSION
-        value: "3.11.8"
-      - key: SECRET_KEY
-        sync: false
-      - key: API_KEY
-        sync: false
-      - key: DB_HOST
-        sync: false
-      - key: DB_USER
-        sync: false
-      - key: DB_PASSWORD
-        sync: false
-      - key: DB_NAME
+      - key: AUTH_DB_NAME
+        value: moovacloud_auth
+      - key: PACIENTES_DB_NAME
         value: moovacloud_pacientes
-      - key: DB_PORT
-        value: "3306"
+      - key: CITAS_DB_NAME
+        value: moovacloud_citas
+      - key: PAGOS_DB_NAME
+        value: moovacloud_pagos
+      - key: NOTAS_DB_NAME
+        value: moovacloud_notas
+      - key: AUDIT_DB_NAME
+        value: moovacloud_auditoria
+      - key: KPIS_DB_NAME
+        value: moovacloud_kpis
       - key: APIPERU_TOKEN
         sync: false
       - key: APIPERU_URL
         value: "https://dniruc.apisperu.com/api/v1/dni/{dni}?token={token}"
-      - key: AUTH_SERVICE_URL
-        fromService:
-          name: moova-auth
-          type: web
-          property: hostport
-      - key: CITAS_SERVICE_URL
-        fromService:
-          name: moova-citas
-          type: web
-          property: hostport
-      - key: PAGOS_SERVICE_URL
-        fromService:
-          name: moova-pagos
-          type: web
-          property: hostport
-
-  # ============================================
-  # CITAS SERVICE
-  # ============================================
-  - type: web
-    name: moova-citas
-    runtime: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn "services.citas_service.app:create_app()" --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 60
-    envVars:
-      - key: PYTHON_VERSION
-        value: "3.11.8"
-      - key: SECRET_KEY
-        sync: false
-      - key: API_KEY
-        sync: false
-      - key: DB_HOST
-        sync: false
-      - key: DB_USER
-        sync: false
-      - key: DB_PASSWORD
-        sync: false
-      - key: DB_NAME
-        value: moovacloud_citas
-      - key: DB_PORT
-        value: "3306"
       - key: TEXTBEE_API_KEY
         sync: false
       - key: TEXTBEE_DEVICE_ID
         sync: false
       - key: TEXTBEE_URL
         value: "https://api.textbee.dev/api/v1/gateway/devices/{device_id}/send-sms"
-      - key: AUTH_SERVICE_URL
-        fromService:
-          name: moova-auth
-          type: web
-          property: hostport
-      - key: PACIENTES_SERVICE_URL
-        fromService:
-          name: moova-pacientes
-          type: web
-          property: hostport
-      - key: PAGOS_SERVICE_URL
-        fromService:
-          name: moova-pagos
-          type: web
-          property: hostport
-      - key: AUDIT_SERVICE_URL
-        fromService:
-          name: moova-audit
-          type: web
-          property: hostport
-
-  # ============================================
-  # PAGOS SERVICE
-  # ============================================
-  - type: web
-    name: moova-pagos
-    runtime: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn "services.pagos_service.app:create_app()" --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 60
-    envVars:
-      - key: PYTHON_VERSION
-        value: "3.11.8"
-      - key: SECRET_KEY
-        sync: false
-      - key: API_KEY
-        sync: false
-      - key: DB_HOST
-        sync: false
-      - key: DB_USER
-        sync: false
-      - key: DB_PASSWORD
-        sync: false
-      - key: DB_NAME
-        value: moovacloud_pagos
-      - key: DB_PORT
-        value: "3306"
       - key: WEBHOOK_PROVIDER_TOKEN
         sync: false
-      # --- Pasarelas de pago ---
-      # Sin estas variables pagos_service arranca bien pero TODOS los
-      # pagos fallan con "proveedor no configurado". Se declaran aca
-      # para que Render las pida al desplegar en vez de descubrirlas
-      # en produccion. Los valores seponen en el panel (sync: false).
       - key: NIUBIZ_MODE
         value: sandbox
       - key: NIUBIZ_SANDBOX_URL
@@ -229,6 +60,8 @@ services:
       - key: NIUBIZ_PASSWORD
         sync: false
       - key: NIUBIZ_MERCHANT_ID
+        sync: false
+      - key: NIUBIZ_SDK_URL
         sync: false
       - key: YAPE_API_URL
         value: https://api.yape.com.pe
@@ -246,94 +79,29 @@ services:
         sync: false
       - key: PLIN_MERCHANT_ID
         sync: false
-      - key: AUTH_SERVICE_URL
-        fromService:
-          name: moova-auth
-          type: web
-          property: hostport
-      - key: CITAS_SERVICE_URL
-        fromService:
-          name: moova-citas
-          type: web
-          property: hostport
-      - key: PACIENTES_SERVICE_URL
-        fromService:
-          name: moova-pacientes
-          type: web
-          property: hostport
-      - key: AUDIT_SERVICE_URL
-        fromService:
-          name: moova-audit
-          type: web
-          property: hostport
+      - key: OTP_EXPIRA_MIN
+        value: "10"
+      - key: OTP_MAX_INTENTOS
+        value: "3"
+      - key: OTP_SESION_MIN
+        value: "15"
+      - key: LOGIN_MAX_INTENTOS
+        value: "5"
+      - key: LOGIN_VENTANA_MIN
+        value: "10"
+      - key: LOGIN_BLOQUEO_MIN
+        value: "15"
+      - key: TRUST_PROXY
+        value: "1"
+      - key: RECORDATORIOS_ENABLED
+        value: "0"
+      - key: RECORDATORIO_HORA
+        value: "18:00"
+      - key: RECORDATORIO_INTERVALO_MIN
+        value: "15"
+      - key: RIESGO_DIAS_UMBRAL
+        value: "30"
 
-  # ============================================
-  # NOTAS SERVICE
-  # ============================================
-  - type: web
-    name: moova-notas
-    runtime: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn "services.notas_service.app:create_app()" --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 60
-    envVars:
-      - key: PYTHON_VERSION
-        value: "3.11.8"
-      - key: SECRET_KEY
-        sync: false
-      - key: API_KEY
-        sync: false
-      - key: DB_HOST
-        sync: false
-      - key: DB_USER
-        sync: false
-      - key: DB_PASSWORD
-        sync: false
-      - key: DB_NAME
-        value: moovacloud_notas
-      - key: DB_PORT
-        value: "3306"
-      - key: CITAS_SERVICE_URL
-        fromService:
-          name: moova-citas
-          type: web
-          property: hostport
-      - key: PACIENTES_SERVICE_URL
-        fromService:
-          name: moova-pacientes
-          type: web
-          property: hostport
-
-  # ============================================
-  # AUDIT SERVICE
-  # ============================================
-  - type: web
-    name: moova-audit
-    runtime: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn "services.audit_service.app:create_app()" --bind 0.0.0.0:$PORT
-    envVars:
-      - key: PYTHON_VERSION
-        value: "3.11.8"
-      - key: SECRET_KEY
-        sync: false
-      - key: API_KEY
-        sync: false
-      - key: DB_HOST
-        sync: false
-      - key: DB_USER
-        sync: false
-      - key: DB_PASSWORD
-        sync: false
-      - key: DB_NAME
-        value: moovacloud_auditoria
-      - key: DB_PORT
-        value: "3306"
-  # ============================================
-  # JOB: expirar pagos pendientes (cron)
-  # ============================================
-  # Sin esto, una cita abandonada a mitad del pago queda bloqueada sin
-# limite. El script llama al endpoint interno de pagos_service
-  # (protegido por API_KEY) y devuelve != 0 si falla.
   - type: cron
     name: liberar-pagos-vencidos
     runtime: python
@@ -345,26 +113,11 @@ services:
         value: "3.11.8"
       - key: API_KEY
         fromService:
-          name: moova-pagos
+          name: moova-gateway
           type: web
           envVarKey: API_KEY
-      - key: PAGOS_SERVICE_URL
+      - key: GATEWAY_URL
         fromService:
-          name: moova-pagos
+          name: moova-gateway
           type: web
-          property: hostport
-      - key: DB_HOST
-        fromService:
-          name: moova-pagos
-          type: web
-          envVarKey: DB_HOST
-      - key: DB_USER
-        fromService:
-          name: moova-pagos
-          type: web
-          envVarKey: DB_USER
-      - key: DB_PASSWORD
-        fromService:
-          name: moova-pagos
-          type: web
-          envVarKey: DB_PASSWORD
+          property: host

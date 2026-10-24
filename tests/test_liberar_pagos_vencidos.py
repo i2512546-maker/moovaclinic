@@ -131,7 +131,7 @@ class ScriptCronTest(unittest.TestCase):
         respuesta.__enter__.return_value.read.return_value = b'{"success":true}'
         with patch.dict(
             os.environ,
-            {"GATEWAY_URL": "https://moova.example", "API_KEY": "clave-prueba"},
+            {"GATEWAY_URL": "moova.example", "API_KEY": "clave-prueba"},
             clear=True,
         ), patch("sys.argv", ["liberar_pagos_vencidos.py", "24"]), patch(
             "urllib.request.urlopen", return_value=respuesta
