@@ -1,72 +1,72 @@
-# Tests for ServiceClient timeout fix — do NOT simulate ServiceClient,
-# instead patch requests.get/post/put/delete at module level.
-
 import os
-import sys
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+os.environ.setdefault("SECRET_KEY", "clave-de-pruebas")
+os.environ.setdefault("API_KEY", "clave-api-de-pruebas")
 
-from shared.service_client import ServiceClient
+from flask import Flask, jsonify, request
+
+from shared.service_client import ServiceClient, set_internal_app
 
 
-class ServiceClientTimeoutTest(unittest.TestCase):
+class ServiceClientInProcessTest(unittest.TestCase):
     def setUp(self):
+        self.app = Flask(__name__)
+
+        @self.app.route(
+            "/_internal/api/endpoint",
+            methods=["GET", "POST", "PUT", "DELETE"],
+        )
+        def endpoint():
+            return jsonify({
+                "method": request.method,
+                "body": request.get_json(silent=True),
+                "query": request.args.get("q"),
+                "api_key": request.headers.get("X-Api-Key"),
+            }), 201 if request.method == "POST" else 200
+
+        set_internal_app(self.app)
         self.client = ServiceClient("test", timeout=15)
 
-    # (a) Passar timeout=5 no lanza TypeError y llega a requests con timeout=5
-    @patch("shared.service_client.requests.get")
-    def test_get_timeout_pasado_llega_a_requests(self, mock_get):
-        # Que requests.get devuelva un objeto con .json() y .status_code
-        mock_resp = MagicMock()
-        mock_resp.json.return_value = {"ok": True}
-        mock_resp.status_code = 200
-        mock_get.return_value = mock_resp
+    def test_timeout_explicito_prevalece_sobre_el_default(self):
+        with patch.object(
+            self.client, "_dispatch", wraps=self.client._dispatch
+        ) as dispatch:
+            data, status = self.client.get("/api/endpoint", timeout=5)
 
-        self.client.get("/api/endpoint", timeout=5)
+        self.assertEqual(status, 200)
+        self.assertEqual(dispatch.call_args.kwargs["timeout"], 5)
+        self.assertEqual(data["method"], "GET")
 
-        # Verify requests.get was called with timeout=5, NOT 15
-        call_kwargs = mock_get.call_args[1]
-        self.assertEqual(call_kwargs.get("timeout"), 5,
-                         "timeout=5 must be passed to requests.get, not self.timeout (15)")
+    def test_sin_timeout_conserva_el_default_y_devuelve_tupla_json_status(self):
+        with patch.object(
+            self.client, "_dispatch", wraps=self.client._dispatch
+        ) as dispatch:
+            data, status = self.client.get(
+                "/api/endpoint", params={"q": "valor"}
+            )
 
-    # (b) Sin timeout se usa self.timeout (15)
-    @patch("shared.service_client.requests.get")
-    def test_get_sin_timeout_usa_self_timeout(self, mock_get):
-        mock_resp = MagicMock()
-        mock_resp.json.return_value = {"ok": True}
-        mock_resp.status_code = 200
-        mock_get.return_value = mock_resp
+        self.assertEqual(dispatch.call_args.kwargs["timeout"], 15)
+        self.assertEqual((data["query"], status), ("valor", 200))
+        self.assertEqual(data["api_key"], self.client.headers["X-Api-Key"])
 
-        self.client.get("/api/endpoint")  # no timeout arg
+    def test_post_put_delete_envian_verbo_y_cuerpo(self):
+        for metodo in ("post", "put", "delete"):
+            with self.subTest(metodo=metodo):
+                llamada = getattr(self.client, metodo)
+                data, status = llamada(
+                    "/api/endpoint", {"dato": metodo}
+                ) if metodo != "delete" else llamada("/api/endpoint")
+                esperado = 201 if metodo == "post" else 200
+                self.assertEqual(status, esperado)
+                self.assertEqual(data["method"], metodo.upper())
+                if metodo != "delete":
+                    self.assertEqual(data["body"], {"dato": metodo})
 
-        call_kwargs = mock_get.call_args[1]
-        self.assertEqual(call_kwargs.get("timeout"), 15,
-                         "sin timeout debe usar self.timeout (15)")
-
-    # (c) Verify ServiceClient methods don't raise TypeError when called
-    # with timeout arguments, by patching requests at module level and
-    # checking the calls go through without error.
-    @patch("shared.service_client.requests.get")
-    @patch("shared.service_client.requests.post")
-    def test_service_client_methods_accept_timeout_args(
-            self, mock_post, mock_get):
-        mock_get.return_value = MagicMock()
-        mock_get.return_value.json.return_value = {"data": "ok"}
-        mock_get.return_value.status_code = 200
-        mock_post.return_value = MagicMock()
-        mock_post.return_value.json.return_value = {"data": "created"}
-        mock_post.return_value.status_code = 201
-
-        # Llamadas reales a ServiceClient con timeout arguments
-        # get con timeout=5
-        self.client.get("/api/test", timeout=5)
-        # post sin timeout (debe usar self.timeout=15)
-        self.client.post("/api/test", json_data={})
-
-        # If we reach here without exception, the methods accept the args
-        self.assertTrue(mock_get.called or mock_post.called)
+    def test_rechaza_ruta_sin_slash_inicial(self):
+        with self.assertRaises(ValueError):
+            self.client.get("api/endpoint")
 
 
 if __name__ == "__main__":
