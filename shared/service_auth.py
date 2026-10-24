@@ -35,14 +35,20 @@ ALLOW_INSECURE = (os.getenv("ALLOW_INSECURE_INTERNAL_API") or "").strip() in (
 )
 
 
-def proteger_api_interna(app):
-    """Registra un before_request que exige X-Api-Key en el servicio `app`."""
+def proteger_api_interna(app, prefijo=None):
+    """Exige X-Api-Key a las rutas internas del servicio o del prefijo dado."""
 
     @app.before_request
     def _verificar_api_key():
+        if prefijo and not request.path.startswith(f"{prefijo}/"):
+            return None
         if request.method == "OPTIONS":
             return None
-        if request.path in ("/", "/health", "/api/pagos/webhook"):
+        webhook_path = (
+            f"{prefijo}/api/pagos/webhook"
+            if prefijo else "/api/pagos/webhook"
+        )
+        if request.path in ("/", "/health", webhook_path):
             return None
         esperada = (API_KEY or "").strip()
         if not esperada:
