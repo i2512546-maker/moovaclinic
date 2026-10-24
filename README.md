@@ -103,29 +103,16 @@ Los `.env` están en `.gitignore`. No se suben nunca.
 
 ### 4. Arrancar
 
-Un solo proceso (requiere las variables `*_SERVICE_URL` apuntando a los
-servicios ya levantados):
+Un solo proceso configura el gateway y los seis módulos internos:
 
 ```bash
 python run.py
 ```
 
-Los 7 a la vez con Docker:
+Con Docker Compose:
 
 ```bash
 docker compose up --build
-```
-
-Solo el gateway publica el puerto `5000`. Para desarrollo en paralelo,
-cada servicio se puede lanzar por separado:
-
-```bash
-python -m services.auth_service.run      # :5001
-python -m services.pacientes_service.run # :5002
-python -m services.citas_service.run     # :5003
-python -m services.pagos_service.run     # :5004
-python -m services.notas_service.run     # :5005
-python -m services.audit_service.run     # :5006
 ```
 
 La app queda en <http://127.0.0.1:5000>. La API interna está documentada

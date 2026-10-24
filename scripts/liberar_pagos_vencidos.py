@@ -34,6 +34,8 @@ TIMEOUT_SEG = 30
 def main():
     horas = sys.argv[1] if len(sys.argv) > 1 else "24"
     url_gateway = (os.getenv("GATEWAY_URL") or "http://127.0.0.1:5000").rstrip("/")
+    if "://" not in url_gateway:
+        url_gateway = f"https://{url_gateway}"
     api_key = os.getenv("API_KEY") or ""
 
     if not api_key:
