@@ -82,11 +82,13 @@ class ServiceClientInProcessTest(unittest.TestCase):
         self.assertEqual(data, {"terapeutas": []})
 
     def test_usa_gateway_aunque_el_contexto_actual_sea_de_un_servicio(self):
+        from flask import Flask
+
         from gateway.app import create_app as crear_gateway_app
-        from services.citas_service.app import create_app as crear_citas_app
 
         gateway_app = crear_gateway_app()
-        with crear_citas_app().app_context():
+        contexto_externo = Flask("contexto_externo")
+        with contexto_externo.app_context():
             self.assertIs(self.client._get_app(), gateway_app)
 
 

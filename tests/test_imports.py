@@ -3,7 +3,7 @@
 - Que TODOS los modulos del proyecto importen sin NameError (por ejemplo
   `audit_client` sin importar en el gateway, o rutas proxy fuera de
   `create_app()` referenciando `app` inexistente).
-- Que `create_app()` de cada microservicio y del gateway construya la app.
+- Que el gateway registre los seis blueprints internos en una sola app.
 """
 
 import os
@@ -22,7 +22,6 @@ class ImportModulosTest(unittest.TestCase):
         for svc in ("auth_service", "pacientes_service", "citas_service",
                     "pagos_service", "notas_service", "audit_service"):
             modulos.append(f"services.{svc}")
-            modulos.append(f"services.{svc}.app")
             modulos.append(f"services.{svc}.routes")
 
         for nombre in modulos:
@@ -39,16 +38,21 @@ class CreateAppTest(unittest.TestCase):
         # La sesion del gateway debe usar la SECRET_KEY del entorno.
         self.assertEqual(app.secret_key, os.environ["SECRET_KEY"])
 
-    def test_microservicios_crean_app(self):
-        import importlib
+    def test_gateway_registra_los_seis_blueprints_internos(self):
+        from gateway.app import create_app
 
-        for svc in ("auth_service", "pacientes_service", "citas_service",
-                    "pagos_service", "notas_service", "audit_service"):
-            with self.subTest(servicio=svc):
-                modulo = importlib.import_module(f"services.{svc}.app")
-                app = modulo.create_app()
-                self.assertTrue(app)
-                self.assertEqual(app.secret_key, os.environ["SECRET_KEY"])
+        app = create_app()
+        rutas = {regla.rule for regla in app.url_map.iter_rules()}
+        for ruta in (
+            "/_internal/api/auth/login",
+            "/_internal/api/pacientes",
+            "/_internal/api/citas",
+            "/_internal/api/pagos/anticipo",
+            "/_internal/api/notas/<int:cita_id>",
+            "/_internal/api/auditoria",
+        ):
+            with self.subTest(ruta=ruta):
+                self.assertIn(ruta, rutas)
 
     def test_secret_key_ausente_falla_rapido(self):
         """shared.config debe fallar si no hay SECRET_KEY (nada de claves

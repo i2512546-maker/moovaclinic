@@ -10,10 +10,10 @@ os.environ.setdefault("API_KEY", "clave-interna-de-pruebas")
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from gateway.app import create_app as crear_gateway
-from services.citas_service.app import create_app
 from shared.config import API_KEY
+from tests.internal_client import internal_test_client
 
-RUTA = "/api/citas/riesgo"
+RUTA = "/_internal/api/citas/riesgo"
 PANEL = "/panel_admin/riesgo"
 
 # Fila tal como la devuelve sp_pacientes_en_riesgo.
@@ -35,7 +35,9 @@ PACIENTES = {
 
 class RiesgoEndpointTest(unittest.TestCase):
     def setUp(self):
-        self.client = create_app().test_client()
+        app = crear_gateway()
+        app.config["WTF_CSRF_ENABLED"] = False
+        self.client = internal_test_client(app)
         self.cab = {"X-Api-Key": API_KEY} if API_KEY else {}
 
     def _get(self, filas, **params):

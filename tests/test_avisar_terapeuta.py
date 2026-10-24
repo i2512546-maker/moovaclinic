@@ -20,8 +20,9 @@ os.environ.setdefault("API_KEY", "clave-interna-de-pruebas")
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from services.citas_service.app import create_app
+from gateway.app import create_app
 from shared.config import API_KEY
+from tests.internal_client import internal_test_client
 
 Hoy = date(2026, 10, 19)
 CITA = {
@@ -47,7 +48,7 @@ USUARIOS = [
 class AvisoTerapeutaBase(unittest.TestCase):
     def setUp(self):
         self.app = create_app()
-        self.client = self.app.test_client()
+        self.client = internal_test_client(self.app)
         self.cab = {"X-Api-Key": API_KEY} if API_KEY else {}
         self.cita = dict(CITA)
         self.telefonos = {30: "999888777", 31: "999111222"}
@@ -125,7 +126,7 @@ class AvisoEnDeleteTest(AvisoTerapeutaBase):
     def _delete(self):
         sms, log = self._contexto()
         try:
-            resp = self.client.delete("/api/citas/11", headers=self.cab)
+            resp = self.client.delete("/_internal/api/citas/11", headers=self.cab)
         finally:
             self._stack.close()
         self.sms = sms
@@ -183,7 +184,7 @@ class AvisoEnDeleteTest(AvisoTerapeutaBase):
             "services.citas_service.routes.pagos_client.post",
             return_value=({}, 200)), patch(
             "services.citas_service.routes.log_accion") as log:
-            resp = self.client.delete("/api/citas/11", headers=self.cab)
+            resp = self.client.delete("/_internal/api/citas/11", headers=self.cab)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(self.sms_textos, [])
         self.assertIn("sin_telefono", self._avisos(log)[0])
@@ -197,7 +198,7 @@ class AvisoEnDeleteTest(AvisoTerapeutaBase):
         with patch("services.citas_service.routes.call_proc_one",
                    side_effect=_no_existe), patch(
             "services.citas_service.routes.log_accion") as log:
-            resp = self.client.delete("/api/citas/11", headers=self.cab)
+            resp = self.client.delete("/_internal/api/citas/11", headers=self.cab)
         self.assertEqual(resp.status_code, 404)
         self.assertEqual(self._avisos(log), [])
 
@@ -206,7 +207,7 @@ class AvisoEnPutTest(AvisoTerapeutaBase):
     def _put(self, cuerpo):
         sms, log = self._contexto()
         try:
-            resp = self.client.put("/api/citas/11", json=cuerpo,
+            resp = self.client.put("/_internal/api/citas/11", json=cuerpo,
                                    headers=self.cab)
         finally:
             self._stack.close()

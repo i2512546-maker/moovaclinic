@@ -5,15 +5,16 @@ from unittest.mock import patch
 
 os.environ.setdefault("SECRET_KEY", "clave-de-pruebas")
 
-from services.citas_service.app import create_app
+from gateway.app import create_app
 from shared.config import API_KEY
+from tests.internal_client import internal_test_client
 
 
 class ListarCitasTest(unittest.TestCase):
     def test_serializa_hora_cita_devuelta_como_timedelta(self):
         app = create_app()
         app.config.update(TESTING=False)
-        client = app.test_client()
+        client = internal_test_client(app)
 
         # Todas las rutas del servicio exigen la API_KEY interna (FASE 1),
         # salvo "/" y "/health".
@@ -44,7 +45,7 @@ class ListarCitasTest(unittest.TestCase):
             patch("services.citas_service.routes._mapa_terapeutas", return_value={}),
         ):
             response = client.get(
-                "/api/citas?fecha=2026-09-24&estado=programada",
+                "/_internal/api/citas?fecha=2026-09-24&estado=programada",
                 headers=cabeceras,
             )
 

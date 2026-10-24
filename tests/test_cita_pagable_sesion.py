@@ -236,11 +236,7 @@ class FueraDeAlcanceTest(_Base):
     def test_el_webhook_no_pasa_por_el_gateway(self):
         reglas = {regla.rule for regla in self.app.url_map.iter_rules()}
         self.assertNotIn("/api/pagos/webhook", reglas)
-        # Sigue existiendo en pagos_service, donde lo autentica el
-        # token del proveedor (X-Provider-Token), no la sesion.
-        from services.pagos_service.app import create_app as crear_pagos
-        rutas = {r.rule for r in crear_pagos().url_map.iter_rules()}
-        self.assertIn("/api/pagos/webhook", rutas)
+        self.assertIn("/_internal/api/pagos/webhook", reglas)
 
     def test_el_gateway_no_expone_otras_rutas_de_pagos(self):
         """Si el gateway solo publica estas cuatro bajo /api/pagos/,
