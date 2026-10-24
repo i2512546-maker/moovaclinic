@@ -361,6 +361,26 @@ def create_app():
             return f(*args, **kwargs)
         return decorated_function
 
+    def _cita_pendiente_de_pago():
+        """Id de la cita que esta sesion creo y sigue sin pagar, o None.
+
+        Limpia la sesion si esa cita ya se pago o ya no existe, para que
+        un id viejo no quede pegado al navegador.
+        """
+        cita_id = session.get("cita_pendiente_id")
+        if not cita_id:
+            return None
+        try:
+            data, status = pagos_client.get(f"/api/pagos/{cita_id}")
+            pago = (data or {}).get("pago") or {}
+        except Exception as exc:
+            app.logger.warning("No se pudo consultar el pago de la cita %s: %s", cita_id, exc)
+            return cita_id
+        if status != 200 or pago.get("estado_pago") != "pendiente":
+            session.pop("cita_pendiente_id", None)
+            return None
+        return cita_id
+
     def _cita_autorizada_en_sesion(cita_id, incluir_pagada=False):
         """Acceso de PACIENTES (sin cuenta) a /pago y /retorno.
 
@@ -537,11 +557,11 @@ def create_app():
 
     @app.route("/citas", methods=["GET", "POST"])
     def citas_page():
-        # Si ya se creo una cita en esta sesion, no volver a mostrar el
-        # formulario: se redirige al pago (paso 3) de esa cita.
-        cita_pendiente = session.get("cita_pendiente_id")
-        if request.method == "GET" and cita_pendiente:
-            return redirect(url_for("pago_page", cita_id=cita_pendiente))
+        # El formulario SIEMPRE se muestra (paso 1 -> 2). Ya no se redirige
+        # al pago de una cita vieja de la sesion: eso impedia agendar de
+        # nuevo. Si queda una cita sin pagar, solo se ofrece un aviso con
+        # el enlace para continuarla (ver _cita_pendiente_de_pago).
+        cita_pendiente = _cita_pendiente_de_pago() if request.method == "GET" else None
 
         data, _ = citas_client.get("/api/citas/terapeutas")
         terapeutas = data.get("terapeutas", [])
@@ -572,7 +592,7 @@ def create_app():
 
             result, status = citas_client.post("/api/citas", form_data)
             if status == 201 and result.get("success"):
-                session["cita_pendiente_id"] = result["cita_id"]
+                session["cita_pendiente_id"] = str(result["cita_id"])
                 redirect_to = url_for("pago_page", cita_id=result["cita_id"])
                 if _is_ajax():
                     return jsonify({
@@ -585,7 +605,8 @@ def create_app():
                 return jsonify(result or {"error": "Error al crear cita"}), status
             flash(result.get("error", "Error al crear cita"))
 
-        return render_template("citas.html", terapeutas=terapeutas, servicios=servicios)
+        return render_template("citas.html", terapeutas=terapeutas, servicios=servicios,
+                               cita_pendiente=cita_pendiente)
 
     @app.route("/citas/modificar", methods=["GET", "POST"])
     def modificar_cita_page():

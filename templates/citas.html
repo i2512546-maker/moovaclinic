@@ -52,6 +52,19 @@
             <p class="text-muted mb-0">Completa tus datos, elige fecha y selecciona el especialista</p>
         </div>
 
+        {% if cita_pendiente %}
+        <!-- Cita creada en esta sesion que aun no se paga: aviso opcional, no bloquea -->
+        <div class="alert alert-warning d-flex flex-wrap align-items-center justify-content-between gap-2 border-0 shadow-sm" role="alert">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-clock fs-5"></i>
+                <span>Tienes una cita reservada pendiente de pago. Puedes continuarla o llenar el formulario para agendar otra.</span>
+            </div>
+            <a href="{{ url_for('pago_page', cita_id=cita_pendiente) }}" class="btn btn-moova btn-sm rounded-pill px-3">
+                <i class="fas fa-arrow-right me-1"></i> Continuar con el pago
+            </a>
+        </div>
+        {% endif %}
+
         <!-- ¿Ya tienes un tratamiento? -->
         <div class="alert alert-success d-flex flex-wrap align-items-center justify-content-between gap-2 border-0 shadow-sm" role="alert">
             <div class="d-flex align-items-center gap-2">
