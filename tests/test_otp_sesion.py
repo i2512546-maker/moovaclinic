@@ -37,7 +37,7 @@ DNI_A = "12345678"
 DNI_B = "87654321"
 MARCA = "DATO_DE_SALUD_RESERVADO"
 
-# Citas que "tiene" DNI_A en el microservicio.
+# Citas asociadas a DNI_A en la respuesta del módulo.
 CITAS_A = [
     {"id": 11, "dni": DNI_A, "fecha_cita": "2026-11-25"},
     {"id": 12, "dni": DNI_A, "fecha_cita": "2026-12-02"},

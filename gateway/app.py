@@ -52,7 +52,7 @@ csrf = CSRFProtect()
 def _cargar_anexos_paciente(paciente_id):
     """Paquetes, evaluaciones iniciales y consentimientos de un paciente.
 
-    Cada bloque es independiente: si un microservicio no responde, el resto
+    Cada bloque es independiente: si un módulo interno falla, el resto
     de la ficha se sigue mostrando igual que antes en la vista HTML.
     """
     if not paciente_id:
@@ -169,7 +169,7 @@ def _proteccion_otp(dni, accion):
 
 def _otp_negado():
     """Guardia de POST: la verificacion falta, caduco o no alcanza para
-    esa cita. Siempre 403, y se llama antes de tocar al microservicio,
+    esa cita. Siempre 403, y se llama antes de tocar al módulo interno,
     de modo que ni el PUT ni el DELETE llegan a emitirse."""
     return jsonify({
         "error": "No se pudo verificar tu identidad para esta operacion.",

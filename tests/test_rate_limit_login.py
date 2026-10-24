@@ -5,7 +5,7 @@
 #   1. LimitadorIntentos e ip_del_request, probados con el reloj
 #      adelantado a mano (sin dormir).
 #   2. La ruta /login del gateway, con el cliente de prueba y el
-#      microservicio de auth parcheado.
+#      cliente del modulo de autenticacion parcheado.
 # ============================================================
 
 import os
@@ -215,14 +215,14 @@ class LoginRutaTest(unittest.TestCase):
 
     # -- corte por numero de intentos --
 
-    def test_los_primeros_intentos_llegan_al_microservicio(self):
+    def test_los_primeros_intentos_llegan_al_modulo_auth(self):
         with patch("gateway.app.auth_client.post",
                    side_effect=self._auth_falso()) as post:
             respuesta = self._intentar()
         self.assertEqual(post.call_count, 1)
         self.assertIn(MENSAJE_LOGIN_INVALIDO, self._pagina(respuesta))
 
-    def test_a_partir_del_maximo_no_se_llama_al_microservicio(self):
+    def test_a_partir_del_maximo_no_se_llama_al_modulo_auth(self):
         with patch("gateway.app.auth_client.post",
                    side_effect=self._auth_falso()) as post:
             for _ in range(5):

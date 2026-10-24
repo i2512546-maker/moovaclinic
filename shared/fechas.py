@@ -1,10 +1,10 @@
 """Normalizacion de fechas/horas para presentarlas en las vistas.
 
-Las fechas llegan al gateway desde los microservicios ya serializadas por
-Flask, que convierte date/datetime en texto HTTP ("Sat, 01 Aug 2026 ..."), y
-no en objetos datetime. MySQL TIME, en cambio, llega como timedelta porque
-mysql-connector-python lo representa asi. Estas funciones cubren los tres
-casos para poder formatear en plantilla y en el PDF sin romper la pagina.
+Las fechas llegan a las vistas ya serializadas por Flask, que convierte
+date/datetime en texto ("Sat, 01 Aug 2026 ..."), y no en objetos datetime.
+MySQL TIME, en cambio, llega como timedelta porque mysql-connector-python
+lo representa asi. Estas funciones cubren los tres casos para poder
+formatear en plantilla y en el PDF sin romper la pagina.
 """
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo

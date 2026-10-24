@@ -1,12 +1,11 @@
 # ============================================================
-# Auth para APIs internas (gateway -> servicios).
+# Auth para APIs internas entre el gateway y sus módulos.
 #
-# Los microservicios NO deben quedar expuestos a Internet con la
-# API abierta: se exige el header X-Api-Key en TODA request que
-# llegue al servicio, comparado en tiempo constante contra la
-# API_KEY del entorno (var compartida con el gateway).
+# Las rutas internas NO deben quedar expuestas a Internet con la
+# API abierta: se exige el header X-Api-Key en toda llamada externa
+# a una ruta protegida, comparado en tiempo constante con API_KEY.
 #
-#  - Si el servicio NO tiene API_KEY configurada -> se CIERRA por
+#  - Si la app NO tiene API_KEY configurada -> se CIERRA por
 #    defecto: se rechaza todo con 503. Permitir el paso cuando falta
 #    la clave dejaba el servicio completamente abierto ante el primer
 #    despliegue sin configurar, que es el peor escenario posible.
@@ -14,7 +13,7 @@
 #    ALLOW_INSECURE_INTERNAL_API=1, que queda logged como warning.
 #  - Se exime el path "/" y "/health" para los health checks de
 #    Render (que hacen GET al root).
-#  - Se exime el webhook de pagos (/api/pagos/webhook): el proveedor
+#  - Se exime el webhook de pagos (/_internal/api/pagos/webhook): el proveedor
 #    autentica con X-Provider-Token / X-Signature (movimientos reales
 #    de pago), no con la API_KEY interna del gateway.
 # ============================================================
@@ -36,7 +35,7 @@ ALLOW_INSECURE = (os.getenv("ALLOW_INSECURE_INTERNAL_API") or "").strip() in (
 
 
 def proteger_api_interna(app, prefijo=None):
-    """Exige X-Api-Key a las rutas internas del servicio o del prefijo dado."""
+    """Exige X-Api-Key a las rutas internas del prefijo configurado."""
 
     @app.before_request
     def _verificar_api_key():
