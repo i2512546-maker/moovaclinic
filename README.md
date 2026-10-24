@@ -165,7 +165,7 @@ el historial de esas claves, para que cinco typos de la mañana no dejen
 al usuario real bloqueado.
 
 Los mensajes son fijos y no dependen de lo que devuelva el
-microservicio: ni el bloqueo ni la clave incorrecta dicen si el correo
+módulo interno: ni el bloqueo ni la clave incorrecta dicen si el correo
 existe o no, y son indistinguibles entre sí.
 
 Detrás de un proxy (Render, nginx) `request.remote_addr` es la IP del

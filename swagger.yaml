@@ -1,8 +1,7 @@
 # ============================================================
 # MOOVA Clinic - Swagger / OpenAPI central
-# Expone la documentacion de TODOS los endpoints de los 5
-# microservicios + gateway en una sola UI, servida por el gateway
-# en /apidocs via flasgger.
+# Documenta los endpoints de los seis modulos internos montados bajo
+# /_internal y las APIs publicas del gateway en /apidocs via flasgger.
 #
 # OJO: No incluye NINGUN dato de conexion ni credencial. Solo
 # rutas, metodos, parametros y ejemplos de respuesta.
@@ -12,9 +11,9 @@ info:
   title: "MOOVA Clinic API"
   description: |
     API del sistema de clinica de rehabilitacion MOOVA CLINIC.
-    Backend distribuido: microservicios auth, pacientes, citas,
-    pagos y notas, mas el gateway central. Esta especificacion
-    documenta todos los endpoints accesibles.
+    Monolito modular: un solo proceso Flask con los modulos auth,
+    pacientes, citas, pagos, notas y auditoria montados bajo /_internal.
+    Esta especificacion documenta sus endpoints y las APIs del gateway.
   version: "1.0.0"
 basePath: "/"
 schemes:

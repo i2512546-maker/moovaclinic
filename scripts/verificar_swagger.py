@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 """
-Verifica que swagger.yaml documente las rutas de los microservicios
+Verifica que swagger.yaml documente las rutas de los modulos internos
 (FASE 4, corre en CI).
 
 swagger.yaml documenta las APIs internas (las que consumen otros
-servicios). Las rutas HTML del gateway (/login, /interfaz, /pago...)
+modulos). Las rutas HTML del gateway (/login, /interfaz, /pago...)
 no van alla: no son API.
 
 Fallar si:
   - swagger declara una ruta que el codigo ya no tiene (documentacion
     que miente, la peor de las tres situaciones).
-  - una ruta interna de servicio no esta documentada.
+  - una ruta interna de un modulo no esta documentada.
 
 Salida: codigo 0 si cuadra, 1 si hay discrepancias.
 """

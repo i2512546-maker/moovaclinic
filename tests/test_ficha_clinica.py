@@ -4,8 +4,8 @@ Cubre tres errores reales que dejaban el detalle del paciente en 500:
   1. url_for('ficha_clinica_pdf') sin ruta registrada -> BuildError.
   2. ev.fecha_creacion.strftime() sobre un valor que llega como texto.
   3. lo mismo con cn.aceptado_en.
-Las fechas viajan entre microservicios como texto HTTP de Flask, no como
-datetime, por eso se formatean con los filtros `fecha`/`fechahora`.
+Las fechas llegan serializadas por Flask como texto, no como datetime,
+por eso se formatean con los filtros `fecha`/`fechahora`.
 """
 import os
 import unittest
@@ -27,7 +27,7 @@ PACIENTE = {
     "direccion": "Av. Lima 123",
     "seguro": "SIS",
     "estado": "activo",
-    # Tal como lo serializa Flask al viajar por HTTP entre microservicios.
+    # Tal como lo serializa Flask en la respuesta interna.
     "fecha_nacimiento": "Sat, 04 May 1990 00:00:00 GMT",
     "creado_en": "2026-01-02 10:00:00",
 }

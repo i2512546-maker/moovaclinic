@@ -3,10 +3,9 @@
 # MOOVA Clinic - Backup diario automatico de TODAS las bases
 # HOSTING: Alwaysdata (Linux). Se ejecuta via Cron Job del panel.
 #
-# IMPORTANTE (FASE 4): desde el split en microservicios el proyecto
-# ya no usa una unica base "moovacloud_db". Cada servicio tiene la
-# suya en el mismo servidor MySQL, por lo que hay que respaldar
-# todas. El script las recorre una por una.
+# IMPORTANTE: el monolito modular conserva siete esquemas MySQL
+# separados en el mismo servidor. Hay que respaldarlos todos; el
+# script los recorre uno por uno.
 #
 # CONFIGURAR EN EL PANEL ALWAYSDATA:
 #   1. Entra a alwaysdata.net > tu sitio moovacloud
