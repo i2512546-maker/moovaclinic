@@ -9,8 +9,9 @@ os.environ.setdefault("API_KEY", "clave-interna-de-pruebas")
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from gateway.app import create_app as crear_gateway_app
 from services.citas_service import scheduler as sch
-from services.citas_service.app import create_app
+from services.citas_service.app import create_app as crear_citas_app
 from services.citas_service.routes import _mensaje_recordatorio, enviar_recordatorios
 from shared.config import API_KEY
 
@@ -51,7 +52,7 @@ class _SchedulerFalso:
 
 class RecordatoriosTest(unittest.TestCase):
     def setUp(self):
-        self.app = create_app()
+        self.app = crear_citas_app()
         self.client = self.app.test_client()
         self.cab = {"X-Api-Key": API_KEY} if API_KEY else {}
         self.desmarcas = []
@@ -185,7 +186,7 @@ class RecordatoriosTest(unittest.TestCase):
 
 class RecordatoriosEndpointTest(unittest.TestCase):
     def setUp(self):
-        self.client = create_app().test_client()
+        self.client = crear_citas_app().test_client()
         self.cab = {"X-Api-Key": API_KEY} if API_KEY else {}
 
     def test_exige_api_key_interna(self):
@@ -246,7 +247,7 @@ class RecordatoriosEndpointTest(unittest.TestCase):
 
 class SchedulerTest(unittest.TestCase):
     def setUp(self):
-        self.app = create_app()
+        self.app = crear_gateway_app()
 
     def tearDown(self):
         sch.detener_scheduler()
@@ -254,14 +255,16 @@ class SchedulerTest(unittest.TestCase):
     def test_create_app_no_inicia_el_planificador_por_defecto(self):
         # RECORDATORIOS_ENABLED=0 (default): no debe arrancar nada.
         self.assertEqual(sch.RECORDATORIOS_ENABLED, "0")
-        create_app()
+        crear_gateway_app()
         self.assertIsNone(sch._scheduler)
 
     def test_create_app_arranca_si_esta_habilitado(self):
-        with patch.object(sch, "RECORDATORIOS_ENABLED", "1"), patch.object(
+        with patch("shared.config.RECORDATORIOS_ENABLED", "1"), patch.object(
+            sch, "RECORDATORIOS_ENABLED", "1"
+        ), patch.object(
             sch, "BackgroundScheduler", _SchedulerFalso
         ), patch.object(sch, "_scheduler", None):
-            create_app()
+            crear_gateway_app()
             self.assertIsNotNone(sch._scheduler)
             self.assertTrue(sch._scheduler.running)
             args, kwargs = sch._scheduler.jobs[0]
@@ -274,10 +277,12 @@ class SchedulerTest(unittest.TestCase):
     def test_no_arranca_dos_planificadores(self):
         falso = _SchedulerFalso(timezone=None)
         falso.running = True
-        with patch.object(sch, "RECORDATORIOS_ENABLED", "1"), patch.object(
+        with patch("shared.config.RECORDATORIOS_ENABLED", "1"), patch.object(
+            sch, "RECORDATORIOS_ENABLED", "1"
+        ), patch.object(
             sch, "BackgroundScheduler", _SchedulerFalso
         ), patch.object(sch, "_scheduler", falso):
-            create_app()
+            crear_gateway_app()
             # Reutiliza el que ya corre; no crea otro.
             self.assertIs(sch._scheduler, falso)
 
