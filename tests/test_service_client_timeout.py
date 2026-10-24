@@ -68,6 +68,27 @@ class ServiceClientInProcessTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.client.get("api/endpoint")
 
+    def test_cliente_citas_funciona_sin_request_en_curso(self):
+        from gateway.app import citas_client, create_app
+
+        create_app()
+        with patch(
+            "services.citas_service.routes.pacientes_client.get",
+            return_value=({"terapeutas": []}, 200),
+        ):
+            data, status = citas_client.get("/api/citas/terapeutas")
+
+        self.assertEqual(status, 200)
+        self.assertEqual(data, {"terapeutas": []})
+
+    def test_usa_gateway_aunque_el_contexto_actual_sea_de_un_servicio(self):
+        from gateway.app import create_app as crear_gateway_app
+        from services.citas_service.app import create_app as crear_citas_app
+
+        gateway_app = crear_gateway_app()
+        with crear_citas_app().app_context():
+            self.assertIs(self.client._get_app(), gateway_app)
+
 
 if __name__ == "__main__":
     unittest.main()

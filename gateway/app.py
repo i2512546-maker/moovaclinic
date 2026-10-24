@@ -251,6 +251,7 @@ MENSAJE_PAGO_NO_PERMITIDO = "No se puede procesar el pago con estos datos."
 
 def create_app():
     app = Flask(__name__, template_folder="../templates", static_folder="../static")
+    app.config["MOOVA_MONOLITH"] = True
     secret_key = os.getenv("SECRET_KEY")
     if not secret_key:
         raise RuntimeError("Falta la variable de entorno SECRET_KEY. Déjala en .env y vuelve a arrancar.")
@@ -282,6 +283,9 @@ def create_app():
         notas_bp,
         audit_bp,
     ):
+        # Estas APIs se autentican con API_KEY; el navegador no envia CSRF
+        # en sus llamadas internas ni en el webhook del proveedor.
+        csrf.exempt(blueprint)
         app.register_blueprint(blueprint, url_prefix="/_internal")
     proteger_api_interna(app, prefijo="/_internal")
     set_internal_app(app)
