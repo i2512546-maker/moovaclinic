@@ -12,7 +12,7 @@ USO (desde cron del hosting, no necesita navegador):
     horas  Antiguedad a partir de la cual se expira. Por defecto 24.
 
 Variables de entorno requeridas:
-    PAGOS_SERVICE_URL   p.ej. http://127.0.0.1:5004
+    GATEWAY_URL         p.ej. http://127.0.0.1:5000
     API_KEY             misma clave que el resto de servicios
 
 Salida: codigo 0 si la llamada fue exitosa, 1 si fallo. Compatible con
@@ -33,7 +33,7 @@ TIMEOUT_SEG = 30
 
 def main():
     horas = sys.argv[1] if len(sys.argv) > 1 else "24"
-    url_servicio = (os.getenv("PAGOS_SERVICE_URL") or "http://127.0.0.1:5004").rstrip("/")
+    url_gateway = (os.getenv("GATEWAY_URL") or "http://127.0.0.1:5000").rstrip("/")
     api_key = os.getenv("API_KEY") or ""
 
     if not api_key:
@@ -44,7 +44,7 @@ def main():
         )
         return 1
 
-    endpoint = f"{url_servicio}/api/pagos/mantenimiento/liberar_vencidos"
+    endpoint = f"{url_gateway}/_internal/api/pagos/mantenimiento/liberar_vencidos"
     cuerpo = json.dumps({"horas": int(horas)}).encode("utf-8")
     req = urllib.request.Request(
         endpoint,
