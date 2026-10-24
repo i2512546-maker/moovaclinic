@@ -73,7 +73,7 @@ def _mapa_terapeutas(timeout=None):
 
     La fila trae ID, usuario_id, Nombre, Telefono, Especialidad y
     precio: por eso sirve para enriquecer las citas y para resolver
-    el contacto del terapeuta en el aviso (FASE 3)."""
+    el contacto del terapeuta en el aviso."""
     try:
         kwargs = {"timeout": timeout} if timeout else {}
         data, _ = pacientes_client.get("/api/terapeutas", **kwargs)
@@ -170,7 +170,7 @@ def verificar_disponibilidad():
 @citas_bp.route("/api/citas/terapeutas", methods=["GET"])
 def listar_terapeutas():
     """Ruta publica conservada. Los terapeutas viven en moovacloud_pacientes;
-    se obtienen por HTTP a pacientes_service."""
+    se consultan en proceso mediante el modulo de pacientes."""
     data, status = pacientes_client.get("/api/terapeutas")
     return jsonify(data), status
 
@@ -182,8 +182,8 @@ def listar_citas():
     estado = request.args.get("estado", "programada")
     medico_id = request.args.get("medico_id", "") or None
 
-    # FASE 2: sp_listar_citas es local; el filtro por dni se aplica en
-    # Python tras enriquecer con los datos del paciente.
+    # sp_listar_citas es local; el filtro por dni se aplica en Python
+    # tras enriquecer con datos obtenidos del modulo de pacientes.
     citas = call_proc("sp_listar_citas", (estado, None, fecha, medico_id))
 
     resumen = {}
@@ -274,8 +274,8 @@ def detalle_cita(cita_id):
 def detalle_cita_basico(cita_id):
     """Version liviana de detalle_cita: devuelve SOLO los datos locales de
     moovacloud_citas (paciente_id, terapeuta_id, fecha_cita, estado, ...) sin
-    enriquecer por HTTP a otros servicios. Lo usa notas_service para
-    resolver el paciente_id de una cita sin pagar la cadena pesada del
+    enriquecer mediante llamadas internas a otros modulos. Lo usa notas
+    para resolver el paciente_id de una cita sin pagar la cadena pesada del
     detalle enriquecido."""
     cita = call_proc_one("sp_detalle_cita", (cita_id,))
     if not cita:
@@ -325,8 +325,8 @@ def crear_cita():
         )
         return jsonify({"error": "No se pudo procesar la solicitud, intenta de nuevo"}), 500
 
-    # FASE 2: precio del medico via pacientes_service (antes
-    # sp_consulta_medico_precio, CROSS-DB).
+    # El precio del medico se obtiene mediante una llamada interna al
+    # modulo de pacientes (antes sp_consulta_medico_precio, CROSS-DB).
     try:
         medico_data, medico_status = pacientes_client.get(f"/api/terapeutas/{data['medico_id']}")
     except Exception as exc:
@@ -342,7 +342,7 @@ def crear_cita():
     costo = float(medico["precio"]) if medico.get("precio") else 0.0
     anticipo = round(costo / 2, 2)
 
-    # FASE 2: resolver/crear paciente via pacientes_service.
+    # Resolver/crear el paciente mediante el modulo interno de pacientes.
     try:
         pac_data, pac_status = pacientes_client.get(f"/api/pacientes/dni/{data['dni']}")
         if pac_status == 200:
@@ -395,8 +395,8 @@ def crear_cita():
 
     metodo_pago = data.get("metodo_pago", "").strip()
     if metodo_pago and anticipo > 0 and cita_id:
-        # FASE 2: pago anticipado via pagos_service (antes
-        # sp_crear_pago_anticipo, CROSS-DB).
+        # Crear el pago anticipado mediante una llamada interna al modulo
+        # de pagos (antes sp_crear_pago_anticipo, CROSS-DB).
         try:
             pago_data, pago_status = pagos_client.post("/api/pagos/anticipo", {
                 "cita_id": cita_id,
@@ -422,7 +422,7 @@ def crear_cita():
 
 
 # ------------------------------------------------------------------
-# Aviso al terapeuta cuando cambia o se cancela una cita (FASE 3)
+# Aviso al terapeuta cuando cambia o se cancela una cita.
 #
 # Regla principal: el aviso NUNCA puede tumbar el DELETE/PUT de la
 # cita. Sin telefono, servicio caido o SMS rechazado se convierte en
@@ -445,11 +445,11 @@ def _leer_cita_local(cita_id):
 
 
 def _telefono_terapeuta(terapeuta_id, timeout=5):
-    """Telefono del terapeuta, siempre por HTTP (sin consultas
+    """Telefono del terapeuta, mediante llamadas internas (sin consultas
     cruzadas a moovacloud_auth):
 
-        terapeuta_id -> usuario_id   via _mapa_terapeutas() (pacientes_service)
-        usuario_id   -> telefono     via GET /api/auth/usuarios (auth_service)
+        terapeuta_id -> usuario_id   mediante el modulo de pacientes
+        usuario_id   -> telefono     mediante el modulo de autenticacion
 
     Devuelve None si no hay telefono o si cualquier salto falla."""
     try:
@@ -673,8 +673,8 @@ def cancelar_cita(cita_id):
     if not result or int(result.get("actualizadas") or 0) == 0:
         return jsonify({"error": "Cita no encontrada"}), 404
 
-    # FASE 2: cancelar el pago pendiente via pagos_service (antes se
-    # hacia dentro de sp_cancelar_cita, CROSS-DB a pagos_db).
+    # Cancelar el pago pendiente mediante una llamada interna al modulo
+    # de pagos (antes se hacia dentro de sp_cancelar_cita, CROSS-DB).
     try:
         pagos_client.post(f"/api/pagos/{cita_id}/cancelar", {})
     except Exception as exc:
@@ -738,8 +738,8 @@ def solicitar_otp():
     if not dni or len(dni) != 8 or not dni.isdigit():
         return jsonify({"error": "DNI invalido"}), 400
 
-    # FASE 2: telefono y verificacion de cita programada via
-    # pacientes_service (antes sp_obtener_telefono_otp, CROSS-DB).
+    # Consultar telefono y verificar cita programada mediante el modulo
+    # interno de pacientes (antes sp_obtener_telefono_otp, CROSS-DB).
     pac_data, pac_status = pacientes_client.get(f"/api/pacientes/{dni}")
     if pac_status != 200:
         return jsonify({"error": "No se encontraron citas programadas para ese DNI."}), 404
@@ -750,7 +750,7 @@ def solicitar_otp():
     if accion == "tratamiento":
         # Los pacientes que continuan un tratamiento NO necesitan una
         # cita programada previa: se valida que tengan al menos un
-        # paquete activo con sesiones disponibles (via pagos_service).
+        # paquete activo con sesiones disponibles en el modulo de pagos.
         try:
             paq_data, _ = pagos_client.get(f"/api/pagos/pacientes/{paciente['id']}/paquetes")
             tiene_paquete_activo = any(
@@ -1045,7 +1045,7 @@ def pacientes_en_riesgo(fecha=None, dias_umbral=None):
     sp_pacientes_en_riesgo decide quien esta en riesgo usando solo
     datos de moovacloud_citas (no hay consultas cruzadas). Aqui se
     agrega el nombre y el telefono, que viven en moovacloud_pacientes
-    y se piden por HTTP a pacientes_service, mas el nivel de
+    y se consultan mediante el modulo interno de pacientes, mas el nivel de
     criticidad para ordenar la llamada de reception.
 
     Nivel 'alto': falto tres o mas veces, o ya paso el doble del

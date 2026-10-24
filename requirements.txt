@@ -10,9 +10,9 @@ setuptools==83.0.0
 flasgger==0.9.7.1
 MarkupSafe==2.1.5
 reportlab==5.0.1
-# Recordatorios automaticos de citas (citas_service)
+# Recordatorios automaticos del modulo de citas
 APScheduler==3.10.4
 
-# Desarrollo / CI (FASE 4)
+# Desarrollo / CI
 pytest==9.1.1
 ruff==0.16.9

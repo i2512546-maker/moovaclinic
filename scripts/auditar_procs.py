@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 """
 Verifica que el codigo Python y los procedimientos SQL esten alineados
-(FASE 4, corre en CI).
+(corre en CI).
 
 Detecta en ambos sentidos:
   - Procedimientos definidos en db_split/*.sql que nadie invoca
-    (codigo muerto que se arrastra desde FASE 3).
+    (codigo muerto que se arrastra desde cambios anteriores).
   - Llamadas a procedimientos que no existen en ninguna base.
 
 Salida: codigo 0 si todo cuadra, 1 si hay discrepancias.

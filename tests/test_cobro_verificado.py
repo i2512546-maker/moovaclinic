@@ -96,7 +96,7 @@ class CobroValidoParaCitaTest(unittest.TestCase):
 
 
 class _BaseEstado(unittest.TestCase):
-    """Monta pagos_service con el proveedor y la cita parcheados."""
+    """Monta la ruta interna de pagos con proveedor y cita parcheados."""
 
     proveedor = None      # "YapeClient" o "PlinClient"
     ruta = None

@@ -60,7 +60,7 @@ class _Base(unittest.TestCase):
             return self.cliente.get(f"/pago?cita_id={cita_id}")
 
     def _post(self, ruta, cuerpo, **kwargs):
-        """POST a un proxy con pagos_service parcheado. Devuelve
+        """POST al gateway con el cliente interno de pagos parcheado. Devuelve
         (respuesta, mock de pagos_client.post)."""
         with patch.object(ga.pagos_client, "post",
                           return_value=({"ok": True, "cobro_id": "cobro-x"}, 200)) as post:

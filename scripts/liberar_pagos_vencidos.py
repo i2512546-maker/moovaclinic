@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Expira los pagos pendientes sin confirmar (FASE 4).
+Expira los pagos pendientes sin confirmar mediante una llamada interna al gateway.
 
 Sin este job, una cita abandonada a mitad del pago queda bloqueada de
 forma indefinida: el pago sigue en 'pendiente' y el paciente no puede

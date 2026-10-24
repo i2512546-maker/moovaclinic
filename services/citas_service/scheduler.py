@@ -1,5 +1,5 @@
 # ============================================================
-# Planificador de recordatorios (citas_service)
+# Planificador de recordatorios (modulo de citas)
 #
 # Arranca APScheduler desde create_app() SOLO si RECORDATORIOS_ENABLED=1.
 # El job corre cada RECORDATORIO_INTERVALO_MIN minutos, pero solo

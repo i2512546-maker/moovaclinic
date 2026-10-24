@@ -706,9 +706,9 @@ paths:
             `dias_umbral` dias desde la ultima cita, o
           - tres o mas citas perdidas (estado `no_asistio`).
 
-        El nombre y el telefono los agrega el servicio consultando a
-        pacientes_service por HTTP (no hay consultas cruzadas entre
-        bases).
+        El nombre y el telefono los agrega el modulo de citas mediante
+        una llamada interna al modulo de pacientes (sin consultas
+        cruzadas entre bases).
       parameters:
         - name: fecha
           in: query
@@ -1092,7 +1092,7 @@ paths:
       tags: [pagos]
       summary: Crear el pago de anticipo de una cita
       description: |
-        Lo invoca citas_service tras crear la cita, con el monto ya
+        Lo invoca el modulo interno de citas tras crear la cita, con el monto ya
         calculado (50% del precio del terapeuta). Es interno: no lo
         llama el navegador.
       parameters:
@@ -1218,7 +1218,7 @@ paths:
       tags: [citas]
       summary: Cancelar una cita
       description: |
-        Cancela la cita en moovacloud_citas y avisa a pagos_service para
+        Cancela la cita en moovacloud_citas y avisa al modulo interno de pagos para
         cancelar el pago pendiente.
       parameters:
         - name: cita_id
@@ -1307,7 +1307,7 @@ paths:
       tags: [auth]
       summary: Actualizar un usuario (datos, rol, clave, activo, telefono)
       description: |
-        Acepta `telefono` (FASE 3: aviso al terapeuta por SMS). Se guarda
+        Acepta `telefono` para enviar avisos SMS al terapeuta. Se guarda
         solo con digitos porque el SMS agrega el prefijo +51.
 
         - `"987654321"` se guarda.
@@ -1464,7 +1464,7 @@ paths:
       tags: [pagos]
       summary: Cancelar el pago pendiente de una cita
       description: |
-        Lo invoca citas_service al cancelar una cita. Solo afecta pagos
+        Lo invoca el modulo interno de citas al cancelar una cita. Solo afecta pagos
         en estado 'pendiente'.
       parameters:
         - name: cita_id

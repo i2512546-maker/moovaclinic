@@ -1,4 +1,4 @@
-"""Tests de importacion: evitan regresiones como las de FASE 2.
+"""Tests de importacion: evitan regresiones de la app modular.
 
 - Que TODOS los modulos del proyecto importen sin NameError (por ejemplo
   `audit_client` sin importar en el gateway, o rutas proxy fuera de
