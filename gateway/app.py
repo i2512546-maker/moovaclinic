@@ -1389,14 +1389,21 @@ def create_app():
 
     @app.route("/api/verificar_dni", methods=["POST"])
     def verificar_dni():
-        dni = (request.json or {}).get("dni", "").strip()
+        cuerpo = request.get_json(silent=True)
+        valor_dni = cuerpo.get("dni", "") if isinstance(cuerpo, dict) else ""
+        dni = valor_dni.strip() if isinstance(valor_dni, str) else ""
+        if not _dni_ok(dni):
+            return jsonify({"success": False, "error": "DNI inválido"}), 400
+
         # Rate limit simple: máximo 5 consultas DNI por sesión para evitar force brute
         historial = session.get("_dn_consultas", [])
         ahora = time.time()
         historial = [t for t in historial if ahora - t < 60]  # último minuto
         if len(historial) >= 5:
-            return jsonify({"error": "Demasiadas consultas DNI. Intenta más tarde."}), 429
-        session["_dn_consultas"] = historial + [ahora]
+            return jsonify({
+                "success": False,
+                "error": "Demasiadas consultas DNI. Intenta más tarde.",
+            }), 429
 
         ip = ip_del_request(request, TRUST_PROXY)
         consultas_por_ip = app.extensions["consultas_dni_por_ip"]
@@ -1409,15 +1416,22 @@ def create_app():
                     del consultas_por_ip[ip_registrada]
             historial_ip = consultas_por_ip.get(ip, [])
             if len(historial_ip) >= 15:
-                return jsonify({"error": "Demasiadas consultas DNI. Intenta más tarde."}), 429
+                return jsonify({
+                    "success": False,
+                    "error": "Demasiadas consultas DNI. Intenta más tarde.",
+                }), 429
             consultas_por_ip[ip] = historial_ip + [ahora]
+        session["_dn_consultas"] = historial + [ahora]
 
         # El servicio de pacientes ya devuelve solo nombres y apellidos.
         try:
             data, status = pacientes_client.post("/api/pacientes/buscar_dni", {"dni": dni})
-            return jsonify({"success": True, "data": data}), status
+            return jsonify(data), status
         except Exception:
-            return jsonify({"success": True, "data": {}}), 200
+            return jsonify({
+                "success": False,
+                "error": "No se pudo consultar el DNI",
+            }), 502
 
     @app.route("/api/estadisticas")
     @_login_required
