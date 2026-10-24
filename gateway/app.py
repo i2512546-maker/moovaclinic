@@ -361,6 +361,26 @@ def create_app():
             return f(*args, **kwargs)
         return decorated_function
 
+    def _cita_autorizada_en_sesion(cita_id, incluir_pagada=False):
+        """Acceso de PACIENTES (sin cuenta) a /pago y /retorno.
+
+        Se permite si hay un usuario logueado (personal) o si la cita es
+        la que ESTA sesion acaba de crear (cita_pendiente_id) o de pagar
+        (cita_recien_pagada, solo para /retorno). Asi un anonimo no puede
+        abrir el pago de la cita de otra persona cambiando el id.
+        """
+        if not cita_id or not str(cita_id).isdigit():
+            return False
+        if "usuario_id" in session:
+            return True
+        claves = ["cita_pendiente_id"]
+        if incluir_pagada:
+            claves.append("cita_recien_pagada")
+        return any(
+            session.get(k) is not None and str(session.get(k)) == str(cita_id)
+            for k in claves
+        )
+
     # ---- Citas que ESTA sesion tiene habilitadas para pagar (S7) ----
 
     def _registrar_cita_pagable(cita_id):
@@ -898,6 +918,7 @@ def create_app():
                         result, status = citas_client.post("/api/citas", cita_data)
                         if status == 201 and result.get("success"):
                             cita_id = result["cita_id"]
+                            session["cita_pendiente_id"] = cita_id
                             # Vinculacion ADICIONAL de la cita al paquete
                             # (paso posterior a la creacion de la cita).
                             try:
@@ -934,9 +955,10 @@ def create_app():
                                tel_mask=tel_mask, error=error_msg)
 
     @app.route("/pago")
-    @_login_required
     def pago_page():
         cita_id = request.args.get("cita_id")
+        if not _cita_autorizada_en_sesion(cita_id):
+            return redirect(url_for("citas_page"))
         data, _ = pagos_client.get(f"/api/pagos/{cita_id}")
         pago = data.get("pago", {})
 
@@ -959,9 +981,10 @@ def create_app():
         return render_template("pago.html", cita=cita, niubiz_sdk_url=niubiz.sdk_url, niubiz_mode=niubiz.mode)
 
     @app.route("/retorno")
-    @_login_required
     def retorno_page():
         cita_id = request.args.get("cita_id")
+        if not _cita_autorizada_en_sesion(cita_id, incluir_pagada=True):
+            return redirect(url_for("citas_page"))
         data, _ = pagos_client.get(f"/api/pagos/{cita_id}")
         pago = data.get("pago", {})
 
@@ -973,6 +996,8 @@ def create_app():
 
         # Pago confirmado: la cita ya no esta pendiente de cobro.
         session.pop("cita_pendiente_id", None)
+        # Permite recargar /retorno sin perder acceso (paciente sin login).
+        session["cita_recien_pagada"] = cita_id
 
         cdata, _ = citas_client.get(f"/api/citas/{cita_id}")
         cita = cdata.get("cita", {})

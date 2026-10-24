@@ -76,7 +76,7 @@ class OraculoEnElCodigoTest(unittest.TestCase):
     def _get_pago(self, pagos_get):
         with patch.object(ga.pagos_client, "get", side_effect=pagos_get), \
                 patch.object(ga.citas_client, "get", side_effect=self._citas_get):
-            return self.cliente.get("/pago?cita_id=%s")
+            return self.cliente.get("/pago?cita_id=55")
 
     def test_inexistente_devuelve_200_con_cero(self):
         def pagos_get(url, *a, **k):
