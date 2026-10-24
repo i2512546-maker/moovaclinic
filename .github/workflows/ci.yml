@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, branch-jarib]
+    branches: [main, branch-jarib, mejoras-sustentacion]
   pull_request:
     branches: [main, branch-jarib]
 
@@ -94,3 +94,33 @@ jobs:
 
       - name: Verificar rutas documentadas
         run: python scripts/verificar_swagger.py
+
+  frontend:
+    name: Frontend (React)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias
+        working-directory: frontend
+        run: npm ci
+
+      - name: Compilar los paneles
+        working-directory: frontend
+        run: npm run build
+
+      # Los bundles compilados van commiteados (Render y Docker no usan Node).
+      # Si el build produce un archivo casi vacio, algo salio mal.
+      - name: Verificar que los bundles no esten vacios
+        run: |
+          for f in kpis moovatrack; do
+            tam=$(stat -c%s "static/react/$f.js")
+            echo "$f.js: $tam bytes"
+            test "$tam" -gt 100000
+          done

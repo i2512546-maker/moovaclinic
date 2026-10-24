@@ -1,10 +1,12 @@
+import math
 import os
+import random
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 import re
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 
 import yaml
@@ -1174,22 +1176,27 @@ def create_app():
         return render_template("auditoria.html", logs=logs, filtros=filtros,
                                usuarios_filtro=usuarios_filtro)
 
-    @app.route("/panel_admin/kpis")
-    @_admin_required
-    def panel_admin_kpis():
-
+    def _rango_kpis():
+        """Lee ?desde y ?hasta (YYYY-MM-DD). Por defecto, los ultimos 30 dias de Lima."""
         hoy = hoy_lima()
+        por_defecto = (hoy - timedelta(days=30), hoy)
+        desde_txt = (request.args.get("desde") or "").strip()
+        hasta_txt = (request.args.get("hasta") or "").strip()
         try:
-            desde = datetime.strptime((request.args.get("desde") or "").strip(), "%Y-%m-%d").date() if (request.args.get("desde") or "").strip() else hoy - timedelta(days=30)
-            hasta = datetime.strptime((request.args.get("hasta") or "").strip(), "%Y-%m-%d").date() if (request.args.get("hasta") or "").strip() else hoy
+            desde = datetime.strptime(desde_txt, "%Y-%m-%d").date() if desde_txt else por_defecto[0]
+            hasta = datetime.strptime(hasta_txt, "%Y-%m-%d").date() if hasta_txt else por_defecto[1]
         except ValueError:
-            desde, hasta = hoy - timedelta(days=30), hoy
+            return por_defecto
         if desde > hasta:
-            desde, hasta = hoy - timedelta(days=30), hoy
+            return por_defecto
+        return desde, hasta
 
+    def _cargar_kpis(desde, hasta):
+        """Pide los KPIs al servicio de citas. Devuelve (resumen, por_terapeuta, error)."""
         resumen, por_terapeuta, error = None, [], None
         try:
-            data, status = citas_client.get(f"/api/kpis?desde={desde.isoformat()}&hasta={hasta.isoformat()}")
+            data, status = citas_client.get(
+                f"/api/kpis?desde={desde.isoformat()}&hasta={hasta.isoformat()}")
             if status == 200 and data.get("success"):
                 resumen = data.get("resumen") or {}
                 por_terapeuta = data.get("por_terapeuta") or []
@@ -1197,9 +1204,67 @@ def create_app():
                 error = (data or {}).get("error") or "No se pudieron cargar los KPIs"
         except Exception:
             error = "Servicio de KPIs no disponible"
+        return resumen, por_terapeuta, error
 
-        return render_template("kpis.html", resumen=resumen, por_terapeuta=por_terapeuta,
-                               desde=desde.isoformat(), hasta=hasta.isoformat(), error=error)
+    @app.route("/panel_admin/kpis")
+    @_admin_required
+    def panel_admin_kpis():
+        """Pagina del panel de KPIs. Los datos los dibuja React desde kpis.json."""
+        desde, hasta = _rango_kpis()
+        return render_template("kpis.html", desde=desde.isoformat(), hasta=hasta.isoformat())
+
+    @app.route("/panel_admin/kpis.json")
+    def panel_admin_kpis_json():
+        """KPIs en JSON para el panel React. Sin sesion: 401; sin rol admin: 403 (nunca redirect)."""
+        if "usuario_id" not in session:
+            return jsonify({"success": False, "error": "Sesión expirada"}), 401
+        if session.get("rol") != "admin":
+            return jsonify({"success": False, "error": "Solo administradores"}), 403
+        desde, hasta = _rango_kpis()
+        resumen, por_terapeuta, error = _cargar_kpis(desde, hasta)
+        return jsonify({
+            "desde": desde.isoformat(),
+            "hasta": hasta.isoformat(),
+            "resumen": resumen,
+            "por_terapeuta": por_terapeuta,
+            "error": error,
+        })
+
+    # ---- MoovaTrack (prototipo con datos simulados) ----
+
+    @app.route("/moovatrack")
+    def moovatrack_page():
+        """Panel MoovaTrack: solo con sesion (admin o terapeuta), como /interfaz."""
+        if "usuario_id" not in session:
+            return redirect(url_for("login"))
+        return render_template("moovatrack.html",
+                               nombre_usuario=session.get("usuario_nombre", ""),
+                               es_admin=session.get("rol") == "admin")
+
+    @app.route("/api/moovatrack/lectura")
+    def moovatrack_lectura():
+        """Lectura SIMULADA de un movimiento de flexion/extension.
+
+        En produccion estos datos llegarian por Bluetooth (HC-05) desde el
+        Arduino con MPU-6050 (angulo), FSR 402 (fuerza) y Flex Sensor. Aqui se
+        genera una onda de 4 s por repeticion mas un poco de ruido.
+        """
+        if "usuario_id" not in session:
+            return jsonify({"success": False, "error": "Sesión expirada"}), 401
+        t = time.time()
+        fase = math.sin(2 * math.pi * t / 4.0)          # -1 .. 1
+        angulo = 90 + 75 * fase + random.uniform(-3, 3)
+        angulo = max(0, min(180, angulo))
+        # La fuerza sube cuando el movimiento esta cerca de la extension maxima.
+        fuerza = 22 + 18 * max(0.0, fase) + random.uniform(-2, 2)
+        fuerza = max(0, fuerza)
+        return jsonify({
+            "success": True,
+            "simulado": True,
+            "angulo": round(angulo, 1),
+            "fuerza": round(fuerza, 1),
+            "timestamp": datetime.fromtimestamp(t, timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+        })
 
     @app.route("/panel_admin/riesgo")
     @_admin_required
