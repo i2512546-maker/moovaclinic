@@ -8,15 +8,16 @@ os.environ.setdefault("API_KEY", "clave-interna-de-pruebas")
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from services.pagos_service.app import create_app
+from gateway.app import create_app
 from shared.config import API_KEY
+from tests.internal_client import internal_test_client
 
-RUTA = "/api/pagos/mantenimiento/liberar_vencidos"
+RUTA = "/_internal/api/pagos/mantenimiento/liberar_vencidos"
 
 
 class LiberarPagosVencidosTest(unittest.TestCase):
     def setUp(self):
-        self.client = create_app().test_client()
+        self.client = internal_test_client(create_app())
         self.cab = {"X-Api-Key": API_KEY} if API_KEY else {}
 
     def _patch_proc(self, vencidos):

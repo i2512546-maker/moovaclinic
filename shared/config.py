@@ -101,12 +101,3 @@ REDES_SOCIALES = {
     "whatsapp": "https://wa.me/",
     "tiktok": "https://www.tiktok.com/@moova.clinic",
 }
-
-SERVICE_URLS = {
-    "auth": os.getenv("AUTH_SERVICE_URL", "http://127.0.0.1:5001"),
-    "pacientes": os.getenv("PACIENTES_SERVICE_URL", "http://127.0.0.1:5002"),
-    "citas": os.getenv("CITAS_SERVICE_URL", "http://127.0.0.1:5003"),
-    "pagos": os.getenv("PAGOS_SERVICE_URL", "http://127.0.0.1:5004"),
-    "notas": os.getenv("NOTAS_SERVICE_URL", "http://127.0.0.1:5005"),
-    "audit": os.getenv("AUDIT_SERVICE_URL", "http://127.0.0.1:5006"),
-}

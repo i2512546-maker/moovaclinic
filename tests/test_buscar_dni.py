@@ -5,8 +5,9 @@ from unittest.mock import patch
 os.environ.setdefault("SECRET_KEY", "clave-de-pruebas")
 os.environ.setdefault("API_KEY", "clave-interna-de-pruebas")
 
-from services.pacientes_service.app import create_app
+from gateway.app import create_app
 from shared.config import API_KEY
+from tests.internal_client import internal_test_client
 
 # Respuesta completa que devuelve APIPERU: el flujo de reserva solo usa
 # nombres y apellidos, el resto no debe salir del servicio.
@@ -39,7 +40,9 @@ class _RespuestaFalsa:
 
 class BuscarDniTest(unittest.TestCase):
     def setUp(self):
-        self.client = create_app().test_client()
+        app = create_app()
+        app.config["WTF_CSRF_ENABLED"] = False
+        self.client = internal_test_client(app)
         self.cab = {"X-Api-Key": API_KEY} if API_KEY else {}
 
     def test_solo_devuelve_nombres_y_apellidos(self):
@@ -48,7 +51,7 @@ class BuscarDniTest(unittest.TestCase):
             return_value=_RespuestaFalsa(API_PERU_COMPLETO),
         ):
             resp = self.client.post(
-                "/api/pacientes/buscar_dni",
+                "/_internal/api/pacientes/buscar_dni",
                 json={"dni": "12345678"},
                 headers=self.cab,
             )
@@ -88,7 +91,7 @@ class BuscarDniTest(unittest.TestCase):
             return_value=_RespuestaFalsa(payload),
         ):
             resp = self.client.post(
-                "/api/pacientes/buscar_dni",
+                "/_internal/api/pacientes/buscar_dni",
                 json={"dni": "87654321"},
                 headers=self.cab,
             )
@@ -115,7 +118,7 @@ class BuscarDniTest(unittest.TestCase):
             return_value=_RespuestaFalsa(payload),
         ):
             resp = self.client.post(
-                "/api/pacientes/buscar_dni",
+                "/_internal/api/pacientes/buscar_dni",
                 json={"dni": "47896066"},
                 headers=self.cab,
             )
@@ -135,7 +138,7 @@ class BuscarDniTest(unittest.TestCase):
                 return_value=_RespuestaFalsa(payload),
             ):
                 resp = self.client.post(
-                    "/api/pacientes/buscar_dni",
+                    "/_internal/api/pacientes/buscar_dni",
                     json={"dni": "47896066"},
                     headers=self.cab,
                 )
@@ -146,7 +149,7 @@ class BuscarDniTest(unittest.TestCase):
     def test_dni_invalido_no_consulta_la_api(self):
         with patch("services.pacientes_service.routes.requests.get") as mock_get:
             resp = self.client.post(
-                "/api/pacientes/buscar_dni",
+                "/_internal/api/pacientes/buscar_dni",
                 json={"dni": "123"},
                 headers=self.cab,
             )

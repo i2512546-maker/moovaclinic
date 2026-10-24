@@ -17,9 +17,10 @@ os.environ.setdefault("SECRET_KEY", "clave-de-pruebas")
 os.environ.setdefault("API_KEY", "clave-interna-de-pruebas")
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from services.pagos_service.app import create_app  # noqa: E402
+from gateway.app import create_app  # noqa: E402
 from services.pagos_service.routes import _cobro_valido_para_cita  # noqa: E402
 from shared.config import API_KEY  # noqa: E402
+from tests.internal_client import internal_test_client  # noqa: E402
 
 CABECERAS = {"X-Api-Key": API_KEY} if API_KEY else {}
 
@@ -103,7 +104,7 @@ class _BaseEstado(unittest.TestCase):
     def setUp(self):
         self.app = create_app()
         self.app.config["WTF_CSRF_ENABLED"] = False
-        self.client = self.app.test_client()
+        self.client = internal_test_client(self.app)
         self.confirmaciones = []
 
     def _pago_pendiente(self, **cambios):
@@ -137,7 +138,7 @@ class _BaseEstado(unittest.TestCase):
 
 class YapeEstadoTest(_BaseEstado):
     proveedor = "YapeClient"
-    ruta = "/api/pagos/yape/estado"
+    ruta = "/_internal/api/pagos/yape/estado"
 
     def test_no_acepta_el_cobro_id_del_pedido(self):
         """El cobro se toma de la base; el id del navegador se ignora."""
@@ -211,7 +212,7 @@ class YapeEstadoTest(_BaseEstado):
 
 class PlinEstadoTest(_BaseEstado):
     proveedor = "PlinClient"
-    ruta = "/api/pagos/plin/estado"
+    ruta = "/_internal/api/pagos/plin/estado"
 
     def test_no_acepta_el_cobro_id_del_pedido(self):
         respuesta, proveedor = self._con_proveedor(

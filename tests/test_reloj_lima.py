@@ -26,6 +26,7 @@ from gateway import ficha_pdf  # noqa: E402
 from services.citas_service import routes as rutas_citas  # noqa: E402
 from shared import fechas  # noqa: E402
 from shared.config import API_KEY  # noqa: E402
+from tests.internal_client import internal_test_client  # noqa: E402
 
 CABECERAS = {"X-Api-Key": API_KEY} if API_KEY else {}
 
@@ -199,10 +200,9 @@ class CitasServiceCuentaEnLimaTest(unittest.TestCase):
     Lima del dia 19."""
 
     def setUp(self):
-        from services.citas_service.app import create_app as crear_citas
-        self.app = crear_citas()
+        self.app = ga.create_app()
         self.app.config["WTF_CSRF_ENABLED"] = False
-        self.client = self.app.test_client()
+        self.client = internal_test_client(self.app)
 
     def _crear(self, fecha):
         cuerpo = {"nombre": "Ana", "apellido": "Perez", "dni": "45678912",
@@ -210,7 +210,9 @@ class CitasServiceCuentaEnLimaTest(unittest.TestCase):
         with patch.object(fechas, "datetime", _RelojFalso), \
                 patch("services.citas_service.routes.medico_disponible",
                       return_value=False):
-            return self.client.post("/api/citas", json=cuerpo, headers=CABECERAS)
+            return self.client.post(
+                "/_internal/api/citas", json=cuerpo, headers=CABECERAS
+            )
 
     def test_la_fecha_de_lima_no_se_rechaza_como_pasada(self):
         r = self._crear("2026-10-19")

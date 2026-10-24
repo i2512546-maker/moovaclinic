@@ -18,8 +18,8 @@ os.environ.setdefault("SECRET_KEY", "clave-de-pruebas")
 os.environ.setdefault("API_KEY", "clave-interna-de-pruebas")
 
 import gateway.app as ga  # noqa: E402
-from services.pagos_service.app import create_app as crear_pagos  # noqa: E402
 from shared.config import API_KEY  # noqa: E402
+from tests.internal_client import internal_test_client  # noqa: E402
 
 CABECERAS = {"X-Api-Key": API_KEY} if API_KEY else {}
 
@@ -109,9 +109,9 @@ class PagosServiceNoDistingueTest(unittest.TestCase):
     estaba pagada" se responden igual."""
 
     def setUp(self):
-        self.app = crear_pagos()
+        self.app = ga.create_app()
         self.app.config["WTF_CSRF_ENABLED"] = False
-        self.client = self.app.test_client()
+        self.client = internal_test_client(self.app)
 
     def _estado(self, fila):
         with patch("services.pagos_service.routes.call_proc_one",

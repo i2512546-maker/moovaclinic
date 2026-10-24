@@ -16,10 +16,10 @@ os.environ.setdefault("API_KEY", "clave-interna-de-pruebas")
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from gateway.app import create_app as crear_gateway
-from services.auth_service.app import create_app
 from shared.config import API_KEY
+from tests.internal_client import internal_test_client
 
-RUTA = "/api/auth/usuarios/7"
+RUTA = "/_internal/api/auth/usuarios/7"
 
 VALIDOS = ["999888777", "912345678", "900000000"]
 INVALIDOS = [
@@ -35,7 +35,9 @@ INVALIDOS = [
 
 class TelefonoUsuarioTest(unittest.TestCase):
     def setUp(self):
-        self.client = create_app().test_client()
+        app = crear_gateway()
+        app.config["WTF_CSRF_ENABLED"] = False
+        self.client = internal_test_client(app)
         self.cab = {"X-Api-Key": API_KEY} if API_KEY else {}
 
     def _put(self, cuerpo, cab=None):

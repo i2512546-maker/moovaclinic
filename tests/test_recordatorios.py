@@ -11,11 +11,11 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from gateway.app import create_app as crear_gateway_app
 from services.citas_service import scheduler as sch
-from services.citas_service.app import create_app as crear_citas_app
 from services.citas_service.routes import _mensaje_recordatorio, enviar_recordatorios
 from shared.config import API_KEY
+from tests.internal_client import internal_test_client
 
-RUTA = "/api/citas/recordatorios/enviar"
+RUTA = "/_internal/api/citas/recordatorios/enviar"
 
 CITA = {
     "id": 11,
@@ -52,8 +52,8 @@ class _SchedulerFalso:
 
 class RecordatoriosTest(unittest.TestCase):
     def setUp(self):
-        self.app = crear_citas_app()
-        self.client = self.app.test_client()
+        self.app = crear_gateway_app()
+        self.client = internal_test_client(self.app)
         self.cab = {"X-Api-Key": API_KEY} if API_KEY else {}
         self.desmarcas = []
 
@@ -186,7 +186,9 @@ class RecordatoriosTest(unittest.TestCase):
 
 class RecordatoriosEndpointTest(unittest.TestCase):
     def setUp(self):
-        self.client = crear_citas_app().test_client()
+        app = crear_gateway_app()
+        app.config["WTF_CSRF_ENABLED"] = False
+        self.client = internal_test_client(app)
         self.cab = {"X-Api-Key": API_KEY} if API_KEY else {}
 
     def test_exige_api_key_interna(self):
