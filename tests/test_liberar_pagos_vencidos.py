@@ -1,7 +1,7 @@
 import os
 import sys
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 os.environ.setdefault("SECRET_KEY", "clave-de-pruebas")
 os.environ.setdefault("API_KEY", "clave-interna-de-pruebas")
@@ -111,6 +111,40 @@ class ScriptCronTest(unittest.TestCase):
         with patch.dict(os.environ, env_sin, clear=True):
             with patch("sys.argv", ["liberar_pagos_vencidos.py"]):
                 self.assertEqual(mod.main(), 1)
+
+    def test_llama_endpoint_interno_del_gateway_con_api_key(self):
+        import importlib.util
+
+        ruta = os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "scripts",
+            "liberar_pagos_vencidos.py",
+        )
+        spec = importlib.util.spec_from_file_location("liberar", ruta)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+
+        respuesta = MagicMock()
+        respuesta.__enter__.return_value.status = 200
+        respuesta.__enter__.return_value.read.return_value = b'{"success":true}'
+        with patch.dict(
+            os.environ,
+            {"GATEWAY_URL": "https://moova.example", "API_KEY": "clave-prueba"},
+            clear=True,
+        ), patch("sys.argv", ["liberar_pagos_vencidos.py", "24"]), patch(
+            "urllib.request.urlopen", return_value=respuesta
+        ) as urlopen:
+            resultado = mod.main()
+
+        self.assertEqual(resultado, 0)
+        solicitud = urlopen.call_args.args[0]
+        self.assertEqual(
+            solicitud.full_url,
+            "https://moova.example/_internal/api/pagos/mantenimiento/liberar_vencidos",
+        )
+        self.assertEqual(solicitud.get_header("X-api-key"), "clave-prueba")
+        self.assertEqual(solicitud.get_method(), "POST")
 
 
 if __name__ == "__main__":
