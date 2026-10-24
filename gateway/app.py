@@ -261,6 +261,27 @@ def create_app():
         app.config["SESSION_COOKIE_SECURE"] = True
     csrf.init_app(app)
 
+    from services.audit_service import audit_bp
+    from services.auth_service import auth_bp
+    from services.auth_service.app import bcrypt
+    from services.citas_service import citas_bp
+    from services.notas_service import notas_bp
+    from services.pacientes_service import pacientes_bp
+    from services.pagos_service import pagos_bp
+    from shared.service_auth import proteger_api_interna
+
+    bcrypt.init_app(app)
+    for blueprint in (
+        auth_bp,
+        pacientes_bp,
+        citas_bp,
+        pagos_bp,
+        notas_bp,
+        audit_bp,
+    ):
+        app.register_blueprint(blueprint, url_prefix="/_internal")
+    proteger_api_interna(app, prefijo="/_internal")
+
     # Contador de intentos de login (S2). Cada worker tiene el suyo y
     # un reinicio lo pone a cero: esta limitacion esta documentada en
     # el README.
