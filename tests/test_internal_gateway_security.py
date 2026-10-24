@@ -19,10 +19,14 @@ class InternalGatewaySecurityTest(unittest.TestCase):
             "services.pagos_service.routes.call_proc_one",
             return_value={"estado_pago": "pendiente"},
         ):
-            sin_clave = self.client.get("/_internal/api/pagos/55")
+            sin_clave = self.client.get(
+                "/_internal/api/pagos/55",
+                environ_overrides={"moova.interno": True},
+            )
             con_clave = self.client.get(
                 "/_internal/api/pagos/55",
                 headers={"X-Api-Key": "clave-interna"},
+                environ_overrides={"moova.interno": True},
             )
 
         self.assertEqual(sin_clave.status_code, 401)
@@ -30,7 +34,10 @@ class InternalGatewaySecurityTest(unittest.TestCase):
 
     def test_falla_cerrado_con_503_si_no_hay_api_key_configurada(self):
         with patch("shared.service_auth.API_KEY", ""):
-            respuesta = self.client.get("/_internal/api/pagos/55")
+            respuesta = self.client.get(
+                "/_internal/api/pagos/55",
+                environ_overrides={"moova.interno": True},
+            )
 
         self.assertEqual(respuesta.status_code, 503)
 

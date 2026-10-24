@@ -54,6 +54,7 @@ class ServiceClient:
                     method=method,
                     json=json_data,
                     headers=headers,
+                    environ_overrides={"moova.interno": True},
                     **kwargs,
                 )
         return response.get_json(silent=True), response.status_code

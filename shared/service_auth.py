@@ -48,6 +48,13 @@ def proteger_api_interna(app, prefijo=None):
             f"{prefijo}/api/pagos/webhook"
             if prefijo else "/api/pagos/webhook"
         )
+        mantenimiento_path = (
+            f"{prefijo}/api/pagos/mantenimiento/liberar_vencidos"
+            if prefijo else None
+        )
+        if prefijo and request.path != webhook_path and request.path != mantenimiento_path:
+            if request.environ.get("moova.interno") is not True:
+                return jsonify({"error": "No encontrado"}), 404
         if request.path in ("/", "/health", webhook_path):
             return None
         esperada = (API_KEY or "").strip()
