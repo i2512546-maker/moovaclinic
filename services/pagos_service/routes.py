@@ -1,5 +1,6 @@
 import hmac
 import json
+import os
 from datetime import datetime
 
 from flask import current_app, jsonify, request
@@ -508,7 +509,17 @@ def webhook_pago():
     # Verificar token secreto del proveedor (preventivo contra webhooks falsos)
     token_proveedor = request.headers.get("X-Provider-Token") or request.headers.get("X-Signature") or ""
     token_esperado = WEBHOOK_PROVIDER_TOKEN
-    if token_esperado and not hmac.compare_digest(token_proveedor, token_esperado):
+    if not token_esperado:
+        permitir_inseguro = (os.getenv("ALLOW_INSECURE_WEBHOOK") or "").strip() == "1"
+        if not permitir_inseguro:
+            current_app.logger.error(
+                "Webhook rechazado: falta configurar WEBHOOK_PROVIDER_TOKEN"
+            )
+            return jsonify({"ok": False, "error": "Webhook no configurado"}), 503
+        current_app.logger.warning(
+            "Webhook sin token habilitado explícitamente para desarrollo local"
+        )
+    elif not hmac.compare_digest(token_proveedor, token_esperado):
         current_app.logger.warning("Webhook token inválido desde %s", request.remote_addr)
         return jsonify({"ok": False, "error": "Token no autorizado"}), 401
 
