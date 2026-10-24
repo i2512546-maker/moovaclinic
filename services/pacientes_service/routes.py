@@ -70,8 +70,8 @@ def listar_pacientes():
 
 @pacientes_bp.route("/api/pacientes/dni/<dni>", methods=["GET"])
 def obtener_paciente_id_por_dni(dni):
-    """Resuelve el id de un paciente segun dni. Usado por
-    citas_service/pagos_service (antes era un JOIN CROSS-DB)."""
+    """Resuelve el id de un paciente segun dni. Usado por los modulos
+    internos de citas y pagos (antes era un JOIN CROSS-DB)."""
     paciente = call_proc_one("sp_obtener_paciente_id_dni", (dni,))
     if not paciente:
         return jsonify({"error": "Paciente no encontrado"}), 404
@@ -80,7 +80,7 @@ def obtener_paciente_id_por_dni(dni):
 
 @pacientes_bp.route("/api/pacientes/min", methods=["POST"])
 def crear_paciente_min():
-    """Crea un paciente con datos minimos. Usado por citas_service
+    """Crea un paciente con datos minimos. Usado por el modulo de citas
     cuando la reserva trae un dni que no existe aun."""
     data = request.get_json() or {}
     nombre = data.get("nombre", "").strip()
@@ -377,7 +377,7 @@ def estadisticas_opiniones():
 
 
 # ============================================================
-# Paquetes de sesiones (delegados a pagos_service)
+# Paquetes de sesiones (consultas internas al modulo de pagos)
 # ============================================================
 
 @pacientes_bp.route("/api/pacientes/<int:paciente_id>/paquetes", methods=["GET"])

@@ -78,7 +78,7 @@ jobs:
 
       # Detecta procedimientos definidos en db_split/ que el codigo nunca
       # llama, y llamadas a procedimientos inexistentes. Es el chequeo que
-      # encontro los 4 procs muertos de FASE 3.
+      # encontro los 4 procedimientos sin referencias.
       - name: Verificar que no haya procedimientos huerfanos
         run: python scripts/auditar_procs.py
 

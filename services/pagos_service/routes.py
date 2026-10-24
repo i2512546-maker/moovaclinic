@@ -22,7 +22,7 @@ from shared.service_client import auth_client, citas_client, pacientes_client
 
 def _obtener_cita_info(cita_id):
     """Datos de la cita (nombre/apellido/terapeuta/Especialidad/
-    telefono/fecha) via citas_service. Antes venian de
+    telefono/fecha) mediante una llamada interna al modulo de citas. Antes venian de
     sp_obtener_cita_para_confirmar / sp_obtener_pago_pendiente
     (CROSS-DB a moovacloud_citas/moovacloud_pacientes/moovacloud_auth)."""
     try:
@@ -31,7 +31,7 @@ def _obtener_cita_info(cita_id):
             return data.get("cita") or {}
     except Exception as exc:
         # Best effort: quien llama recibe {} y decide. Se loguea para
-        # poder ver cuando citas_service no responde.
+        # poder ver cuando falla la consulta interna de citas.
         current_app.logger.warning(
             "No se pudo leer la cita %s desde citas_service: %s: %s",
             cita_id, type(exc).__name__, exc,
@@ -173,9 +173,8 @@ def confirmar_pago_servicio(cita_id, referencia=None, datos_respuesta=None, veri
                     tel, type(exc).__name__, exc,
                 )
 
-        # FASE 2: el telefono del medico vive en moovacloud_auth (usuarios);
-        # se resuelve por HTTP: terapeuta (pacientes) -> usuario_id ->
-        # auth_service GET /api/auth/usuarios/<id>.
+        # El telefono del medico vive en moovacloud_auth (usuarios); se
+        # resuelve en proceso: terapeuta (pacientes) -> usuario_id -> usuario.
         telefono_paciente = cita.get("telefono_paciente") or cita.get("telefono")
         if telefono_paciente:
             _sms(telefono_paciente,
@@ -204,12 +203,12 @@ def confirmar_pago_servicio(cita_id, referencia=None, datos_respuesta=None, veri
 
 
 # ============================================================
-# Anticipo / cancelacion (llamados por citas_service)
+# Anticipo / cancelacion (llamados por el modulo interno de citas)
 # ============================================================
 
 @pagos_bp.route("/api/pagos/anticipo", methods=["POST"])
 def crear_anticipo():
-    """Crea el pago de anticipo de una cita. Lo invoca citas_service
+    """Crea el pago de anticipo de una cita. Lo invoca el modulo de citas
     tras sp_crear_cita (antes sp_crear_pago_anticipo, CROSS-DB)."""
     data = request.get_json() or {}
     cita_id = data.get("cita_id")
@@ -226,7 +225,7 @@ def crear_anticipo():
 
 @pagos_bp.route("/api/pagos/<int:cita_id>/cancelar", methods=["POST"])
 def cancelar_pago_cita(cita_id):
-    """Cancela el pago pendiente de una cita. Lo invoca citas_service
+    """Cancela el pago pendiente de una cita. Lo invoca el modulo de citas
     cuando cancela una cita (antes dentro de sp_cancelar_cita, CROSS-DB)."""
     call_proc_execute("sp_cancelar_pago_cita", (cita_id,))
     return jsonify({"success": True})

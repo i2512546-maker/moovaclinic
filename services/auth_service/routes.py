@@ -92,8 +92,8 @@ def obtener_usuario_por_nombre(nombre):
 
 @auth_bp.route("/api/auth/usuarios/<int:usuario_id>", methods=["GET"])
 def obtener_usuario_por_id(usuario_id):
-    """Devuelve id/nombre/telefono de un usuario. Lo usa
-    pagos_service para el SMS de confirmacion al terapeuta."""
+    """Devuelve id/nombre/telefono de un usuario. Lo usa el modulo
+    de pagos para el SMS de confirmacion al terapeuta."""
     usuario = call_proc_one("sp_obtener_usuario_por_id", (usuario_id,))
     if not usuario:
         return jsonify({"error": "Usuario no encontrado."}), 404

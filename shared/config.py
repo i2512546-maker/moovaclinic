@@ -55,7 +55,7 @@ LOGIN_BLOQUEO_MIN = int(os.getenv("LOGIN_BLOQUEO_MIN", 15))
 # porque cualquiera podria inventarlo y quedar sin contador.
 TRUST_PROXY = os.getenv("TRUST_PROXY", "0").strip().lower() in ("1", "true", "yes")
 
-# Recordatorios automaticos por SMS (citas_service + APScheduler).
+# Recordatorios automaticos por SMS (modulo de citas + APScheduler).
 # Deshabilitados por defecto: el envio se activa por entorno y
 # jamas se enciende solo en una instalacion nueva.
 RECORDATORIOS_ENABLED = os.getenv("RECORDATORIOS_ENABLED", "0").strip()
@@ -65,7 +65,7 @@ RECORDATORIO_HORA = os.getenv("RECORDATORIO_HORA", "18:00").strip()
 # Cada cuantos minutos corre el job que revisa el pendiente.
 RECORDATORIO_INTERVALO_MIN = int(os.getenv("RECORDATORIO_INTERVALO_MIN", 15))
 
-# Reporte de pacientes en riesgo de fuga (citas_service).
+# Reporte de pacientes en riesgo de fuga (modulo de citas).
 # Dias desde la ultima cita a partir de los cuales un paciente sin
 # cita programada pasa a considerarse "en riesgo".
 RIESGO_DIAS_UMBRAL = int(os.getenv("RIESGO_DIAS_UMBRAL", 30))

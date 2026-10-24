@@ -21,7 +21,7 @@ def registrar_auditoria():
 
     Recibe el esquema de moovacloud_auditoria; la composicion de las claves
     antiguas de shared/audit.py (tabla_afectada/registro_id/detalle)
-    la hace el propio log_accion antes de llamar por HTTP.
+    la hace el propio log_accion antes de la llamada interna.
     """
     data = request.get_json() or {}
 

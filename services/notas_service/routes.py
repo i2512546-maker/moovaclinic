@@ -41,10 +41,9 @@ def crear_nota(cita_id):
         return jsonify({"error": "La nota no puede estar vacia."}), 400
 
     if not paciente_id:
-        # FASE 2: paciente_id de la cita via citas_service. Se usa el
-        # endpoint liviano /basico (solo datos locales de moovacloud_citas) en
-        # vez del detalle enriquecido, que dispara llamadas HTTP a
-        # pacientes_service y supera el timeout de ServiceClient.
+        # Obtener el paciente_id mediante una llamada interna al modulo
+        # de citas. Se usa el endpoint liviano /basico (solo datos locales
+        # de moovacloud_citas), que evita consultas adicionales a pacientes.
         try:
             cita_data, status = citas_client.get(f"/api/citas/{cita_id}/basico")
             cita = (cita_data or {}).get("cita") or {} if status == 200 else {}

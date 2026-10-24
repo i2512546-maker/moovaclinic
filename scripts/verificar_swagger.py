@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
 Verifica que swagger.yaml documente las rutas de los modulos internos
-(FASE 4, corre en CI).
+(corre en CI).
 
 swagger.yaml documenta las APIs internas (las que consumen otros
 modulos). Las rutas HTML del gateway (/login, /interfaz, /pago...)

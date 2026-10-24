@@ -1,4 +1,4 @@
-"""Teléfono en PUT /api/auth/usuarios/<id> (FASE 3: aviso al terapeuta).
+"""Teléfono en PUT /api/auth/usuarios/<id> para avisar al terapeuta.
 
 El teléfono se guarda en usuarios.telefono a través de un procedimiento
 NUEVO (sp_actualizar_telefono_usuario) y no tocando la firma de

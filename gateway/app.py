@@ -140,8 +140,8 @@ def _dni_verificado(accion):
 def _cita_pertenece_al_dni(dni, cita_id):
     """True si `cita_id` figura en las citas programadas de `dni`.
 
-    Consulta las citas de ESE dni por HTTP (sin consultas cruzadas a la
-    base) para que un codigo verificado no sirva para cancelar o
+    Consulta las citas de ESE dni mediante llamadas internas en proceso
+    (sin consultas cruzadas a la base) para que un codigo verificado no sirva para cancelar o
     mover la cita de otro paciente pasando un id al azar. Ante cualquier
     fallo responde False: la operacion queda denegada, no abierta.
     """
@@ -585,7 +585,7 @@ def create_app():
         descripcion = request.form.get("descripcion", "").strip()
         fecha = request.form.get("fecha", hoy_lima().strftime("%Y-%m-%d"))
 
-        # FASE 2: completar cita es responsabilidad de citas_service.
+        # Completar la cita es responsabilidad del modulo interno de citas.
         citas_client.put(f"/api/citas/{historial_id}/completar", {"descripcion": descripcion})
         log_accion(
             usuario_id=session.get("usuario_id"),
@@ -828,7 +828,7 @@ def create_app():
                 # S1: el cuerpo solo trae un cita_id, asi que la
                 # identidad sale de la sesion y ademas hay que probar
                 # que esa cita es del dni verificado. Si no, 403 antes
-                # de llamar a citas_service.
+                # de llamar al modulo interno de citas.
                 dni_verificado = _dni_verificado("cancelar")
                 if not dni_verificado or not _cita_pertenece_al_dni(
                     dni_verificado, request.form.get("cita_id")
@@ -860,7 +860,7 @@ def create_app():
         1) OTP por SMS (reusa el flujo de /citas/modificar y /citas/cancelar).
         2) Lista sus paquetes activos y agenda fecha+medico (y metodo de pago).
         La cita se crea con el MISMO POST /api/citas y luego se vincula al
-        paquete (incrementa sesiones_usadas) via pagos_service."""
+        paquete (incrementa sesiones_usadas) mediante el modulo interno de pagos."""
         data, _ = citas_client.get("/api/citas/terapeutas")
         terapeutas = data.get("terapeutas", [])
 
@@ -1050,7 +1050,7 @@ def create_app():
         data, _ = pagos_client.get(f"/api/pagos/{cita_id}")
         pago = data.get("pago", {})
 
-        # El pago solo figura "pagado" cuando pagos_service lo confirmo
+        # El pago solo figura "pagado" cuando el modulo de pagos lo confirmo
         # contra la pasarela (yape/plin/tarjeta). No hay atajo por sesion:
         # una cita sin confirmar vuelve al paso de pago.
         if pago.get("estado_pago") != "pagado":
@@ -1096,9 +1096,8 @@ def create_app():
                 precio = request.form.get("precio", "").strip()
 
                 if nombre and especialidad and correo and clave:
-                    # FASE 2: todo via HTTP (auth para el usuario, pacientes
-                    # para terapeuta/especialidad). El hash de la clave lo
-                    # hace auth_service.
+                    # Las consultas a auth y pacientes se despachan en
+                    # proceso. El hash de la clave lo hace el modulo auth.
                     existente, estatus = auth_client.get(f"/api/auth/usuarios/por-nombre/{nombre}")
                     if estatus == 200:
                         flash("Ya existe un terapeuta con ese nombre.")
@@ -1202,7 +1201,7 @@ def create_app():
                     tdata, _ = pacientes_client.get(f"/api/terapeutas/{mid}")
                     terapeuta = tdata.get("terapeuta", {}) if tdata else {}
                     if terapeuta and terapeuta.get("usuario_id"):
-                        # FASE 2: el hash de la clave lo hace auth_service.
+                        # El hash de la clave lo hace el modulo auth.
                         auth_client.put(f"/api/auth/usuarios/{terapeuta['usuario_id']}", {"clave": nc})
                         flash("exito:Contrasena actualizada.")
 
@@ -1361,8 +1360,8 @@ def create_app():
     def panel_admin_riesgo():
         """Reporte de pacientes en riesgo de fuga.
 
-        Pide el listado a citas_service (/api/citas/riesgo). Si el
-        servicio no responde, se muestra el panel vacio con el aviso
+        Pide el listado al modulo interno de citas (/api/citas/riesgo). Si
+        ocurre un error, se muestra el panel vacio con el aviso
         en vez de una pagina en blanco.
         """
         fecha = (request.args.get("fecha") or "").strip()
@@ -1528,7 +1527,7 @@ def create_app():
 
     # Proxy publico de las pasarelas Yape/Plin (QR y consulta de estado).
     # El frontend de pago.html las invoca con ruta relativa al gateway
-    # (same-origin), asi que se reenvian a pagos_service preservando el
+    # (same-origin), asi que se despachan al modulo interno de pagos preservando el
     # cuerpo JSON y el codigo de estado. No toca el flujo de tarjeta/Niubiz.
     #
     # Son publicos (no tienen _login_required, porque el navegador llega

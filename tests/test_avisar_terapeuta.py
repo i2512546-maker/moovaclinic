@@ -1,4 +1,4 @@
-"""Aviso por SMS al terapeuta al cancelar o reprogramar (FASE 3).
+"""Aviso por SMS al terapeuta al cancelar o reprogramar.
 
 Reglas que se cubren:
   - El aviso NUNCA rompe el DELETE/PUT de la cita.

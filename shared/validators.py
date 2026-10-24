@@ -1,7 +1,7 @@
 # ============================================================
-# Validadores compartidos (FASE 2).
+# Validadores compartidos.
 # Unifican la validacion de datos de paciente/cita que antes se
-# duplicaba en citas_service y pacientes_service.
+# duplicaba en los modulos de citas y pacientes.
 # ============================================================
 
 import re
