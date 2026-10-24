@@ -101,6 +101,48 @@ class BuscarDniTest(unittest.TestCase):
         self.assertEqual(data["nombre"], "CARLOS")
         self.assertEqual(data["apellidoPaterno"], "LOPEZ")
 
+    def test_respuesta_plana_filtra_datos_personales(self):
+        payload = {
+            "success": True,
+            "dni": "47896066",
+            "nombres": "JUAN CARLOS",
+            "apellidoPaterno": "PEREZ",
+            "apellidoMaterno": "RUIZ",
+            "codVerifica": 3,
+        }
+        with patch(
+            "services.pacientes_service.routes.requests.get",
+            return_value=_RespuestaFalsa(payload),
+        ):
+            resp = self.client.post(
+                "/api/pacientes/buscar_dni",
+                json={"dni": "47896066"},
+                headers=self.cab,
+            )
+
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()["data"]
+        self.assertEqual(data["nombres"], "JUAN CARLOS")
+        self.assertEqual(data["apellidoPaterno"], "PEREZ")
+        self.assertEqual(data["apellido_materno"], "RUIZ")
+        self.assertNotIn("dni", data)
+        self.assertNotIn("codVerifica", data)
+
+    def test_respuestas_sin_nombres_se_tratan_como_no_encontradas(self):
+        for payload in ({"success": True}, {"success": True, "data": {}}):
+            with self.subTest(payload=payload), patch(
+                "services.pacientes_service.routes.requests.get",
+                return_value=_RespuestaFalsa(payload),
+            ):
+                resp = self.client.post(
+                    "/api/pacientes/buscar_dni",
+                    json={"dni": "47896066"},
+                    headers=self.cab,
+                )
+
+            self.assertEqual(resp.status_code, 404)
+            self.assertFalse(resp.get_json()["success"])
+
     def test_dni_invalido_no_consulta_la_api(self):
         with patch("services.pacientes_service.routes.requests.get") as mock_get:
             resp = self.client.post(

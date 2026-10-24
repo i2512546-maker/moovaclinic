@@ -461,7 +461,7 @@
                     body: JSON.stringify({ dni: dni })
                 });
                 var data = await resp.json();
-                if (data.success && data.data) {
+                if (data.success && data.data && (data.data.nombres || data.data.nombre)) {
                     var d = data.data;
                     document.getElementById('nombre').value   = d.nombres || d.nombre || '';
                     document.getElementById('apellido').value =

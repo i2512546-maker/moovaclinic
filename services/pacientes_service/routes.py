@@ -215,7 +215,8 @@ def _resumen_dni(api_data):
     para no exponer datos que el flujo no necesita. Se aceptan las dos
     variantes de nombre que devuelve la API (con y sin guion bajo).
     """
-    datos = api_data.get("data") if isinstance(api_data.get("data"), dict) else {}
+    anidado = api_data.get("data")
+    datos = anidado if isinstance(anidado, dict) else api_data
     nombres = datos.get("nombres") or datos.get("nombre")
     paterno = datos.get("apellido_paterno") or datos.get("apellidoPaterno") or ""
     materno = datos.get("apellido_materno") or datos.get("apellidoMaterno") or ""
@@ -247,7 +248,9 @@ def buscar_dni():
                 # necesita nombres y apellidos, asi que se devuelve un
                 # resumen: retransmitir el payload crudo exponia datos
                 # que el flujo de reserva no usa.
-                return jsonify({"success": True, "data": _resumen_dni(api_data)})
+                resumen = _resumen_dni(api_data)
+                if resumen["nombres"]:
+                    return jsonify({"success": True, "data": resumen})
     except Exception as exc:
         current_app.logger.error(
             "[buscar_dni] Error consultando APIPERU (dni=%s): %s: %s",
