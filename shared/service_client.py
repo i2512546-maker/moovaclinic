@@ -23,7 +23,9 @@ class ServiceClient:
     @staticmethod
     def _get_app():
         if has_app_context():
-            return current_app._get_current_object()
+            app = current_app._get_current_object()
+            if app.config.get("MOOVA_MONOLITH"):
+                return app
         if _internal_app is None:
             raise RuntimeError(
                 "ServiceClient necesita una app Flask configurada para "
