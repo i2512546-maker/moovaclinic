@@ -14,6 +14,7 @@ import yaml
 from flask import (
     Flask,
     Response,
+    abort,
     flash,
     jsonify,
     redirect,
@@ -77,6 +78,24 @@ def _is_ajax():
 
 def _dni_ok(valor):
     return bool(re.fullmatch(r"\d{8}", (valor or "").strip()))
+
+
+def _terapeuta_id_de_sesion():
+    usuario_id = session.get("usuario_id")
+    if usuario_id is None:
+        return None
+
+    data, status = pacientes_client.get("/api/terapeutas")
+    if status != 200:
+        abort(502, description="No se pudo verificar el terapeuta de la sesión.")
+    terapeutas = data.get("terapeutas") if isinstance(data, dict) else None
+    if not isinstance(terapeutas, list):
+        abort(502, description="No se pudo verificar el terapeuta de la sesión.")
+
+    for terapeuta in terapeutas:
+        if str(terapeuta.get("usuario_id")) == str(usuario_id):
+            return terapeuta.get("ID")
+    return None
 
 
 # Acciones de cliente que exigen identidad verificada por OTP antes de
@@ -569,6 +588,13 @@ def create_app():
         # sp_listar_citas ahora devuelve desde p_fecha en adelante (>=);
         # la agenda diaria solo debe mostrar ese día exacto.
         pacientes = [c for c in data.get("citas", []) if str(c.get("fecha_cita", ""))[:10] == fecha_str]
+        if not es_admin:
+            terapeuta_id = _terapeuta_id_de_sesion()
+            pacientes = [
+                cita for cita in pacientes
+                if terapeuta_id is not None
+                and str(cita.get("terapeuta_id")) == str(terapeuta_id)
+            ]
 
         return render_template(
             "interfaz.html", pacientes=pacientes,
@@ -584,6 +610,23 @@ def create_app():
         historial_id = request.form.get("historial_id")
         descripcion = request.form.get("descripcion", "").strip()
         fecha = request.form.get("fecha", hoy_lima().strftime("%Y-%m-%d"))
+
+        if session.get("rol") != "admin":
+            data, status = citas_client.get(f"/api/citas/{historial_id}")
+            if status == 404:
+                abort(404)
+            if status != 200:
+                abort(502, description="No se pudo verificar la cita.")
+            cita = data.get("cita") if data else None
+            if not cita:
+                abort(404)
+
+            terapeuta_id = _terapeuta_id_de_sesion()
+            if (
+                terapeuta_id is None
+                or str(cita.get("terapeuta_id")) != str(terapeuta_id)
+            ):
+                abort(403)
 
         # Completar la cita es responsabilidad del modulo interno de citas.
         citas_client.put(f"/api/citas/{historial_id}/completar", {"descripcion": descripcion})
@@ -1454,8 +1497,13 @@ def create_app():
 
         # Verificar que el usuario tenga permisos: admin o terapeuta de esta cita
         usuario_rol = session.get("rol")
-        if usuario_rol != "admin" and cita.get("terapeuta_id") != session.get("usuario_id"):
-            return redirect(url_for("index"))
+        if usuario_rol != "admin":
+            terapeuta_id = _terapeuta_id_de_sesion()
+            if (
+                terapeuta_id is None
+                or str(cita.get("terapeuta_id")) != str(terapeuta_id)
+            ):
+                return redirect(url_for("index"))
 
         if request.method == "POST":
             nota = request.form.get("nota", "").strip()
