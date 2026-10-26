@@ -1487,7 +1487,13 @@ def create_app():
             paciente, historial, paquetes, evaluaciones, consentimientos,
             generado_por=session.get("usuario_nombre"),
         )
-        log_accion("ficha_clinica_pdf", paciente_id=paciente.get("id"), dni=paciente_dni)
+        log_accion(
+            usuario_id=session.get("usuario_id"),
+            accion="ficha_clinica_pdf",
+            tabla_afectada="pacientes",
+            registro_id=paciente.get("id"),
+            detalle="Descarga de ficha clínica",
+        )
         nombre_archivo = f"ficha_clinica_{paciente.get('dni') or paciente_dni}.pdf"
         return Response(
             pdf_bytes,
