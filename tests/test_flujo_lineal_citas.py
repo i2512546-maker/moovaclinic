@@ -46,7 +46,7 @@ class FlujoLinealCitasTest(unittest.TestCase):
 
     @staticmethod
     def _servicios_get(url, *args, **kwargs):
-        return {"servicios": []}, 200
+        return {"servicios": [{"id": 2, "activo": 1}]}, 200
 
     def _get_citas(self, pagos_get=None):
         with patch.object(

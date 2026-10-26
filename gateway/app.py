@@ -1070,8 +1070,11 @@ def create_app():
         cita_id = request.args.get("cita_id")
         if not _cita_autorizada_en_sesion(cita_id):
             return redirect(url_for("citas_page"))
-        data, _ = pagos_client.get(f"/api/pagos/{cita_id}")
-        pago = data.get("pago", {})
+        data, pago_status = pagos_client.get(f"/api/pagos/{cita_id}")
+        pago = (data or {}).get("pago")
+        if pago_status == 404 or not pago:
+            flash("No encontramos el pago de esta cita. Vuelve a agendarla.", "warning")
+            return redirect(url_for("citas_page"))
 
         cdata, _ = citas_client.get(f"/api/citas/{cita_id}")
         cita = cdata.get("cita", {})

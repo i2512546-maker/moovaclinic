@@ -211,7 +211,8 @@ class CitasServiceCuentaEnLimaTest(unittest.TestCase):
 
     def _crear(self, fecha):
         cuerpo = {"nombre": "Ana", "apellido": "Perez", "dni": "45678912",
-                  "telefono": "999888777", "medico_id": 1, "fecha_cita": fecha}
+                  "telefono": "999888777", "medico_id": 1, "fecha_cita": fecha,
+                  "servicio_id": 2, "metodo_pago": "yape"}
         with patch.object(fechas, "datetime", _RelojFalso), \
                 patch("services.citas_service.routes.medico_disponible",
                       return_value=False):
