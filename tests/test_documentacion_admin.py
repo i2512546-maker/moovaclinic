@@ -8,6 +8,7 @@
 
 import os
 import unittest
+from unittest.mock import patch
 
 os.environ.setdefault("SECRET_KEY", "clave-de-pruebas")
 os.environ.setdefault("API_KEY", "clave-interna-de-pruebas")
@@ -96,11 +97,30 @@ class DocumentacionSoloAdminTest(unittest.TestCase):
                 self.assertEqual(self._leer(None, ruta).status_code, 200)
 
     def test_las_demas_rutas_siguen_pidiendo_sesion(self):
-        r = self._leer(None, "/api/estadisticas")
-        self.assertEqual(r.status_code, 302)
-        self.assertIn("/login", r.headers.get("Location", ""))
         r = self._leer(None, "/panel_admin")
         self.assertEqual(r.status_code, 302)
+
+    def test_estadisticas_publicas_solo_devuelven_agregados(self):
+        agregados = {
+            "pacientes_recuperados": 12,
+            "especialistas": 4,
+            "anios_experiencia": 3,
+            "tasa_exito": 95,
+        }
+        with patch("gateway.app.citas_client.get", return_value=(agregados, 200)):
+            r = self._leer(None, "/api/estadisticas")
+
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.get_json(), agregados)
+        self.assertEqual(
+            set(r.get_json()),
+            {
+                "pacientes_recuperados",
+                "especialistas",
+                "anios_experiencia",
+                "tasa_exito",
+            },
+        )
 
     def test_los_proxies_de_pagos_no_se_ven_afectados(self):
         """El before_request de S7(e) solo mira /apidocs y /apispec:
