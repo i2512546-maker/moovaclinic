@@ -58,6 +58,16 @@ Define `WEBHOOK_PROVIDER_TOKEN` en el entorno de `moova-gateway` y configura
 el mismo token en el proveedor. El webhook no usa `API_KEY`; valida el token
 del proveedor. Si el token no está configurado, el endpoint falla cerrado.
 
+## Modo demostración de Yape/Plin
+
+Para una sustentación en un entorno sin credenciales de Yape/Plin, se puede
+definir `PAGOS_MODO_DEMO=1` en el servicio web. La opción está apagada por
+defecto. Solo genera y confirma cobros de demostración cuando el proveedor no
+tiene credenciales configuradas; si existen credenciales, se usa el flujo real.
+El gateway registra un warning al arrancar y los modales muestran que no se
+cobra dinero real. Activar únicamente para demostraciones y quitar la variable
+al terminar; no dejarla habilitada como configuración permanente.
+
 ## 4. Cron de pagos vencidos
 
 Render mantiene el cron `liberar-pagos-vencidos`, que apunta a
