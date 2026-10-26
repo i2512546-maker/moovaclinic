@@ -18,6 +18,7 @@ importación inicial de las bases.
 | `2026-10-18_pacientes_en_riesgo.sql` | `moovacloud_citas` | Reporte de pacientes en riesgo |
 | `2026-10-18_telefono_usuarios.sql` | `moovacloud_auth` | Consulta y actualización del teléfono del usuario |
 | `2026-10-19_pagos_guardar_referencia.sql` | `moovacloud_pagos` | Guardado de referencia de pago pendiente |
+| `2026-10-26_liberar_pagos_y_cancelar_citas.sql` | `moovacloud_pagos` y `moovacloud_citas` | Expiración reintentable de pagos y cancelación de la cita programada |
 
 Para cada archivo: abre la base correspondiente en phpMyAdmin, entra a
 **SQL**, pega el contenido y ejecuta. No importes nuevamente todos los
@@ -70,10 +71,12 @@ al terminar; no dejarla habilitada como configuración permanente.
 
 ## 4. Cron de pagos vencidos
 
-Render mantiene el cron `liberar-pagos-vencidos`, que apunta a
-`GATEWAY_URL` y usa la `API_KEY` del gateway. El cron llama al endpoint
-protegido `/_internal/api/pagos/mantenimiento/liberar_vencidos`; no hace
-falta desplegar un servicio de pagos separado.
+El gateway ejecuta cada hora la liberación de pagos vencidos cuando
+`LIBERAR_VENCIDOS_ENABLED=1` (por defecto), sin un cron separado, como en
+Railway. El proceso marca el pago como vencido, cancela la cita programada
+con la nota `pago vencido` y reintenta si la llamada al servicio de citas
+falla. El script `scripts/liberar_pagos_vencidos.py` se conserva para
+ejecuciones manuales o instalaciones con un cron externo.
 
 ## 5. Frontend React
 

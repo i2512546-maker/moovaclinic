@@ -294,7 +294,7 @@ def create_app():
     from services.notas_service import notas_bp
     from services.pacientes_service import pacientes_bp
     from services.pagos_service import pagos_bp
-    from shared.config import RECORDATORIOS_ENABLED
+    from shared.config import LIBERAR_VENCIDOS_ENABLED, RECORDATORIOS_ENABLED
     from shared.db import dominio
     from shared.service_auth import proteger_api_interna
 
@@ -314,7 +314,7 @@ def create_app():
     proteger_api_interna(app, prefijo="/_internal")
     set_internal_app(app)
 
-    if RECORDATORIOS_ENABLED == "1":
+    if RECORDATORIOS_ENABLED == "1" or LIBERAR_VENCIDOS_ENABLED:
         try:
             from services.citas_service.scheduler import iniciar_scheduler
 
@@ -333,6 +333,8 @@ def create_app():
         LOGIN_MAX_INTENTOS, LOGIN_VENTANA_MIN, LOGIN_BLOQUEO_MIN
     )
     app.extensions["disponibilidad_rate_limit"] = LimitadorIntentos(15, 1, 1)
+    app.extensions["citas_rate_limit_ip"] = LimitadorIntentos(5, 60, 60)
+    app.extensions["citas_rate_limit_dni"] = LimitadorIntentos(3, 60, 60)
     app.extensions["consultas_dni_por_ip"] = {}
     app.extensions["consultas_dni_por_ip_lock"] = threading.Lock()
 
@@ -647,6 +649,22 @@ def create_app():
 
     @app.route("/citas", methods=["GET", "POST"])
     def citas_page():
+        if request.method == "POST":
+            ip_claves = [f"citas:{ip_del_request(request, TRUST_PROXY)}"]
+            dni = str(request.form.get("dni") or "").strip()
+            dni_claves = [f"citas:dni:{dni}"] if dni else []
+            limite_ip = app.extensions["citas_rate_limit_ip"]
+            limite_dni = app.extensions["citas_rate_limit_dni"]
+            bloqueado_ip, _ = limite_ip.bloqueado(ip_claves)
+            bloqueado_dni, _ = limite_dni.bloqueado(dni_claves) if dni_claves else (False, None)
+            if bloqueado_ip or bloqueado_dni:
+                return jsonify({
+                    "error": "Límite de citas alcanzado. Intenta de nuevo dentro de una hora.",
+                }), 429
+            limite_ip.registrar_fallo(ip_claves)
+            if dni_claves:
+                limite_dni.registrar_fallo(dni_claves)
+
         # El formulario SIEMPRE se muestra (paso 1 -> 2). Ya no se redirige
         # al pago de una cita vieja de la sesion: eso impedia agendar de
         # nuevo. Si queda una cita sin pagar, solo se ofrece un aviso con

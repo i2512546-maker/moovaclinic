@@ -249,10 +249,21 @@ class RecordatoriosEndpointTest(unittest.TestCase):
 
 class SchedulerTest(unittest.TestCase):
     def setUp(self):
+        sch.detener_scheduler()
+        self.release_config_patch = patch(
+            "shared.config.LIBERAR_VENCIDOS_ENABLED", False
+        )
+        self.release_scheduler_patch = patch.object(
+            sch, "LIBERAR_VENCIDOS_ENABLED", False
+        )
+        self.release_config_patch.start()
+        self.release_scheduler_patch.start()
         self.app = crear_gateway_app()
 
     def tearDown(self):
         sch.detener_scheduler()
+        self.release_config_patch.stop()
+        self.release_scheduler_patch.stop()
 
     def test_create_app_no_inicia_el_planificador_por_defecto(self):
         # RECORDATORIOS_ENABLED=0 (default): no debe arrancar nada.
@@ -287,6 +298,20 @@ class SchedulerTest(unittest.TestCase):
             crear_gateway_app()
             # Reutiliza el que ya corre; no crea otro.
             self.assertIs(sch._scheduler, falso)
+
+    def test_job_de_pagos_vencidos_se_agrega_cada_hora(self):
+        with patch("shared.config.LIBERAR_VENCIDOS_ENABLED", True), \
+                patch.object(sch, "LIBERAR_VENCIDOS_ENABLED", True), \
+                patch("shared.config.RECORDATORIOS_ENABLED", "0"), \
+                patch.object(sch, "RECORDATORIOS_ENABLED", "0"), \
+                patch.object(sch, "BackgroundScheduler", _SchedulerFalso), \
+                patch.object(sch, "_scheduler", None):
+            crear_gateway_app()
+            self.assertEqual(len(sch._scheduler.jobs), 1)
+            args, kwargs = sch._scheduler.jobs[0]
+        self.assertEqual(args, (sch._job_liberar_pagos_vencidos,))
+        self.assertEqual(kwargs["id"], "liberar_pagos_vencidos")
+        self.assertEqual(kwargs["hours"], 1)
 
     def test_job_no_envia_antes_de_la_hora_configurada(self):
         with patch.object(sch, "_hora_pasada", return_value=False), patch(

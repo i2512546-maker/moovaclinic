@@ -76,6 +76,7 @@ CREATE TABLE `pagos` (
   `verificado_en` datetime DEFAULT NULL,
   `verificado_por` int(11) DEFAULT NULL,
   `notas` text DEFAULT NULL,
+  `cita_liberada` tinyint(1) NOT NULL DEFAULT 0,
   `creado_en` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -319,14 +320,16 @@ END$$
 --   reservar. Sin esto, una cita abandonada a mitad del pago queda
 --   bloqueada de forma indefinida (no hay job que la limpie).
 --
---   Solo toca pagos pendientes: los 'pagado' y 'cancelado' no se
---   alteran. Usa creado_en (indice idx_fecha cubre fecha_pago, pero
+--   Marca pagos pendientes vencidos y devuelve las citas que aun no
+--   se han cancelado en citas_service para que el proceso pueda reintentar.
+--   Los 'pagado' y 'cancelado' no se alteran. Usa creado_en (indice idx_fecha cubre fecha_pago, pero
 --   los pendientes la tienen a NULL, asi que no sirve aqui).
 --
 DROP PROCEDURE IF EXISTS `sp_liberar_pagos_vencidos`$$
 CREATE PROCEDURE `sp_liberar_pagos_vencidos`(IN p_horas INT)
 BEGIN
     DECLARE v_limite DATETIME;
+    DECLARE v_nuevos INT DEFAULT 0;
 
     IF p_horas IS NULL OR p_horas <= 0 THEN
         SET p_horas = 24;
@@ -334,14 +337,37 @@ BEGIN
 
     SET v_limite = DATE_SUB(NOW(), INTERVAL p_horas HOUR);
 
+    CREATE TEMPORARY TABLE IF NOT EXISTS tmp_citas_pago_vencido (
+        cita_id INT NOT NULL PRIMARY KEY
+    ) ENGINE=MEMORY;
     UPDATE pagos
     SET estado_pago = 'vencido',
+        cita_liberada = 0,
         notas = CONCAT(COALESCE(notas, ''),
                        ' [expire automatico: pendiente sin confirmar]')
     WHERE estado_pago = 'pendiente'
       AND creado_en < v_limite;
+    SET v_nuevos = ROW_COUNT();
 
-    SELECT ROW_COUNT() AS vencidos;
+    TRUNCATE TABLE tmp_citas_pago_vencido;
+    INSERT IGNORE INTO tmp_citas_pago_vencido (cita_id)
+    SELECT DISTINCT cita_id
+    FROM pagos
+    WHERE estado_pago = 'vencido'
+      AND cita_liberada = 0
+      AND creado_en < v_limite;
+
+    SELECT cita_id FROM tmp_citas_pago_vencido ORDER BY cita_id;
+    SELECT v_nuevos AS vencidos;
+    DROP TEMPORARY TABLE tmp_citas_pago_vencido;
+END$$
+
+DROP PROCEDURE IF EXISTS `sp_marcar_citas_pago_vencido_liberadas`$$
+CREATE PROCEDURE `sp_marcar_citas_pago_vencido_liberadas`(IN p_cita_id INT)
+BEGIN
+    UPDATE pagos
+    SET cita_liberada = 1
+    WHERE cita_id = p_cita_id AND estado_pago = 'vencido';
 END$$
 
 --
