@@ -238,6 +238,9 @@
         <div class="modal-box">
             <button type="button" class="modal-close" onclick="cerrarModal('modalYape')">&times;</button>
             <h3 class="fs-5 fw-bold text-navy"><i class="fa-solid fa-wallet me-1"></i> Paga con Yape</h3>
+            {% if modo_demo %}
+            <p class="pago-nota" role="alert"><strong>MODO DEMOSTRACIÓN: no se cobra dinero real</strong></p>
+            {% endif %}
             <div class="modal-monto">S/ {{ monto_txt }}</div>
             <div class="qr-box" id="qrYape"></div>
             <ol class="modal-pasos">
@@ -257,6 +260,9 @@
         <div class="modal-box">
             <button type="button" class="modal-close" onclick="cerrarModal('modalPlin')">&times;</button>
             <h3 class="fs-5 fw-bold text-navy"><i class="fa-solid fa-mobile-screen-button me-1"></i> Paga con Plin</h3>
+            {% if modo_demo %}
+            <p class="pago-nota" role="alert"><strong>MODO DEMOSTRACIÓN: no se cobra dinero real</strong></p>
+            {% endif %}
             <div class="modal-monto">S/ {{ monto_txt }}</div>
             <div class="qr-box" id="qrPlin"></div>
             <ol class="modal-pasos">

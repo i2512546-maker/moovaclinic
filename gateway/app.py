@@ -32,6 +32,7 @@ from shared.config import (
     LOGIN_MAX_INTENTOS,
     LOGIN_VENTANA_MIN,
     OTP_SESION_MIN,
+    PAGOS_MODO_DEMO,
     REDES_SOCIALES,
     TRUST_PROXY,
 )
@@ -270,6 +271,10 @@ MENSAJE_PAGO_NO_PERMITIDO = "No se puede procesar el pago con estos datos."
 
 def create_app():
     app = Flask(__name__, template_folder="../templates", static_folder="../static")
+    if PAGOS_MODO_DEMO:
+        app.logger.warning(
+            "Pagos en MODO DEMOSTRACIÓN: no se cobra dinero real"
+        )
     app.config["MOOVA_MONOLITH"] = True
     secret_key = os.getenv("SECRET_KEY")
     if not secret_key:
@@ -1083,7 +1088,10 @@ def create_app():
 
         from services.pagos_service.providers import NiubizClient
         niubiz = NiubizClient()
-        return render_template("pago.html", cita=cita, niubiz_sdk_url=niubiz.sdk_url, niubiz_mode=niubiz.mode)
+        return render_template(
+            "pago.html", cita=cita, niubiz_sdk_url=niubiz.sdk_url,
+            niubiz_mode=niubiz.mode, modo_demo=PAGOS_MODO_DEMO,
+        )
 
     @app.route("/retorno")
     def retorno_page():
