@@ -1520,7 +1520,6 @@ def create_app():
             }), 502
 
     @app.route("/api/estadisticas")
-    @_login_required
     def api_estadisticas():
         data, _ = citas_client.get("/api/citas/estadisticas")
         return jsonify(data)
