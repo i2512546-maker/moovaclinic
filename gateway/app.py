@@ -332,6 +332,7 @@ def create_app():
     app.extensions["rate_limit"] = LimitadorIntentos(
         LOGIN_MAX_INTENTOS, LOGIN_VENTANA_MIN, LOGIN_BLOQUEO_MIN
     )
+    app.extensions["disponibilidad_rate_limit"] = LimitadorIntentos(15, 1, 1)
     app.extensions["consultas_dni_por_ip"] = {}
     app.extensions["consultas_dni_por_ip_lock"] = threading.Lock()
 
@@ -1579,6 +1580,26 @@ def create_app():
     def api_estadisticas():
         data, _ = citas_client.get("/api/citas/estadisticas")
         return jsonify(data)
+
+    @app.route("/api/disponibilidad/<int:medico_id>", methods=["GET"])
+    def api_disponibilidad_medico(medico_id):
+        ip = ip_del_request(request, TRUST_PROXY)
+        claves = [f"disponibilidad:{ip}"]
+        limite = app.extensions["disponibilidad_rate_limit"]
+        bloqueado, _ = limite.bloqueado(claves)
+        if bloqueado:
+            return jsonify({"error": "Demasiadas consultas. Intenta más tarde."}), 429
+        limite.registrar_fallo(claves)
+
+        data, status = citas_client.get(
+            "/api/citas/ocupadas",
+            params={
+                "medico_id": medico_id,
+                "desde": request.args.get("desde", ""),
+                "hasta": request.args.get("hasta", ""),
+            },
+        )
+        return jsonify(data or {}), status
 
     # Proxy publico de las pasarelas Yape/Plin (QR y consulta de estado).
     # El frontend de pago.html las invoca con ruta relativa al gateway
