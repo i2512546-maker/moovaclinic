@@ -184,7 +184,7 @@ class PanelYDescripcionTest(unittest.TestCase):
         self.assertEqual(pedidos, ["/api/citas?fecha=2026-10-19&estado=programada"])
 
     def test_guardar_descripcion_vuelve_al_dia_de_lima(self):
-        self._entrar("paciente")
+        self._entrar("admin")
         with patch.object(fechas, "datetime", _RelojFalso), \
                 patch.object(ga.citas_client, "put", return_value=({}, 200)), \
                 patch.object(ga, "log_accion"):

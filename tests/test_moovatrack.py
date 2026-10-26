@@ -73,7 +73,9 @@ class MoovaTrackTest(unittest.TestCase):
     def test_interfaz_enlaza_a_moovatrack(self):
         self._sesion("terapeuta")
         with patch("gateway.app.citas_client.get", return_value=({"success": True, "citas": []}, 200)), \
-                patch("gateway.app.pacientes_client.get", return_value=({"success": True, "pacientes": []}, 200)):
+                patch("gateway.app.pacientes_client.get", return_value=({
+                    "success": True, "pacientes": [], "terapeutas": [],
+                }, 200)):
             r = self.client.get("/interfaz")
         self.assertEqual(r.status_code, 200)
         self.assertIn("/moovatrack", r.get_data(as_text=True))
