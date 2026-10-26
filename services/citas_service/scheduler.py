@@ -1,11 +1,10 @@
 # ============================================================
 # Planificador de recordatorios (modulo de citas)
 #
-# Arranca APScheduler desde create_app() SOLO si RECORDATORIOS_ENABLED=1.
-# El job corre cada RECORDATORIO_INTERVALO_MIN minutos, pero solo
-# actua si en America/Lima ya se alcanzo RECORDATORIO_HORA, para
-# mandar el aviso de las citas del dia siguiente en la tarde y no a
-# cualquier hora.
+# Arranca APScheduler desde create_app() si hay recordatorios habilitados
+# o si está activa la liberación horaria de pagos vencidos.
+# Los recordatorios respetan la hora de Lima; la liberación de pagos
+# se ejecuta cada hora en el dominio de pagos.
 #
 # El job NUNCA debe tumbar el proceso: cualquier excepcion se atrapa
 # y se loguea.
@@ -18,6 +17,7 @@ from zoneinfo import ZoneInfo
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from shared.config import (
+    LIBERAR_VENCIDOS_ENABLED,
     RECORDATORIO_HORA,
     RECORDATORIO_INTERVALO_MIN,
     RECORDATORIOS_ENABLED,
@@ -27,7 +27,7 @@ from shared.db import dominio
 ZONA = ZoneInfo("America/Lima")
 
 # Singleton: create_app puede llamarse mas de una vez y no queremos
-# dos planificadores mandando los mismos SMS.
+# jobs duplicados al crear varias instancias de la app en el mismo proceso.
 _scheduler = None
 
 
@@ -66,6 +66,19 @@ def _job_recordatorios(app):
         )
 
 
+def _job_liberar_pagos_vencidos(app):
+    from services.pagos_service.routes import procesar_pagos_vencidos
+
+    try:
+        with app.app_context(), dominio("pagos"):
+            resultado = procesar_pagos_vencidos()
+        app.logger.info("[pagos vencidos] %s", resultado)
+    except Exception as exc:
+        app.logger.error(
+            "[pagos vencidos] fallo el job: %s: %s", type(exc).__name__, exc
+        )
+
+
 def iniciar_scheduler(app):
     """Arranca APScheduler si esta habilitado.
 
@@ -74,35 +87,44 @@ def iniciar_scheduler(app):
     """
     global _scheduler
 
-    if RECORDATORIOS_ENABLED != "1":
+    if RECORDATORIOS_ENABLED != "1" and not LIBERAR_VENCIDOS_ENABLED:
         app.logger.info(
-            "[recordatorios] deshabilitados (RECORDATORIOS_ENABLED=%r)",
-            RECORDATORIOS_ENABLED,
+            "[scheduler] recordatorios y liberacion de vencidos deshabilitados"
         )
         return None
 
     if _scheduler is not None and _scheduler.running:
         return _scheduler
 
-    intervalo = max(1, int(RECORDATORIO_INTERVALO_MIN))
     scheduler = BackgroundScheduler(timezone=ZONA)
-    scheduler.add_job(
-        _job_recordatorios,
-        trigger="interval",
-        minutes=intervalo,
-        args=[app],
-        id="recordatorios_citas",
-        replace_existing=True,
-        # coalesce=True: si se perdio un tick, no lanza 20 de golpe.
-        max_instances=1,
-        coalesce=True,
-    )
+    if RECORDATORIOS_ENABLED == "1":
+        intervalo = max(1, int(RECORDATORIO_INTERVALO_MIN))
+        scheduler.add_job(
+            _job_recordatorios,
+            trigger="interval",
+            minutes=intervalo,
+            args=[app],
+            id="recordatorios_citas",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
+    if LIBERAR_VENCIDOS_ENABLED:
+        scheduler.add_job(
+            _job_liberar_pagos_vencidos,
+            trigger="interval",
+            hours=1,
+            args=[app],
+            id="liberar_pagos_vencidos",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
     scheduler.start()
     _scheduler = scheduler
     app.logger.info(
-        "[recordatorios] scheduler iniciado (cada %s min, actua desde "
-        "las %s, America/Lima)",
-        intervalo, RECORDATORIO_HORA,
+        "[scheduler] iniciado (recordatorios=%s, liberar_vencidos=%s)",
+        RECORDATORIOS_ENABLED == "1", LIBERAR_VENCIDOS_ENABLED,
     )
     return scheduler
 

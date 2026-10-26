@@ -150,6 +150,22 @@ class CrearCitaPagoRequeridoTest(unittest.TestCase):
             ("sp_cancelar_cita", (89,)),
         )
 
+    def test_respuesta_201_sin_pago_creado_cancela_cita(self):
+        self._with_prerequisites()
+        with patch(
+            "services.citas_service.routes.call_proc_one",
+            side_effect=[{"id": 91}, {"actualizadas": 1}],
+        ) as proc, patch(
+            "services.citas_service.routes.pagos_client.post",
+            return_value=({"success": True, "id": None}, 201),
+        ):
+            respuesta = self._post()
+        self.assertEqual(respuesta.status_code, 502)
+        self.assertEqual(
+            proc.call_args_list[-1].args,
+            ("sp_cancelar_cita", (91,)),
+        )
+
     def test_creacion_exige_pago_exitoso(self):
         self._with_prerequisites()
         with patch(

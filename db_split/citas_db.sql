@@ -321,6 +321,21 @@ BEGIN
     SELECT v_afectadas AS actualizadas;
 END$$
 
+-- Cancela solo citas programadas cuando el pago anticipado vencio.
+-- Las citas completadas o ya canceladas permanecen intactas.
+DROP PROCEDURE IF EXISTS `sp_cancelar_cita_pago_vencido`$$
+CREATE PROCEDURE `sp_cancelar_cita_pago_vencido`(IN p_cita_id INT)
+BEGIN
+    UPDATE historial_citas
+    SET estado = 'cancelada',
+        descripcion = CONCAT_WS(
+            ' | ', NULLIF(TRIM(descripcion), ''), 'pago vencido'
+        ),
+        actualizado_en = UTC_TIMESTAMP()
+    WHERE id = p_cita_id AND estado = 'programada';
+    SELECT ROW_COUNT() AS actualizadas;
+END$$
+
 --
 -- sp_existe_cita_programada_paciente  |  LOCAL (FASE 2)
 --   Verifica que un paciente (id resuelto via pacientes_service)

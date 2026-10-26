@@ -65,6 +65,13 @@ RECORDATORIO_HORA = os.getenv("RECORDATORIO_HORA", "18:00").strip()
 # Cada cuantos minutos corre el job que revisa el pendiente.
 RECORDATORIO_INTERVALO_MIN = int(os.getenv("RECORDATORIO_INTERVALO_MIN", 15))
 
+# Liberación automática de citas cuyos pagos vencieron. Se ejecuta en
+# el scheduler del gateway, también cuando los recordatorios están apagados.
+LIBERAR_VENCIDOS_ENABLED = (
+    os.getenv("LIBERAR_VENCIDOS_ENABLED", "1").strip().lower()
+    in ("1", "true", "yes", "on")
+)
+
 # Reporte de pacientes en riesgo de fuga (modulo de citas).
 # Dias desde la ultima cita a partir de los cuales un paciente sin
 # cita programada pasa a considerarse "en riesgo".

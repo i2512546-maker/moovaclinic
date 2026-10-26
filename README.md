@@ -283,15 +283,22 @@ la pasarela y solo confirma si el proveedor dice que se pagó.
 
 Una cita abandonada a mitad del pago quedaba bloqueada sin límite. El job
 `liberar_pagos_vencidos` marca como `vencido` los pendientes con más de
-24 h (configurable) para que la cita vuelva a estar disponible.
+24 h (configurable) y cancela la cita asociada con la nota `pago vencido`,
+para que ese día vuelva a estar disponible. Solo cancela citas programadas;
+las completadas no se modifican. Si falla temporalmente la llamada entre
+servicios, la siguiente ejecución vuelve a intentar cancelar la cita.
+
+El gateway ejecuta esta tarea cada hora en su propio proceso. Está habilitada
+por defecto y se puede desactivar configurando `LIBERAR_VENCIDOS_ENABLED=0`.
+No hace falta un cron externo en Railway.
 
 ```bash
 python scripts/liberar_pagos_vencidos.py 24
 ```
 
-Requiere `GATEWAY_URL` y `API_KEY`. Sale con código distinto de 0 si
-falla, para que cron lo reporte. En Render está configurado el cron
-`liberar-pagos-vencidos` (cada hora), que llama al gateway.
+El script manual se conserva para ejecuciones puntuales y requiere `GATEWAY_URL`
+y `API_KEY`. Sale con código distinto de 0 si falla, para que el programador
+externo lo reporte.
 
 Un pago que el proveedor confirme después de expirado sigue
 confirmándose: `sp_confirmar_pago` acepta `pendiente` y `vencido`. El

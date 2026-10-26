@@ -470,7 +470,12 @@ def crear_cita():
                 "monto": anticipo,
                 "metodo_pago": metodo_pago,
             })
-            if pago_status not in (200, 201) or not pago_data or not pago_data.get("success"):
+            if (
+                pago_status not in (200, 201)
+                or not pago_data
+                or not pago_data.get("success")
+                or pago_data.get("id") is None
+            ):
                 raise RuntimeError(
                     f"pagos_service no creó el anticipo (status {pago_status}): "
                     f"{pago_data}"
@@ -783,6 +788,23 @@ def cancelar_cita(cita_id):
     _avisar_cita_liberada(cita_id, previa, "cita_cancelada")
 
     return jsonify({"success": True})
+
+
+@citas_bp.route(
+    "/api/citas/<int:cita_id>/cancelar-pago-vencido", methods=["POST"]
+)
+def cancelar_cita_pago_vencido(cita_id):
+    result = call_proc_one("sp_cancelar_cita_pago_vencido", (cita_id,))
+    cancelada = bool(result and int(result.get("actualizadas") or 0) > 0)
+    if cancelada:
+        log_accion(
+            accion="cancelar_cita",
+            tabla_afectada="historial_citas",
+            registro_id=cita_id,
+            detalle="Cita cancelada por pago vencido",
+            ip_origen=request.remote_addr,
+        )
+    return jsonify({"success": True, "cancelada": cancelada})
 
 
 @citas_bp.route("/api/citas/<int:cita_id>/completar", methods=["PUT"])

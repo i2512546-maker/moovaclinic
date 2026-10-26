@@ -206,6 +206,35 @@ def confirmar_pago_servicio(cita_id, referencia=None, datos_respuesta=None, veri
 # Anticipo / cancelacion (llamados por el modulo interno de citas)
 # ============================================================
 
+def procesar_pagos_vencidos(horas=24):
+    filas = call_proc("sp_liberar_pagos_vencidos", (horas,))
+    cita_ids = sorted({
+        int(fila["cita_id"])
+        for fila in filas or []
+        if fila.get("cita_id") is not None
+    })
+    vencidos = next(
+        (int(fila.get("vencidos") or 0) for fila in filas or []
+         if "vencidos" in fila),
+        0,
+    )
+
+    for cita_id in cita_ids:
+        respuesta, status = citas_client.post(
+            f"/api/citas/{cita_id}/cancelar-pago-vencido", {}
+        )
+        if status != 200 or not (respuesta or {}).get("success"):
+            raise RuntimeError(
+                f"No se pudo cancelar la cita {cita_id} por pago vencido "
+                f"(status {status}): {respuesta}"
+            )
+        call_proc_execute(
+            "sp_marcar_citas_pago_vencido_liberadas", (cita_id,)
+        )
+
+    return {"vencidos": vencidos, "citas_procesadas": len(cita_ids)}
+
+
 @pagos_bp.route("/api/pagos/anticipo", methods=["POST"])
 def crear_anticipo():
     """Crea el pago de anticipo de una cita. Lo invoca el modulo de citas
@@ -220,7 +249,16 @@ def crear_anticipo():
         return jsonify({"error": "cita_id, paciente_id, monto y metodo_pago requeridos."}), 400
 
     result = call_proc_one("sp_crear_pago_anticipo", (cita_id, paciente_id, monto, metodo_pago))
-    return jsonify({"success": True, "id": result["id"] if result else None}), 201
+    if not result or result.get("id") is None:
+        current_app.logger.error(
+            "[anticipo] sp_crear_pago_anticipo no devolvió un id para la cita %s",
+            cita_id,
+        )
+        return jsonify({
+            "success": False,
+            "error": "No se pudo crear el pago anticipado.",
+        }), 500
+    return jsonify({"success": True, "id": result["id"]}), 201
 
 
 @pagos_bp.route("/api/pagos/<int:cita_id>/cancelar", methods=["POST"])
@@ -252,11 +290,23 @@ def liberar_pagos_vencidos():
     if horas <= 0 or horas > 24 * 30:
         return jsonify({"success": False, "error": "horas fuera de rango (1..720)."}), 400
 
-    res = call_proc_one("sp_liberar_pagos_vencidos", (horas,))
-    vencidos = int(res.get("vencidos") or 0) if res else 0
+    try:
+        resultado = procesar_pagos_vencidos(horas)
+    except Exception as exc:
+        current_app.logger.error(
+            "[mantenimiento] no se pudieron liberar todas las citas vencidas: "
+            "%s: %s",
+            type(exc).__name__, exc,
+        )
+        return jsonify({
+            "success": False,
+            "error": "No se pudieron liberar todas las citas vencidas.",
+        }), 502
+    vencidos = resultado["vencidos"]
 
     current_app.logger.info(
-        "[mantenimiento] pagos vencidos (%sh): %s", horas, vencidos,
+        "[mantenimiento] pagos vencidos (%sh): %s; citas procesadas: %s",
+        horas, vencidos, resultado["citas_procesadas"],
     )
     if vencidos:
         try:
@@ -273,7 +323,12 @@ def liberar_pagos_vencidos():
                 exc_info=True,
             )
 
-    return jsonify({"success": True, "vencidos": vencidos, "horas": horas})
+    return jsonify({
+        "success": True,
+        "vencidos": vencidos,
+        "citas_procesadas": resultado["citas_procesadas"],
+        "horas": horas,
+    })
 
 
 # ============================================================

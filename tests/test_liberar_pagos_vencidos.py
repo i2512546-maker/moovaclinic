@@ -1,6 +1,7 @@
 import os
 import sys
 import unittest
+from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
 
 os.environ.setdefault("SECRET_KEY", "clave-de-pruebas")
@@ -21,14 +22,25 @@ class LiberarPagosVencidosTest(unittest.TestCase):
         self.cab = {"X-Api-Key": API_KEY} if API_KEY else {}
 
     def _patch_proc(self, vencidos):
-        """Simula sp_liberar_pagos_vencidos devolviendo N filas."""
-        return patch(
-            "services.pagos_service.routes.call_proc_one",
-            return_value={"vencidos": vencidos},
-        )
+        """Simula el conjunto de citas vencidas y los límites de ambos servicios."""
+        @contextmanager
+        def configuracion():
+            filas = ([{"cita_id": n} for n in range(1, vencidos + 1)]
+                     + [{"vencidos": vencidos}])
+            with patch(
+                "services.pagos_service.routes.call_proc", return_value=filas
+            ), patch(
+                "services.pagos_service.routes.citas_client.post",
+                return_value=({"success": True}, 200),
+            ), patch(
+                "services.pagos_service.routes.call_proc_execute"
+            ):
+                yield
+
+        return configuracion()
 
     def test_exige_api_key_interna(self):
-        with patch("services.pagos_service.routes.call_proc_one") as proc:
+        with patch("services.pagos_service.routes.call_proc") as proc:
             resp = self.client.post(RUTA, json={"horas": 24})
         self.assertEqual(resp.status_code, 401)
         proc.assert_not_called()
@@ -65,7 +77,7 @@ class LiberarPagosVencidosTest(unittest.TestCase):
     def test_rechaza_horas_invalidas(self):
         for horas in (0, -5, "abc", 99999):
             with self._patch_proc(0), patch(
-                "services.pagos_service.routes.call_proc_one"
+                "services.pagos_service.routes.call_proc"
             ) as proc:
                 resp = self.client.post(
                     RUTA, json={"horas": horas}, headers=self.cab
