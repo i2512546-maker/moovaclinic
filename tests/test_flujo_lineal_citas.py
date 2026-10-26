@@ -29,7 +29,12 @@ class FlujoLinealCitasTest(unittest.TestCase):
     @staticmethod
     def _citas_get(url, *args, **kwargs):
         if url == "/api/citas/terapeutas":
-            return {"terapeutas": []}, 200
+            return {"terapeutas": [{
+                "ID": 3,
+                "Nombre": "Terapeuta",
+                "Especialidad": None,
+                "precio": 120,
+            }]}, 200
         if url in ("/api/citas/55", "/api/citas/56"):
             return {
                 "cita": {
@@ -46,7 +51,14 @@ class FlujoLinealCitasTest(unittest.TestCase):
 
     @staticmethod
     def _servicios_get(url, *args, **kwargs):
-        return {"servicios": [{"id": 2, "activo": 1}]}, 200
+        return {"servicios": [{
+            "id": 2,
+            "nombre": "Fisioterapia",
+            "descripcion": "Atención física personalizada",
+            "duracion_min": 45,
+            "precio": 999,
+            "activo": 1,
+        }]}, 200
 
     def _get_citas(self, pagos_get=None):
         with patch.object(
@@ -62,6 +74,19 @@ class FlujoLinealCitasTest(unittest.TestCase):
         response = self._get_citas()
         self.assertEqual(response.status_code, 200)
         self.assertNotIn("pendiente de pago", response.get_data(as_text=True))
+
+    def test_fecha_no_se_pide_en_el_paso_1_y_servicio_no_muestra_precio(self):
+        response = self._get_citas()
+        html = response.get_data(as_text=True)
+        paso_datos = html.split('id="step-1"', 1)[1].split('id="step-2"', 1)[0]
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('name="fecha_cita"', paso_datos)
+        self.assertNotIn('type="date"', paso_datos)
+        self.assertIn('name="fecha_cita" id="fecha_cita"', html)
+        self.assertIn("Atención física personalizada", html)
+        self.assertIn("45 min", html)
+        self.assertNotIn(">S/ 999", html)
+        self.assertNotIn(">None<", html)
 
     def test_cita_pendiente_muestra_aviso_sin_bloquear_formulario(self):
         with self.cliente.session_transaction() as session:
@@ -106,7 +131,7 @@ class FlujoLinealCitasTest(unittest.TestCase):
                     ga.citas_client,
                     "post",
                     return_value=({"success": True, "cita_id": 55}, 201),
-                ), patch.object(
+                ) as crear_cita, patch.object(
                     ga.pagos_client, "get", side_effect=self._pagos_get("pendiente")
                 ), patch.object(
                     ga.citas_client, "get", side_effect=self._citas_get
@@ -120,18 +145,26 @@ class FlujoLinealCitasTest(unittest.TestCase):
             )
             self.assertEqual(response.status_code, 201)
             self.assertEqual(response.get_json()["redirect"], "/pago?cita_id=55")
+            crear_cita.assert_called_once_with("/api/citas", datos)
 
             with self.cliente.session_transaction() as session:
                 self.assertEqual(session["cita_pendiente_id"], "55")
 
             pago = self.cliente.get("/pago?cita_id=55")
             self.assertEqual(pago.status_code, 200)
+            pago_html = pago.get_data(as_text=True)
+            self.assertIn('class="wizard-step active" data-step="5"', pago_html)
+            self.assertIn('<span class="wizard-label">Pago</span>', pago_html)
 
         with patch.object(
             ga.pagos_client, "get", side_effect=self._pagos_get("pagado")
         ), patch.object(ga.citas_client, "get", side_effect=self._citas_get):
             retorno = self.cliente.get("/retorno?cita_id=55")
         self.assertEqual(retorno.status_code, 200)
+        self.assertIn(
+            'class="wizard-step active" data-step="6"',
+            retorno.get_data(as_text=True),
+        )
 
     def test_nuevo_agendamiento_reemplaza_la_cita_pendiente(self):
         with self.cliente.session_transaction() as session:
