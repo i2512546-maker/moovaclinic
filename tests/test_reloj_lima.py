@@ -133,7 +133,12 @@ class InterfazAbreElDiaDeLimaTest(unittest.TestCase):
 
     def _get(self, ruta="/interfaz"):
         with patch.object(fechas, "datetime", _RelojFalso), \
-                patch.object(ga.citas_client, "get", return_value=({"citas": []}, 200)):
+                patch.object(ga.citas_client, "get", return_value=({"citas": []}, 200)), \
+                patch.object(
+                    ga.pacientes_client,
+                    "get",
+                    return_value=({"terapeutas": []}, 200),
+                ):
             return self.cliente.get(ruta).get_data(as_text=True)
 
     def test_por_defecto_abre_el_dia_de_lima(self):
