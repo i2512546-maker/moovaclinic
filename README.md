@@ -211,13 +211,13 @@ página por página, no un encabezado de relleno.
 
 `/pago` y `/retorno` piden `cita_id` por query y **no comprueban que la
 cita pertenezca al usuario de la sesión**: ahí solo hay `_login_required`.
-Con una sesión cualquiera, recorrer `GET /pago?cita_id=N` distingue tres
+Con una sesión cualquiera, recorrer `GET /pago?cita_id=N` distingue estos
 casos (comprobado con el flujo de prueba real):
 
 | Respuesta | Significa |
 | --- | --- |
 | `302` a `/retorno` | la cita existe y ya está pagada |
-| `200` con `S/ 0.00` | no existe |
+| `302` a `/citas` | no hay un pago registrado para esa cita |
 | `200` con el importe | existe y está pendiente, con su monto |
 
 Y cuando la cita existe, la página se pinta con lo que enriquece

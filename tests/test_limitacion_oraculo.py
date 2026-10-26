@@ -41,9 +41,12 @@ class ReadmeDocumentaElOraculoTest(unittest.TestCase):
         self.assertIn(APARTADO, self.texto)
 
     def test_las_tres_respuestas_medidas_estan_en_la_tabla(self):
-        """La tabla tiene que seguir describiendo lo que hace el código:
-        302 pagada / 200 con 0.00 inexistente / 200 con el importe."""
-        for tramo in ("`302` a `/retorno`", "`S/ 0.00`", "existe y está pendiente"):
+        """La tabla describe pago confirmado, ausente y pendiente."""
+        for tramo in (
+            "`302` a `/retorno`",
+            "`302` a `/citas`",
+            "existe y está pendiente",
+        ):
             with self.subTest(tramo=tramo):
                 self.assertIn(tramo, self.texto)
 
@@ -78,13 +81,13 @@ class OraculoEnElCodigoTest(unittest.TestCase):
                 patch.object(ga.citas_client, "get", side_effect=self._citas_get):
             return self.cliente.get("/pago?cita_id=55")
 
-    def test_inexistente_devuelve_200_con_cero(self):
+    def test_sin_pago_registrado_redirige_a_citas(self):
         def pagos_get(url, *a, **k):
             return {}, 200
 
         r = self._get_pago(pagos_get)
-        self.assertEqual(r.status_code, 200)
-        self.assertIn("S/ 0.00", r.get_data(as_text=True))
+        self.assertEqual(r.status_code, 302)
+        self.assertIn("/citas", r.headers.get("Location", ""))
 
     def test_pendiente_devuelve_200_con_su_importe(self):
         def pagos_get(url, *a, **k):

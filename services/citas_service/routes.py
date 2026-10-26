@@ -324,9 +324,19 @@ def detalle_cita_basico(cita_id):
 @citas_bp.route("/api/citas", methods=["POST"])
 def crear_cita():
     data = request.get_json() or {}
-    for campo in ["nombre", "apellido", "dni", "telefono", "medico_id", "fecha_cita"]:
+    for campo in [
+        "nombre", "apellido", "dni", "telefono", "medico_id", "fecha_cita",
+        "servicio_id", "metodo_pago",
+    ]:
         if not data.get(campo):
             return jsonify({"error": f"Campo requerido: {campo}"}), 400
+    if str(data["metodo_pago"]).strip().lower() not in {
+        "yape", "plin", "tarjeta", "transferencia",
+    }:
+        return jsonify({"error": "Método de pago inválido"}), 400
+    servicio_id = str(data["servicio_id"]).strip()
+    if not servicio_id.isdigit() or int(servicio_id) < 1:
+        return jsonify({"error": "Servicio inválido"}), 400
 
     # Validacion de formato estricta, ANTES de tocar DB o servicios.
     error_formato = validar_datos_paciente(
@@ -376,8 +386,29 @@ def crear_cita():
         return jsonify({"error": "Medico no encontrado"}), 404
     medico = medico_data.get("terapeuta") or {}
 
-    costo = float(medico["precio"]) if medico.get("precio") else 0.0
+    try:
+        costo = float(medico.get("precio") or 0)
+    except (TypeError, ValueError):
+        costo = 0.0
+    if costo <= 0:
+        return jsonify({
+            "error": "Este especialista aún no tiene precio configurado",
+        }), 409
     anticipo = round(costo / 2, 2)
+
+    try:
+        servicios_data, servicios_status = pacientes_client.get("/api/servicios")
+    except Exception as exc:
+        current_app.logger.error(
+            "[crear_cita] No se pudo validar el servicio: %s: %s",
+            type(exc).__name__, exc,
+        )
+        return jsonify({"error": "No se pudo validar el servicio"}), 502
+    servicios = (servicios_data or {}).get("servicios") or []
+    if servicios_status != 200 or not any(
+        str(servicio.get("id")) == servicio_id for servicio in servicios
+    ):
+        return jsonify({"error": "Servicio no disponible"}), 400
 
     # Resolver/crear el paciente mediante el modulo interno de pacientes.
     try:
@@ -400,8 +431,6 @@ def crear_cita():
             type(exc).__name__, exc,
         )
         return jsonify({"error": "Servicio de pacientes no disponible, intenta de nuevo"}), 502
-
-    servicio_id = data.get("servicio_id")
 
     try:
         cita = call_proc_one("sp_crear_cita", (paciente_id, data["medico_id"], servicio_id, data["fecha_cita"], hora_cita))
@@ -430,8 +459,8 @@ def crear_cita():
         entidad_nombre=(" ".join(x for x in (data.get("nombre"), data.get("apellido")) if x).strip() or None),
     )
 
-    metodo_pago = data.get("metodo_pago", "").strip()
-    if metodo_pago and anticipo > 0 and cita_id:
+    metodo_pago = str(data["metodo_pago"]).strip().lower()
+    if cita_id:
         # Crear el pago anticipado mediante una llamada interna al modulo
         # de pagos (antes sp_crear_pago_anticipo, CROSS-DB).
         try:
@@ -441,16 +470,31 @@ def crear_cita():
                 "monto": anticipo,
                 "metodo_pago": metodo_pago,
             })
-            if pago_status not in (200, 201):
-                current_app.logger.warning(
-                    "[crear_cita] pagos_service no creo el anticipo (status %s): %s",
-                    pago_status, pago_data,
+            if pago_status not in (200, 201) or not pago_data or not pago_data.get("success"):
+                raise RuntimeError(
+                    f"pagos_service no creó el anticipo (status {pago_status}): "
+                    f"{pago_data}"
                 )
         except Exception as exc:
             current_app.logger.error(
-                "[crear_cita] Error HTTP a pagos_service (anticipo): %s: %s",
-                type(exc).__name__, exc,
+                "[crear_cita] No se pudo iniciar el pago para la cita %s: %s: %s",
+                cita_id, type(exc).__name__, exc,
             )
+            try:
+                cancelacion = call_proc_one("sp_cancelar_cita", (cita_id,))
+                if not cancelacion or int(cancelacion.get("actualizadas") or 0) == 0:
+                    current_app.logger.error(
+                        "[crear_cita] No se pudo cancelar la cita %s tras fallar el pago",
+                        cita_id,
+                    )
+            except Exception as cancel_exc:
+                current_app.logger.error(
+                    "[crear_cita] Error al cancelar la cita %s sin pago: %s: %s",
+                    cita_id, type(cancel_exc).__name__, cancel_exc,
+                )
+            return jsonify({
+                "error": "No se pudo iniciar el pago, intenta de nuevo",
+            }), 502
 
     return jsonify({
         "success": True, "cita_id": cita_id,
