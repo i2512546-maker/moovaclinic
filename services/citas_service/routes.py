@@ -1,5 +1,5 @@
 import secrets
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 import mysql.connector
 import requests as http_requests
@@ -173,6 +173,43 @@ def listar_terapeutas():
     se consultan en proceso mediante el modulo de pacientes."""
     data, status = pacientes_client.get("/api/terapeutas")
     return jsonify(data), status
+
+
+@citas_bp.route("/api/citas/ocupadas", methods=["GET"])
+def listar_fechas_ocupadas():
+    medico_id = request.args.get("medico_id", "")
+    desde_txt = request.args.get("desde", "")
+    hasta_txt = request.args.get("hasta", "")
+    if not medico_id.isdigit() or int(medico_id) < 1:
+        return jsonify({"error": "medico_id inválido"}), 400
+
+    try:
+        desde = datetime.strptime(desde_txt, "%Y-%m-%d").date()
+        hasta = datetime.strptime(hasta_txt, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"error": "Las fechas deben tener formato YYYY-MM-DD"}), 400
+    if desde.isoformat() != desde_txt or hasta.isoformat() != hasta_txt:
+        return jsonify({"error": "Las fechas deben tener formato YYYY-MM-DD"}), 400
+    if hasta < desde:
+        return jsonify({"error": "El rango de fechas no es válido"}), 400
+    if (hasta - desde).days > 90:
+        return jsonify({"error": "El rango máximo es de 90 días"}), 400
+
+    fechas = set()
+    for estado in ("programada", "confirmada"):
+        citas = call_proc("sp_listar_citas", (
+            estado, None, desde_txt, medico_id,
+        ))
+        for cita in citas or []:
+            fecha = cita.get("fecha_cita")
+            if isinstance(fecha, (date, datetime)):
+                fecha = fecha.strftime("%Y-%m-%d")
+            elif fecha:
+                fecha = str(fecha)[:10]
+            if fecha and desde_txt <= fecha <= hasta_txt:
+                fechas.add(fecha)
+
+    return jsonify({"fechas": sorted(fechas)})
 
 
 @citas_bp.route("/api/citas", methods=["GET"])
