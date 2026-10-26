@@ -91,7 +91,7 @@ class FichaClinicaTest(unittest.TestCase):
             return {"paciente": PACIENTE, "historial": HISTORIAL}, 200
 
         with patch("gateway.app.pacientes_client.get", side_effect=fake_get), \
-                patch("gateway.app.log_accion"):
+                patch("shared.audit.audit_client.post", return_value=({}, 200)):
             return self.cliente.get(ruta)
 
     def test_detalle_paciente_renderiza(self):
@@ -115,6 +115,20 @@ class FichaClinicaTest(unittest.TestCase):
         self.assertTrue(r.data.startswith(b"%PDF-"))
         self.assertIn("inline", r.headers.get("Content-Disposition", ""))
 
+    def test_descarga_pdf_no_falla_con_log_accion_real(self):
+        def fake_get(url, *args, **kwargs):
+            if url.endswith(("/paquetes", "/evaluaciones", "/consentimientos")):
+                return {}, 200
+            return {"paciente": PACIENTE, "historial": HISTORIAL}, 200
+
+        with patch("gateway.app.pacientes_client.get", side_effect=fake_get), \
+                patch("shared.audit.audit_client.post", return_value=({}, 200)):
+            respuesta = self.cliente.get(
+                "/pacientes/45678912/ficha-clinica.pdf"
+            )
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertTrue(respuesta.data.startswith(b"%PDF-"))
+
     def test_pdf_sin_datos_no_rompe(self):
         def fake_get(url, *args, **kwargs):
             if url.endswith("/paquetes"):
@@ -128,7 +142,7 @@ class FichaClinicaTest(unittest.TestCase):
                     "historial": []}, 200
 
         with patch("gateway.app.pacientes_client.get", side_effect=fake_get), \
-                patch("gateway.app.log_accion"):
+                patch("shared.audit.audit_client.post", return_value=({}, 200)):
             r = self.cliente.get("/pacientes/11111111/ficha-clinica.pdf")
         self.assertEqual(r.status_code, 200)
         self.assertTrue(r.data.startswith(b"%PDF-"))

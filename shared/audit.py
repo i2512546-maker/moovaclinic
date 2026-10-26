@@ -43,6 +43,7 @@ ACCIONES_VALIDAS = [
     "desactivar_usuario",
     "actualizar_usuario",
     "avisar_terapeuta",
+    "ficha_clinica_pdf",
 ]
 
 
