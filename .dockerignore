@@ -1,0 +1,11 @@
+# Lo que NO debe entrar a la imagen Docker
+.git
+.gitignore
+**/__pycache__
+**/*.pyc
+.env
+**/.env
+frontend/node_modules
+node_modules
+reporte_*.txt
+temp*.txt

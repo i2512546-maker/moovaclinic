@@ -1,101 +1,123 @@
 services:
-  # ============================================
-  # GATEWAY — Reverse proxy + sirve HTML
-  # ============================================
   - type: web
     name: moova-gateway
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn gateway.app:app --bind 0.0.0.0:$PORT
+    startCommand: gunicorn "gateway.app:create_app()" --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 60
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.8"
-      - key: FLASK_DEBUG
-        value: "false"
+      - key: FLASK_ENV
+        value: production
       - key: SECRET_KEY
         generateValue: true
-      - key: AUTH_SERVICE_URL
-        fromService:
-          name: moova-auth
-          type: web
-          property: host
-      - key: PACIENTES_SERVICE_URL
-        fromService:
-          name: moova-pacientes
-          type: web
-          property: host
-      - key: CITAS_SERVICE_URL
-        fromService:
-          name: moova-citas
-          type: web
-          property: host
-      - key: PAGOS_SERVICE_URL
-        fromService:
-          name: moova-pagos
-          type: web
-          property: host
-      - key: NOTAS_SERVICE_URL
-        fromService:
-          name: moova-notas
-          type: web
-          property: host
+      - key: API_KEY
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        value: moovacloud_auth
+      - key: DB_PORT
+        value: "3306"
+      - key: AUTH_DB_NAME
+        value: moovacloud_auth
+      - key: PACIENTES_DB_NAME
+        value: moovacloud_pacientes
+      - key: CITAS_DB_NAME
+        value: moovacloud_citas
+      - key: PAGOS_DB_NAME
+        value: moovacloud_pagos
+      - key: NOTAS_DB_NAME
+        value: moovacloud_notas
+      - key: AUDIT_DB_NAME
+        value: moovacloud_auditoria
+      - key: KPIS_DB_NAME
+        value: moovacloud_kpis
+      - key: APIPERU_TOKEN
+        sync: false
+      - key: APIPERU_URL
+        value: "https://dniruc.apisperu.com/api/v1/dni/{dni}?token={token}"
+      - key: TEXTBEE_API_KEY
+        sync: false
+      - key: TEXTBEE_DEVICE_ID
+        sync: false
+      - key: TEXTBEE_URL
+        value: "https://api.textbee.dev/api/v1/gateway/devices/{device_id}/send-sms"
+      - key: WEBHOOK_PROVIDER_TOKEN
+        sync: false
+      - key: NIUBIZ_MODE
+        value: sandbox
+      - key: NIUBIZ_SANDBOX_URL
+        value: https://apisandbox.vnforappstest.com
+      - key: NIUBIZ_LIVE_URL
+        value: https://api.viacel.com
+      - key: NIUBIZ_USER
+        sync: false
+      - key: NIUBIZ_PASSWORD
+        sync: false
+      - key: NIUBIZ_MERCHANT_ID
+        sync: false
+      - key: NIUBIZ_SDK_URL
+        sync: false
+      - key: YAPE_API_URL
+        value: https://api.yape.com.pe
+      - key: YAPE_CLIENT_ID
+        sync: false
+      - key: YAPE_CLIENT_SECRET
+        sync: false
+      - key: YAPE_MERCHANT_ID
+        sync: false
+      - key: PLIN_API_URL
+        value: https://api.plin.com.pe
+      - key: PLIN_CLIENT_ID
+        sync: false
+      - key: PLIN_CLIENT_SECRET
+        sync: false
+      - key: PLIN_MERCHANT_ID
+        sync: false
+      - key: OTP_EXPIRA_MIN
+        value: "10"
+      - key: OTP_MAX_INTENTOS
+        value: "3"
+      - key: OTP_SESION_MIN
+        value: "15"
+      - key: LOGIN_MAX_INTENTOS
+        value: "5"
+      - key: LOGIN_VENTANA_MIN
+        value: "10"
+      - key: LOGIN_BLOQUEO_MIN
+        value: "15"
+      - key: TRUST_PROXY
+        value: "1"
+      - key: RECORDATORIOS_ENABLED
+        value: "0"
+      - key: RECORDATORIO_HORA
+        value: "18:00"
+      - key: RECORDATORIO_INTERVALO_MIN
+        value: "15"
+      - key: RIESGO_DIAS_UMBRAL
+        value: "30"
 
-  # ============================================
-  # AUTH SERVICE — Puerto 5001
-  # ============================================
-  - type: web
-    name: moova-auth
+  - type: cron
+    name: liberar-pagos-vencidos
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn "services.auth_service.app:create_app()" --bind 0.0.0.0:$PORT
+    schedule: "17 * * * *"
+    command: python scripts/liberar_pagos_vencidos.py 24
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.8"
-
-  # ============================================
-  # PACIENTES SERVICE — Puerto 5002
-  # ============================================
-  - type: web
-    name: moova-pacientes
-    runtime: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn "services.pacientes_service.app:create_app()" --bind 0.0.0.0:$PORT
-    envVars:
-      - key: PYTHON_VERSION
-        value: "3.11.8"
-
-  # ============================================
-  # CITAS SERVICE — Puerto 5003
-  # ============================================
-  - type: web
-    name: moova-citas
-    runtime: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn "services.citas_service.app:create_app()" --bind 0.0.0.0:$PORT
-    envVars:
-      - key: PYTHON_VERSION
-        value: "3.11.8"
-
-  # ============================================
-  # PAGOS SERVICE — Puerto 5004
-  # ============================================
-  - type: web
-    name: moova-pagos
-    runtime: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn "services.pagos_service.app:create_app()" --bind 0.0.0.0:$PORT
-    envVars:
-      - key: PYTHON_VERSION
-        value: "3.11.8"
-
-  # ============================================
-  # NOTAS SERVICE — Puerto 5005
-  # ============================================
-  - type: web
-    name: moova-notas
-    runtime: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn "services.notas_service.app:create_app()" --bind 0.0.0.0:$PORT
-    envVars:
-      - key: PYTHON_VERSION
-        value: "3.11.8"
+      - key: API_KEY
+        fromService:
+          name: moova-gateway
+          type: web
+          envVarKey: API_KEY
+      - key: GATEWAY_URL
+        fromService:
+          name: moova-gateway
+          type: web
+          property: host

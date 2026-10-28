@@ -13,7 +13,7 @@
 </head>
 <body>
 
-<nav class="navbar navbar-expand bg-white border-bottom shadow-sm px-3 py-2">
+<nav class="navbar navbar-expand navbar-bubble border-bottom shadow-sm px-3 py-2">
     <div class="container-fluid">
         <span class="navbar-brand mb-0 h1 logo">MOOVA <span>Clinic</span></span>
         <div class="d-flex align-items-center gap-2 ms-auto flex-wrap">
@@ -27,6 +27,17 @@
             <a href="{{ url_for('pacientes_page') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
                 <i class="bi bi-people"></i> Pacientes
             </a>
+            {% if current_user.es_admin %}
+            <a href="{{ url_for('panel_admin_kpis') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+                <i class="bi bi-graph-up"></i> KPIs
+            </a>
+            <a href="{{ url_for('panel_admin_auditoria') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+                <i class="bi bi-journal-text"></i> Auditoría
+            </a>
+            <a href="{{ url_for('panel_admin_riesgo') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+                <i class="bi bi-person-exclamation"></i> Riesgo
+            </a>
+            {% endif %}
             <a href="{{ url_for('index') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
                 <i class="bi bi-house"></i> Inicio
             </a>
@@ -71,6 +82,7 @@
                 </div>
                 <div class="card-body">
                     <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
                         <input type="hidden" name="accion" value="registrar">
                         <div class="mb-3">
                             <label class="form-label">Nombre completo</label>
@@ -132,13 +144,14 @@
                                 <tr>
                                     <td>
                                         <div class="d-flex align-items-center gap-2">
-                                            <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center text-white fw-bold" style="width:34px;height:34px;">{{ m.Nombre[0].upper() }}</div>
+                                            <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center text-white fw-bold" style="width:34px;height:34px;">{{ (m.Nombre or '?')[0]|upper }}</div>
                                             {{ m.Nombre }}
                                         </div>
                                     </td>
                                     <td><span class="badge text-bg-light">{{ m.Especialidad }}</span></td>
                                     <td>
                                         <form method="POST" class="d-flex align-items-center gap-1">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
                                             <input type="hidden" name="accion" value="actualizar_precio">
                                             <input type="hidden" name="medico_id" value="{{ m.ID }}">
                                             <input type="number" name="precio" value="{{ '%.2f'|format(m.precio) if m.precio else '' }}"
@@ -165,6 +178,7 @@
                                             {% if m.activo %}
                                             <form method="POST"
                                                 onsubmit="return confirm('Desactivar a {{ m.Nombre }}?')">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
                                                 <input type="hidden" name="accion" value="eliminar">
                                                 <input type="hidden" name="medico_id" value="{{ m.ID }}">
                                                 <button type="submit" class="btn btn-icon" title="Desactivar">
@@ -174,6 +188,7 @@
                                             {% else %}
                                             <form method="POST"
                                                 onsubmit="return confirm('Reactivar a {{ m.Nombre }}?')">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
                                                 <input type="hidden" name="accion" value="reactivar">
                                                 <input type="hidden" name="medico_id" value="{{ m.ID }}">
                                                 <button type="submit" class="btn btn-icon" title="Reactivar" style="color:#16a34a;">
@@ -210,6 +225,7 @@
                     <tr>
                         <th>Nombre</th>
                         <th>Correo</th>
+                        <th>Teléfono</th>
                         <th>Rol</th>
                         <th>Estado</th>
                         <th>Ultimo acceso</th>
@@ -221,6 +237,20 @@
                         <tr>
                             <td>{{ u.nombre }}</td>
                             <td>{{ u.correo }}</td>
+                            <td>
+                                <form method="POST" class="d-flex align-items-center gap-1">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
+                                    <input type="hidden" name="accion" value="actualizar_telefono">
+                                    <input type="hidden" name="usuario_id" value="{{ u.id }}">
+                                    <input type="tel" name="telefono" value="{{ u.telefono or '' }}"
+                                        placeholder="987654321" maxlength="9" pattern="9[0-9]{8}"
+                                        title="9 digitos que empiezan por 9. Vacio para borrar."
+                                        class="form-control form-control-sm" style="width:110px;">
+                                    <button type="submit" class="btn btn-icon" title="Guardar teléfono">
+                                        <i class="bi bi-save"></i>
+                                    </button>
+                                </form>
+                            </td>
                             <td><span class="badge text-bg-light">{{ u.rol|capitalize }}</span></td>
                             <td>
                                 {% if u.activo %}
@@ -233,7 +263,7 @@
                         </tr>
                         {% endfor %}
                     {% else %}
-                        <tr><td colspan="5" class="text-center text-muted py-4">No hay usuarios registrados.</td></tr>
+                        <tr><td colspan="6" class="text-center text-muted py-4">No hay usuarios registrados.</td></tr>
                     {% endif %}
                 </tbody>
             </table>
@@ -281,6 +311,7 @@
                                 {% if c.estado == 'programada' %}
                                 <form method="POST" action="{{ url_for('admin_cancelar_cita', cita_id=c.id) }}"
                                     onsubmit="return confirm('¿Cancelar la cita de {{ c.nombre }}?')">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
                                     <button type="submit" class="btn btn-icon" title="Cancelar cita">
                                         <i class="bi bi-ban"></i>
                                     </button>
@@ -313,6 +344,7 @@
             <div class="modal-body">
                 <p id="modal-nombre"></p>
                 <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
                     <input type="hidden" name="accion" value="cambiar_clave">
                     <input type="hidden" name="medico_id" id="modal-id">
                     <div class="mb-3">

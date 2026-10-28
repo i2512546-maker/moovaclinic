@@ -12,13 +12,46 @@
 <body>
 
     <div class="container d-flex justify-content-center py-5">
-        <div class="card card-moova shadow-sm" style="max-width:560px;width:100%;">
+        <div class="card card-moova fade-up shadow-sm" style="max-width:560px;width:100%;">
+
+            <!-- ══════════════ WIZARD PROGRESS ══════════════ -->
+            <div class="card-body pb-0">
+                <div class="wizard-steps">
+                    <div class="wizard-step completed" data-step="1">
+                        <div class="wizard-dot"><i class="bi bi-check-lg"></i></div>
+                        <span class="wizard-label">Datos</span>
+                    </div>
+                    <div class="wizard-connector completed"></div>
+                    <div class="wizard-step completed" data-step="2">
+                        <div class="wizard-dot"><i class="bi bi-check-lg"></i></div>
+                        <span class="wizard-label">Tratamiento</span>
+                    </div>
+                    <div class="wizard-connector completed"></div>
+                    <div class="wizard-step completed" data-step="3">
+                        <div class="wizard-dot"><i class="bi bi-check-lg"></i></div>
+                        <span class="wizard-label">Fecha</span>
+                    </div>
+                    <div class="wizard-connector completed"></div>
+                    <div class="wizard-step completed" data-step="4">
+                        <div class="wizard-dot"><i class="bi bi-check-lg"></i></div>
+                        <span class="wizard-label">Resumen</span>
+                    </div>
+                    <div class="wizard-connector completed"></div>
+                    <div class="wizard-step completed" data-step="5">
+                        <div class="wizard-dot"><i class="bi bi-check-lg"></i></div>
+                        <span class="wizard-label">Pago</span>
+                    </div>
+                    <div class="wizard-connector completed"></div>
+                    <div class="wizard-step active" data-step="6">
+                        <div class="wizard-dot">6</div>
+                        <span class="wizard-label">Confirmación</span>
+                    </div>
+                </div>
+            </div>
 
             <div class="card-body text-center p-4 p-md-5">
 
-                <div class="mx-auto mb-3 rounded-circle d-flex align-items-center justify-content-center text-white" style="width:80px;height:80px;background:var(--moova-green);">
-                    <i class="bi bi-check-lg fs-1"></i>
-                </div>
+                <div class="confirm-circle mx-auto mb-3"><i class="bi bi-check-lg"></i></div>
 
                 <h1 class="h3 fw-bold">¡Tu cita ha sido agendada!</h1>
                 <p class="text-muted">Tu pago fue confirmado y tu cita quedó registrada correctamente.</p>

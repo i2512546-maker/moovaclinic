@@ -1,0 +1,164 @@
+import os
+import sys
+import unittest
+from contextlib import contextmanager
+from unittest.mock import MagicMock, patch
+
+os.environ.setdefault("SECRET_KEY", "clave-de-pruebas")
+os.environ.setdefault("API_KEY", "clave-interna-de-pruebas")
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from gateway.app import create_app
+from shared.config import API_KEY
+from tests.internal_client import internal_test_client
+
+RUTA = "/_internal/api/pagos/mantenimiento/liberar_vencidos"
+
+
+class LiberarPagosVencidosTest(unittest.TestCase):
+    def setUp(self):
+        self.client = internal_test_client(create_app())
+        self.cab = {"X-Api-Key": API_KEY} if API_KEY else {}
+
+    def _patch_proc(self, vencidos):
+        """Simula el conjunto de citas vencidas y los límites de ambos servicios."""
+        @contextmanager
+        def configuracion():
+            filas = ([{"cita_id": n} for n in range(1, vencidos + 1)]
+                     + [{"vencidos": vencidos}])
+            with patch(
+                "services.pagos_service.routes.call_proc", return_value=filas
+            ), patch(
+                "services.pagos_service.routes.citas_client.post",
+                return_value=({"success": True}, 200),
+            ), patch(
+                "services.pagos_service.routes.call_proc_execute"
+            ):
+                yield
+
+        return configuracion()
+
+    def test_exige_api_key_interna(self):
+        with patch("services.pagos_service.routes.call_proc") as proc:
+            resp = self.client.post(RUTA, json={"horas": 24})
+        self.assertEqual(resp.status_code, 401)
+        proc.assert_not_called()
+
+    def test_devuelve_cuantos_vencieron(self):
+        with self._patch_proc(3), patch(
+            "services.pagos_service.routes.log_accion"
+        ):
+            resp = self.client.post(
+                RUTA, json={"horas": 24}, headers=self.cab
+            )
+        self.assertEqual(resp.status_code, 200)
+        cuerpo = resp.get_json()
+        self.assertTrue(cuerpo["success"])
+        self.assertEqual(cuerpo["vencidos"], 3)
+        self.assertEqual(cuerpo["horas"], 24)
+
+    def test_audita_solo_si_hubo_vencidos(self):
+        with self._patch_proc(2), patch(
+            "services.pagos_service.routes.log_accion"
+        ) as log:
+            self.client.post(RUTA, json={"horas": 24}, headers=self.cab)
+        log.assert_called_once()
+        self.assertEqual(
+            log.call_args.kwargs["accion"], "liberar_pagos_vencidos"
+        )
+
+        with self._patch_proc(0), patch(
+            "services.pagos_service.routes.log_accion"
+        ) as log:
+            self.client.post(RUTA, json={"horas": 24}, headers=self.cab)
+        log.assert_not_called()
+
+    def test_rechaza_horas_invalidas(self):
+        for horas in (0, -5, "abc", 99999):
+            with self._patch_proc(0), patch(
+                "services.pagos_service.routes.call_proc"
+            ) as proc:
+                resp = self.client.post(
+                    RUTA, json={"horas": horas}, headers=self.cab
+                )
+            self.assertEqual(resp.status_code, 400, f"horas={horas}")
+            proc.assert_not_called()
+
+    def test_sin_cuerpo_usa_24_horas(self):
+        with self._patch_proc(0), patch(
+            "services.pagos_service.routes.log_accion"
+        ):
+            resp = self.client.post(RUTA, headers=self.cab)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.get_json()["horas"], 24)
+
+    def test_auditoria_caida_no_rompe_el_job(self):
+        """Si audit_service no responde, el job debe responder igual."""
+        with self._patch_proc(5), patch(
+            "services.pagos_service.routes.log_accion",
+            side_effect=Exception("audit caido"),
+        ):
+            resp = self.client.post(RUTA, json={"horas": 24}, headers=self.cab)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.get_json()["vencidos"], 5)
+
+
+class ScriptCronTest(unittest.TestCase):
+    """El script de cron no debe llamar al servicio sin API_KEY."""
+
+    def test_falla_sin_api_key(self):
+        import importlib.util
+
+        ruta = os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "scripts",
+            "liberar_pagos_vencidos.py",
+        )
+        spec = importlib.util.spec_from_file_location("liberar", ruta)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+
+        env_sin = {"PATH": os.environ.get("PATH", "")}
+        with patch.dict(os.environ, env_sin, clear=True):
+            with patch("sys.argv", ["liberar_pagos_vencidos.py"]):
+                self.assertEqual(mod.main(), 1)
+
+    def test_llama_endpoint_interno_del_gateway_con_api_key(self):
+        import importlib.util
+
+        ruta = os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "scripts",
+            "liberar_pagos_vencidos.py",
+        )
+        spec = importlib.util.spec_from_file_location("liberar", ruta)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+
+        respuesta = MagicMock()
+        respuesta.__enter__.return_value.status = 200
+        respuesta.__enter__.return_value.read.return_value = b'{"success":true}'
+        with patch.dict(
+            os.environ,
+            {"GATEWAY_URL": "moova.example", "API_KEY": "clave-prueba"},
+            clear=True,
+        ), patch("sys.argv", ["liberar_pagos_vencidos.py", "24"]), patch(
+            "urllib.request.urlopen", return_value=respuesta
+        ) as urlopen:
+            resultado = mod.main()
+
+        self.assertEqual(resultado, 0)
+        solicitud = urlopen.call_args.args[0]
+        self.assertEqual(
+            solicitud.full_url,
+            "https://moova.example/_internal/api/pagos/mantenimiento/liberar_vencidos",
+        )
+        self.assertEqual(solicitud.get_header("X-api-key"), "clave-prueba")
+        self.assertEqual(solicitud.get_method(), "POST")
+
+
+if __name__ == "__main__":
+    unittest.main()

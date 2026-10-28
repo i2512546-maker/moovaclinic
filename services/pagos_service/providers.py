@@ -1,7 +1,65 @@
-import os
+import re
+from urllib.parse import quote
+
 import requests
 
+from shared.config import (
+    NIUBIZ_LIVE_URL,
+    NIUBIZ_MERCHANT_ID,
+    NIUBIZ_MODE,
+    NIUBIZ_PASSWORD,
+    NIUBIZ_SANDBOX_URL,
+    NIUBIZ_SDK_URL,
+    NIUBIZ_USER,
+    PAGOS_MODO_DEMO,
+    PLIN_API_URL,
+    PLIN_CLIENT_ID,
+    PLIN_CLIENT_SECRET,
+    PLIN_MERCHANT_ID,
+    YAPE_API_URL,
+    YAPE_CLIENT_ID,
+    YAPE_CLIENT_SECRET,
+    YAPE_MERCHANT_ID,
+)
+
 API_TIMEOUT = 20
+# Timeout corto para la generacion/consulta de QR de Yape/Plin: la UI de
+# pago corta a los 10s el spinner, el backend debe fallar ANTES que eso.
+QR_API_TIMEOUT = 8
+
+
+def _demo_qr_data_uri():
+    svg = (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" '
+        'viewBox="0 0 320 180"><rect width="320" height="180" rx="12" '
+        'fill="#f3f4f6"/><text x="160" y="82" text-anchor="middle" '
+        'font-family="sans-serif" font-size="20" font-weight="bold" '
+        'fill="#17324d">MODO DEMOSTRACIÓN</text><text x="160" y="116" '
+        'text-anchor="middle" font-family="sans-serif" font-size="16" '
+        'fill="#17324d">Sin cobro real</text></svg>'
+    )
+    return f"data:image/svg+xml,{quote(svg, safe='')}"
+
+
+def _demo_cobro(monto, referencia):
+    return {
+        "cobro_id": f"DEMO-{referencia}-{float(monto):.2f}",
+        "qr_base64": _demo_qr_data_uri(),
+    }
+
+
+def _demo_respuesta(cobro_id):
+    match = re.fullmatch(r"DEMO-(\d+)-(\d+\.\d{2})", str(cobro_id))
+    if not match:
+        raise PaymentProviderError("Cobro demo con formato inválido.")
+    return {
+        "pagado": True,
+        "datos_respuesta": {
+            "referencia": match.group(1),
+            "monto": float(match.group(2)),
+            "estado": "pagado",
+        },
+    }
 
 
 class PaymentNotConfigured(Exception):
@@ -13,16 +71,16 @@ class PaymentProviderError(Exception):
 
 
 class NiubizClient:
-    SANDBOX_URL = os.getenv("NIUBIZ_SANDBOX_URL", "https://apisandbox.vnforappstest.com")
-    LIVE_URL = os.getenv("NIUBIZ_LIVE_URL", "https://api.viacel.com")
+    SANDBOX_URL = NIUBIZ_SANDBOX_URL
+    LIVE_URL = NIUBIZ_LIVE_URL
 
     def __init__(self):
-        self.mode = (os.getenv("NIUBIZ_MODE") or "sandbox").lower()
-        self.user = os.getenv("NIUBIZ_USER") or ""
-        self.password = os.getenv("NIUBIZ_PASSWORD") or ""
-        self.merchant_id = os.getenv("NIUBIZ_MERCHANT_ID") or ""
+        self.mode = NIUBIZ_MODE
+        self.user = NIUBIZ_USER
+        self.password = NIUBIZ_PASSWORD
+        self.merchant_id = NIUBIZ_MERCHANT_ID
         self.base_url = self.LIVE_URL if self.mode == "live" else self.SANDBOX_URL
-        self.sdk_url = os.getenv("NIUBIZ_SDK_URL") or (
+        self.sdk_url = NIUBIZ_SDK_URL or (
             f"{self.base_url}/js/niubiz-sdk.js" if self.mode == "live"
             else "https://apisandbox.vnforappstest.com/js/niubiz-sdk.js"
         )
@@ -44,7 +102,7 @@ class NiubizClient:
                 data="{}", timeout=API_TIMEOUT,
             )
         except requests.RequestException as e:
-            raise PaymentProviderError(f"Niubiz: sin conexion ({e})")
+            raise PaymentProviderError(f"Niubiz: sin conexion ({e})") from e
         if resp.status_code not in (200, 201):
             raise PaymentProviderError(f"Niubiz: auth fallida ({resp.status_code})")
         return resp.json().get("security")
@@ -58,7 +116,7 @@ class NiubizClient:
                 data="{}", timeout=API_TIMEOUT,
             )
         except requests.RequestException as e:
-            raise PaymentProviderError(f"Niubiz: sin conexion ({e})")
+            raise PaymentProviderError(f"Niubiz: sin conexion ({e})") from e
         if resp.status_code not in (200, 201):
             raise PaymentProviderError(f"Niubiz: sesion fallida ({resp.status_code})")
         data = resp.json()
@@ -80,7 +138,7 @@ class NiubizClient:
                 json=body, timeout=API_TIMEOUT,
             )
         except requests.RequestException as e:
-            raise PaymentProviderError(f"Niubiz: sin conexion ({e})")
+            raise PaymentProviderError(f"Niubiz: sin conexion ({e})") from e
         if resp.status_code not in (200, 201):
             raise PaymentProviderError(f"Niubiz: cobro fallido ({resp.status_code})")
         data = resp.json() or {}
@@ -93,10 +151,10 @@ class NiubizClient:
 
 class YapeClient:
     def __init__(self):
-        self.base_url = (os.getenv("YAPE_API_URL") or "").rstrip("/")
-        self.client_id = os.getenv("YAPE_CLIENT_ID") or ""
-        self.client_secret = os.getenv("YAPE_CLIENT_SECRET") or ""
-        self.merchant_id = os.getenv("YAPE_MERCHANT_ID") or ""
+        self.base_url = YAPE_API_URL.rstrip("/")
+        self.client_id = YAPE_CLIENT_ID
+        self.client_secret = YAPE_CLIENT_SECRET
+        self.merchant_id = YAPE_MERCHANT_ID
 
     def is_configured(self):
         return bool(self.base_url and self.client_id and self.client_secret and self.merchant_id)
@@ -111,15 +169,17 @@ class YapeClient:
             resp = requests.post(
                 f"{self.base_url}/oauth/token",
                 data={"grant_type": "client_credentials", "client_id": self.client_id, "client_secret": self.client_secret},
-                timeout=API_TIMEOUT,
+                timeout=QR_API_TIMEOUT,
             )
         except requests.RequestException as e:
-            raise PaymentProviderError(f"Yape: sin conexion ({e})")
+            raise PaymentProviderError(f"Yape: sin conexion ({e})") from e
         if resp.status_code not in (200, 201):
             raise PaymentProviderError(f"Yape: auth fallida ({resp.status_code})")
         return resp.json().get("access_token")
 
     def crear_cobro(self, monto, concepto, referencia):
+        if PAGOS_MODO_DEMO and not self.is_configured():
+            return _demo_cobro(monto, referencia)
         token = self._token()
         body = {"monto": round(float(monto), 2), "moneda": "PEN", "concepto": concepto,
                 "referencia": referencia, "negocio": self.merchant_id}
@@ -127,10 +187,10 @@ class YapeClient:
             resp = requests.post(
                 f"{self.base_url}/api/v1/cobros",
                 headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-                json=body, timeout=API_TIMEOUT,
+                json=body, timeout=QR_API_TIMEOUT,
             )
         except requests.RequestException as e:
-            raise PaymentProviderError(f"Yape: sin conexion ({e})")
+            raise PaymentProviderError(f"Yape: sin conexion ({e})") from e
         if resp.status_code not in (200, 201):
             raise PaymentProviderError(f"Yape: cobro fallido ({resp.status_code})")
         data = resp.json() or {}
@@ -141,15 +201,17 @@ class YapeClient:
         return {"cobro_id": str(cobro_id), "qr_base64": qr_b64}
 
     def consultar_pago(self, cobro_id):
+        if PAGOS_MODO_DEMO and not self.is_configured():
+            return _demo_respuesta(cobro_id)
         token = self._token()
         try:
             resp = requests.get(
                 f"{self.base_url}/api/v1/cobros/{cobro_id}",
                 headers={"Authorization": f"Bearer {token}"},
-                timeout=API_TIMEOUT,
+                timeout=QR_API_TIMEOUT,
             )
         except requests.RequestException as e:
-            raise PaymentProviderError(f"Yape: sin conexion ({e})")
+            raise PaymentProviderError(f"Yape: sin conexion ({e})") from e
         if resp.status_code not in (200, 201):
             raise PaymentProviderError(f"Yape: consulta fallida ({resp.status_code})")
         data = resp.json() or {}
@@ -159,10 +221,10 @@ class YapeClient:
 
 class PlinClient:
     def __init__(self):
-        self.base_url = (os.getenv("PLIN_API_URL") or "").rstrip("/")
-        self.client_id = os.getenv("PLIN_CLIENT_ID") or ""
-        self.client_secret = os.getenv("PLIN_CLIENT_SECRET") or ""
-        self.merchant_id = os.getenv("PLIN_MERCHANT_ID") or ""
+        self.base_url = PLIN_API_URL.rstrip("/")
+        self.client_id = PLIN_CLIENT_ID
+        self.client_secret = PLIN_CLIENT_SECRET
+        self.merchant_id = PLIN_MERCHANT_ID
 
     def is_configured(self):
         return bool(self.base_url and self.client_id and self.client_secret and self.merchant_id)
@@ -177,15 +239,17 @@ class PlinClient:
             resp = requests.post(
                 f"{self.base_url}/oauth/token",
                 data={"grant_type": "client_credentials", "client_id": self.client_id, "client_secret": self.client_secret},
-                timeout=API_TIMEOUT,
+                timeout=QR_API_TIMEOUT,
             )
         except requests.RequestException as e:
-            raise PaymentProviderError(f"Plin: sin conexion ({e})")
+            raise PaymentProviderError(f"Plin: sin conexion ({e})") from e
         if resp.status_code not in (200, 201):
             raise PaymentProviderError(f"Plin: auth fallida ({resp.status_code})")
         return resp.json().get("access_token")
 
     def crear_cobro(self, monto, concepto, referencia):
+        if PAGOS_MODO_DEMO and not self.is_configured():
+            return _demo_cobro(monto, referencia)
         token = self._token()
         body = {"monto": round(float(monto), 2), "moneda": "PEN", "concepto": concepto,
                 "referencia": referencia, "negocio": self.merchant_id}
@@ -193,10 +257,10 @@ class PlinClient:
             resp = requests.post(
                 f"{self.base_url}/api/v1/cobros",
                 headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-                json=body, timeout=API_TIMEOUT,
+                json=body, timeout=QR_API_TIMEOUT,
             )
         except requests.RequestException as e:
-            raise PaymentProviderError(f"Plin: sin conexion ({e})")
+            raise PaymentProviderError(f"Plin: sin conexion ({e})") from e
         if resp.status_code not in (200, 201):
             raise PaymentProviderError(f"Plin: cobro fallido ({resp.status_code})")
         data = resp.json() or {}
@@ -207,15 +271,17 @@ class PlinClient:
         return {"cobro_id": str(cobro_id), "qr_base64": qr_b64}
 
     def consultar_pago(self, cobro_id):
+        if PAGOS_MODO_DEMO and not self.is_configured():
+            return _demo_respuesta(cobro_id)
         token = self._token()
         try:
             resp = requests.get(
                 f"{self.base_url}/api/v1/cobros/{cobro_id}",
                 headers={"Authorization": f"Bearer {token}"},
-                timeout=API_TIMEOUT,
+                timeout=QR_API_TIMEOUT,
             )
         except requests.RequestException as e:
-            raise PaymentProviderError(f"Plin: sin conexion ({e})")
+            raise PaymentProviderError(f"Plin: sin conexion ({e})") from e
         if resp.status_code not in (200, 201):
             raise PaymentProviderError(f"Plin: consulta fallida ({resp.status_code})")
         data = resp.json() or {}

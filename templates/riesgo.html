@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pacientes en Riesgo - MOOVA Clinic</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Nunito:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap-style.css') }}">
+</head>
+<body>
+
+<nav class="navbar navbar-expand navbar-bubble border-bottom shadow-sm px-3 py-2">
+    <div class="container-fluid">
+        <span class="navbar-brand mb-0 h1 logo">MOOVA <span>Clinic</span></span>
+        <div class="d-flex align-items-center gap-2 ms-auto flex-wrap">
+            <span class="badge text-bg-light d-inline-flex align-items-center gap-1">
+                <i class="bi bi-shield-lock"></i>
+                {{ session.usuario_nombre }}
+            </span>
+            <a href="{{ url_for('panel_admin') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+                <i class="bi bi-person-gear"></i> Panel Admin
+            </a>
+            <a href="{{ url_for('panel_admin_kpis') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+                <i class="bi bi-graph-up"></i> KPIs
+            </a>
+            <a href="{{ url_for('panel_admin_auditoria') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+                <i class="bi bi-journal-text"></i> Auditoría
+            </a>
+            <a href="{{ url_for('index') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+                <i class="bi bi-house"></i> Inicio
+            </a>
+            <a href="{{ url_for('logout') }}" class="btn btn-sm btn-danger-moova d-inline-flex align-items-center gap-1">
+                <i class="bi bi-box-arrow-right"></i> Salir
+            </a>
+        </div>
+    </div>
+</nav>
+
+<div class="container-fluid py-4">
+
+    <div class="mb-4">
+        <h1 class="h3 d-flex align-items-center gap-2">
+            <i class="bi bi-person-exclamation"></i> Pacientes en Riesgo de Fuga
+        </h1>
+        <p class="text-muted mb-0">
+            Pacientes que muestran señales de abandono: sin cita programada
+            y sin venir desde hace varios días, o con tres o más citas perdidas.
+            Sirve para que reception los llame antes de perderlos.
+        </p>
+    </div>
+
+    <div class="card card-moova shadow-sm mb-4">
+        <div class="card-header panel-header d-flex align-items-center gap-2">
+            <i class="bi bi-funnel"></i>
+            <h2 class="h5 mb-0">Filtros</h2>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('panel_admin_riesgo') }}" class="row g-3">
+                <div class="col-12 col-md-3">
+                    <label class="form-label">Fecha de referencia</label>
+                    <input type="date" name="fecha" class="form-control" value="{{ fecha }}">
+                </div>
+                <div class="col-12 col-md-3">
+                    <label class="form-label">Días sin venir</label>
+                    <input type="number" name="dias_umbral" class="form-control" min="1" max="365"
+                           placeholder="30" value="{{ dias_umbral }}">
+                </div>
+                <div class="col-12 d-flex align-items-end gap-2 flex-wrap">
+                    <button type="submit" class="btn btn-moova d-inline-flex align-items-center gap-1">
+                        <i class="bi bi-search"></i> Buscar
+                    </button>
+                    <a href="{{ url_for('panel_admin_riesgo') }}" class="btn btn-outline-secondary d-inline-flex align-items-center gap-1">
+                        <i class="bi bi-arrow-counterclockwise"></i> Limpiar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+        <i class="bi bi-exclamation-triangle"></i> {{ error }}
+    </div>
+    {% endif %}
+
+    {% if resumen %}
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card card-moova shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Total en riesgo</div>
+                    <div class="fs-3 fw-semibold">{{ resumen.total }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card card-moova shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Nivel alto</div>
+                    <div class="fs-3 fw-semibold text-danger">{{ resumen.alto }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card card-moova shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Nivel medio</div>
+                    <div class="fs-3 fw-semibold text-warning">{{ resumen.medio }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card card-moova shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Umbral / fecha</div>
+                    <div class="fs-6 fw-semibold">
+                        {{ resumen.dias_umbral }} días<br>
+                        <span class="text-muted fw-normal">{{ resumen.fecha }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card card-moova shadow-sm">
+        <div class="card-header panel-header d-flex align-items-center gap-2">
+            <i class="bi bi-card-list"></i>
+            <h2 class="h5 mb-0">Pacientes ({{ resumen.total }})</h2>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover table-striped align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Paciente</th>
+                        <th>DNI</th>
+                        <th>Teléfono</th>
+                        <th>Última cita</th>
+                        <th class="text-end">Días</th>
+                        <th class="text-end">Programadas</th>
+                        <th class="text-end">Completadas</th>
+                        <th class="text-end">Canceladas</th>
+                        <th class="text-end">Perdidas</th>
+                        <th>Nivel</th>
+                        <th>Motivo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if resumen.pacientes %}
+                        {% for p in resumen.pacientes %}
+                        <tr>
+                            <td class="text-nowrap">
+                                {{ (p.nombre ~ ' ' ~ p.apellido)|trim or '—' }}
+                            </td>
+                            <td class="text-nowrap">{{ p.dni or '—' }}</td>
+                            <td class="text-nowrap">{{ p.telefono or '—' }}</td>
+                            <td class="text-nowrap">{{ p.ultima_cita or '—' }}</td>
+                            <td class="text-end">{{ p.dias_desde_ultima if p.dias_desde_ultima is not none else '—' }}</td>
+                            <td class="text-end">{{ p.citas_programadas }}</td>
+                            <td class="text-end">{{ p.completadas }}</td>
+                            <td class="text-end">{{ p.canceladas }}</td>
+                            <td class="text-end">{{ p.faltas }}</td>
+                            <td>
+                                {% if p.nivel == 'alto' %}
+                                <span class="badge text-bg-danger">Alto</span>
+                                {% else %}
+                                <span class="badge text-bg-warning">Medio</span>
+                                {% endif %}
+                            </td>
+                            <td style="min-width:220px;">{{ p.motivo }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="11" class="text-center text-muted py-4">
+                                <i class="bi bi-check2-circle me-2"></i>
+                                No hay pacientes en riesgo con estos filtros.
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

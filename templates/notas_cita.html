@@ -43,6 +43,7 @@
             <div class="card-body">
                 <h3 class="h5 mb-3">Nueva Nota Clinica</h3>
                 <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Diagnostico (opcional)</label>
                         <input type="text" name="diagnostico" class="form-control" placeholder="Ej: Contractura muscular lumbar">

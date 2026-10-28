@@ -1,72 +1,18 @@
-version: "3.8"
-
 services:
   gateway:
     build: .
-    command: python run.py
+    command: sh -c 'exec gunicorn "gateway.app:create_app()" --bind 0.0.0.0:$${PORT:-5000} --workers 1 --threads 8 --timeout 60'
     ports:
-      - "5000:5000"
+      - "${PORT:-5000}:${PORT:-5000}"
     env_file: .env
-    depends_on:
-      - auth-service
-      - pacientes-service
-      - citas-service
-      - pagos-service
-      - notas-service
     environment:
-      - AUTH_SERVICE_URL=http://auth-service:5001
-      - PACIENTES_SERVICE_URL=http://pacientes-service:5002
-      - CITAS_SERVICE_URL=http://citas-service:5003
-      - PAGOS_SERVICE_URL=http://pagos-service:5004
-      - NOTAS_SERVICE_URL=http://notas-service:5005
-    networks:
-      - moova-net
-
-  auth-service:
-    build: .
-    command: python -m services.auth_service.run
-    ports:
-      - "5001:5001"
-    env_file: .env
-    networks:
-      - moova-net
-
-  pacientes-service:
-    build: .
-    command: python -m services.pacientes_service.run
-    ports:
-      - "5002:5002"
-    env_file: .env
-    networks:
-      - moova-net
-
-  citas-service:
-    build: .
-    command: python -m services.citas_service.run
-    ports:
-      - "5003:5003"
-    env_file: .env
-    networks:
-      - moova-net
-
-  pagos-service:
-    build: .
-    command: python -m services.pagos_service.run
-    ports:
-      - "5004:5004"
-    env_file: .env
-    networks:
-      - moova-net
-
-  notas-service:
-    build: .
-    command: python -m services.notas_service.run
-    ports:
-      - "5005:5005"
-    env_file: .env
-    networks:
-      - moova-net
-
-networks:
-  moova-net:
-    driver: bridge
+      PORT: ${PORT:-5000}
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:' + __import__('os').environ.get('PORT', '5000') + '/', timeout=3).status==200 else 1)\""
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

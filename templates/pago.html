@@ -9,11 +9,15 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap-style.css') }}">
+    <meta name="csrf-token" content="{{ csrf_raw }}">
+    <script>
+        function csrfToken() { var m = document.querySelector('meta[name="csrf-token"]'); return m ? m.content : ''; }
+    </script>
     {% if niubiz_sdk_url %}<script src="{{ niubiz_sdk_url }}"></script>{% endif %}
 </head>
 <body class="bg-light">
 
-    <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom">
+    <nav class="navbar navbar-expand-lg navbar-light navbar-bubble border-bottom">
         <div class="container">
             <a class="navbar-brand logo" href="{{ url_for('index') }}">MOOVA <span>Clinic</span></a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navCitas" aria-controls="navCitas" aria-expanded="false" aria-label="Alternar navegación">
@@ -30,6 +34,7 @@
                         </a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="{{ url_for('citas_page') }}"><i class="fas fa-calendar-plus me-1"></i>Agendar cita</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('tratamiento_page') }}"><i class="fas fa-calendar-check me-1"></i>Continuar tratamiento</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('modificar_cita_page') }}"><i class="fas fa-edit me-1"></i>Modificar cita</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('cancelar_cita_page') }}"><i class="fas fa-times-circle me-1"></i>Cancelar cita</a></li>
                         </ul>
@@ -42,9 +47,41 @@
     <div class="container py-4">
 
         <div class="text-center mb-4">
-            <span class="badge bg-secondary-subtle text-secondary mb-2">Paso 2 de 3</span>
             <h1 class="display-6"><i class="fas fa-credit-card me-2"></i> Realiza tu pago</h1>
             <p class="text-muted">Tu cita aún no está confirmada. Completa el anticipo para agendarla.</p>
+        </div>
+
+        <!-- ══════════════ WIZARD PROGRESS ══════════════ -->
+        <div class="wizard-steps">
+            <div class="wizard-step completed" data-step="1">
+                <div class="wizard-dot"><i class="bi bi-check-lg"></i></div>
+                <span class="wizard-label">Datos</span>
+            </div>
+            <div class="wizard-connector completed"></div>
+            <div class="wizard-step completed" data-step="2">
+                <div class="wizard-dot"><i class="bi bi-check-lg"></i></div>
+                <span class="wizard-label">Tratamiento</span>
+            </div>
+            <div class="wizard-connector completed"></div>
+            <div class="wizard-step completed" data-step="3">
+                <div class="wizard-dot"><i class="bi bi-check-lg"></i></div>
+                <span class="wizard-label">Fecha</span>
+            </div>
+            <div class="wizard-connector completed"></div>
+            <div class="wizard-step completed" data-step="4">
+                <div class="wizard-dot"><i class="bi bi-check-lg"></i></div>
+                <span class="wizard-label">Resumen</span>
+            </div>
+            <div class="wizard-connector completed"></div>
+            <div class="wizard-step active" data-step="5">
+                <div class="wizard-dot">5</div>
+                <span class="wizard-label">Pago</span>
+            </div>
+            <div class="wizard-connector" id="connector-5"></div>
+            <div class="wizard-step" data-step="6">
+                <div class="wizard-dot">6</div>
+                <span class="wizard-label">Confirmación</span>
+            </div>
         </div>
 
         <div class="row justify-content-center">
@@ -208,9 +245,12 @@
 
     <!-- ============ MODAL YAPE ============ -->
     <div class="modal-overlay" id="modalYape" style="display:none;">
-        <div class="modal">
+        <div class="modal-box">
             <button type="button" class="modal-close" onclick="cerrarModal('modalYape')">&times;</button>
             <h3 class="fs-5 fw-bold text-navy"><i class="fa-solid fa-wallet me-1"></i> Paga con Yape</h3>
+            {% if modo_demo %}
+            <p class="pago-nota" role="alert"><strong>MODO DEMOSTRACIÓN: no se cobra dinero real</strong></p>
+            {% endif %}
             <div class="modal-monto">S/ {{ monto_txt }}</div>
             <div class="qr-box" id="qrYape"></div>
             <ol class="modal-pasos">
@@ -227,9 +267,12 @@
 
     <!-- ============ MODAL PLIN ============ -->
     <div class="modal-overlay" id="modalPlin" style="display:none;">
-        <div class="modal">
+        <div class="modal-box">
             <button type="button" class="modal-close" onclick="cerrarModal('modalPlin')">&times;</button>
             <h3 class="fs-5 fw-bold text-navy"><i class="fa-solid fa-mobile-screen-button me-1"></i> Paga con Plin</h3>
+            {% if modo_demo %}
+            <p class="pago-nota" role="alert"><strong>MODO DEMOSTRACIÓN: no se cobra dinero real</strong></p>
+            {% endif %}
             <div class="modal-monto">S/ {{ monto_txt }}</div>
             <div class="qr-box" id="qrPlin"></div>
             <ol class="modal-pasos">
@@ -246,10 +289,13 @@
 
     <!-- ============ OVERLAY PAGO EXITOSO ============ -->
     <div class="modal-overlay" id="overlayExito" style="display:none;">
-        <div class="modal modal-exito">
+        <div class="modal-box modal-exito">
             <i class="fas fa-check-circle exito-icon"></i>
             <h3 class="fs-5 fw-bold">Pago realizado correctamente</h3>
-            <p>Tu cita quedó registrada como pagada. Redirigiendo a tu confirmación...</p>
+            <p>Tu cita quedó registrada como pagada.</p>
+            <button type="button" class="btn btn-secondary w-100" id="btnContinuar" disabled onclick="irARetorno()">
+                <i class="fas fa-arrow-right me-2"></i> Continuar
+            </button>
         </div>
     </div>
 
@@ -260,10 +306,27 @@ var CITA_ID = "{{ cita.id }}";
 
 function mostrarOverlayExito() {
     document.getElementById('overlayExito').style.display = 'flex';
-    setTimeout(function(){ window.location.href = '/retorno?cita_id=' + CITA_ID; }, 1800);
+}
+function habilitarContinuar() {
+    var btnContinuar = document.getElementById('btnContinuar');
+    if (btnContinuar) {
+        btnContinuar.disabled = false;
+        btnContinuar.classList.remove('btn-secondary');
+        btnContinuar.classList.add('btn-moova');
+    }
+}
+function irARetorno() {
+    window.location.href = '/retorno?cita_id=' + CITA_ID;
 }
 function abrirModal(id) { document.getElementById(id).style.display = 'flex'; }
 function cerrarModal(id) { document.getElementById(id).style.display = 'none'; }
+function mostrarPlaceholderQR(boxId) {
+    document.getElementById(boxId).innerHTML =
+        '<div class="qr-placeholder">' +
+            '<i class="fas fa-image"></i>' +
+            '<span>QR pendiente de configurar</span>' +
+        '</div>';
+}
 
 document.querySelectorAll('.modal-close').forEach(function(b){
     b.addEventListener('click', function(){ b.closest('.modal-overlay').style.display = 'none'; });
@@ -277,48 +340,67 @@ if (btnYape) {
         abrirModal('modalYape');
         document.getElementById('qrYape').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cargando código QR...';
         document.getElementById('msgYape').textContent = '';
+        var controladorQR = new AbortController();
+        var timerQR = setTimeout(function(){
+            controladorQR.abort();
+            mostrarPlaceholderQR('qrYape');
+        }, 10000);
         fetch('/api/pagos/yape/iniciar', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({cita_id: CITA_ID})
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
+            body: JSON.stringify({cita_id: CITA_ID}),
+            signal: controladorQR.signal
         })
-        .then(function(r){ return r.json(); })
+        .then(function(r){ clearTimeout(timerQR); return r.json(); })
         .then(function(res){
-            if (res.ok) {
+            if (res.ok && res.qr) {
                 yapeCobroId = res.cobro_id;
                 document.getElementById('qrYape').innerHTML = '<img src="' + res.qr + '" alt="Código QR Yape">';
             } else {
-                document.getElementById('qrYape').innerHTML = '<p class="pago-error">' + res.error + '</p>';
+                mostrarPlaceholderQR('qrYape');
             }
         })
         .catch(function(){
-            document.getElementById('qrYape').innerHTML = '<p class="pago-error">Error de conexión. Intenta de nuevo.</p>';
+            clearTimeout(timerQR);
+            mostrarPlaceholderQR('qrYape');
         });
     });
 }
-function verificarYape() {
-    var btn = document.getElementById('btnVerificarYape');
+/* Consulta el estado real del cobro en pagos_service. El servicio es el
+   que confirma el pago en la base cuando la pasarela responde "pagado",
+   asi que aqui no se marca nada por el lado del navegador. */
+function verificarCobro(btnId, msgId, modalId, endpoint, cobroId) {
+    var btn = document.getElementById(btnId);
+    var msg = document.getElementById(msgId);
     btn.disabled = true;
-    document.getElementById('msgYape').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Consultando estado del pago...';
-        fetch('/api/pagos/yape/estado', {
+    msg.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Consultando estado del pago...';
+    fetch(endpoint, {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({cita_id: CITA_ID, cobro_id: yapeCobroId})
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
+        body: JSON.stringify({cita_id: CITA_ID, cobro_id: cobroId})
     })
     .then(function(r){ return r.json(); })
     .then(function(res){
-        if (res.pagado) {
-            cerrarModal('modalYape');
+        if (res.ok && res.pagado) {
+            cerrarModal(modalId);
             mostrarOverlayExito();
+            habilitarContinuar();
         } else {
-            document.getElementById('msgYape').innerHTML = res.mensaje || res.error || 'El pago aún no se registra en Yape. Intenta de nuevo.';
+            msg.innerHTML = '<span class="text-danger">' +
+                (res.error || 'El pago aun no aparece confirmado. Verifica el QR e intentalo de nuevo.') +
+                '</span>';
             btn.disabled = false;
         }
     })
     .catch(function(){
-        document.getElementById('msgYape').innerHTML = 'Error de conexión. Intenta de nuevo.';
+        msg.innerHTML = '<span class="text-danger">' +
+            'No se pudo consultar el pago. Revisa tu conexion e intentalo de nuevo.</span>';
         btn.disabled = false;
     });
+}
+
+function verificarYape() {
+    verificarCobro('btnVerificarYape', 'msgYape', 'modalYape', '/api/pagos/yape/estado', yapeCobroId);
 }
 
 /* ---------- PLIN ---------- */
@@ -329,48 +411,34 @@ if (btnPlin) {
         abrirModal('modalPlin');
         document.getElementById('qrPlin').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cargando código QR...';
         document.getElementById('msgPlin').textContent = '';
+        var controladorQR = new AbortController();
+        var timerQR = setTimeout(function(){
+            controladorQR.abort();
+            mostrarPlaceholderQR('qrPlin');
+        }, 10000);
         fetch('/api/pagos/plin/iniciar', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({cita_id: CITA_ID})
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
+            body: JSON.stringify({cita_id: CITA_ID}),
+            signal: controladorQR.signal
         })
-        .then(function(r){ return r.json(); })
+        .then(function(r){ clearTimeout(timerQR); return r.json(); })
         .then(function(res){
-            if (res.ok) {
+            if (res.ok && res.qr) {
                 plinCobroId = res.cobro_id;
                 document.getElementById('qrPlin').innerHTML = '<img src="' + res.qr + '" alt="Código QR Plin">';
             } else {
-                document.getElementById('qrPlin').innerHTML = '<p class="pago-error">' + res.error + '</p>';
+                mostrarPlaceholderQR('qrPlin');
             }
         })
         .catch(function(){
-            document.getElementById('qrPlin').innerHTML = '<p class="pago-error">Error de conexión. Intenta de nuevo.</p>';
+            clearTimeout(timerQR);
+            mostrarPlaceholderQR('qrPlin');
         });
     });
 }
 function verificarPlin() {
-    var btn = document.getElementById('btnVerificarPlin');
-    btn.disabled = true;
-    document.getElementById('msgPlin').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Consultando estado del pago...';
-        fetch('/api/pagos/plin/estado', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({cita_id: CITA_ID, cobro_id: plinCobroId})
-    })
-    .then(function(r){ return r.json(); })
-    .then(function(res){
-        if (res.pagado) {
-            cerrarModal('modalPlin');
-            mostrarOverlayExito();
-        } else {
-            document.getElementById('msgPlin').innerHTML = res.mensaje || res.error || 'El pago aún no se registra en Plin. Intenta de nuevo.';
-            btn.disabled = false;
-        }
-    })
-    .catch(function(){
-        document.getElementById('msgPlin').innerHTML = 'Error de conexión. Intenta de nuevo.';
-        btn.disabled = false;
-    });
+    verificarCobro('btnVerificarPlin', 'msgPlin', 'modalPlin', '/api/pagos/plin/estado', plinCobroId);
 }
 
 /* ---------- TARJETA ---------- */
@@ -421,7 +489,7 @@ if (formTarjeta) {
 
         fetch('/api/pagos/tarjeta/iniciar', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
             body: JSON.stringify({cita_id: CITA_ID})
         })
         .then(function(r){ return r.json(); })
@@ -450,7 +518,7 @@ if (formTarjeta) {
         .then(function(cardToken){
             return fetch('/api/pagos/tarjeta/cobrar', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
                 body: JSON.stringify({
                     cita_id: CITA_ID,
                     cardToken: cardToken,
@@ -460,7 +528,7 @@ if (formTarjeta) {
             }).then(function(r){ return r.json(); });
         })
         .then(function(res){
-            if (res.ok && res.pagado) { mostrarOverlayExito(); }
+            if (res.ok && res.pagado) { mostrarOverlayExito(); habilitarContinuar(); }
             else { throw new Error(res.error || 'El pago fue rechazado.'); }
         })
         .catch(function(err){
