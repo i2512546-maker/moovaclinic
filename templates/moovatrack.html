@@ -19,6 +19,9 @@
                 <i class="bi bi-{{ 'shield-lock' if es_admin else 'person-badge' }}"></i>
                 {{ nombre_usuario }}
             </span>
+            <a href="{{ url_for('pacientes_page') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+                <i class="bi bi-people"></i> Pacientes
+            </a>
             <a href="{{ url_for('interfaz') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
                 <i class="bi bi-calendar3"></i> Agenda
             </a>
