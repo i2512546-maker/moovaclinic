@@ -51,6 +51,9 @@ class InternalLoopbackOnlyTest(unittest.TestCase):
     def test_mantenimiento_externo_exige_api_key_y_sigue_alcanzable(self):
         ruta = "/_internal/api/pagos/mantenimiento/liberar_vencidos"
         with patch(
+            "services.pagos_service.routes.call_proc",
+            return_value=[],
+        ), patch(
             "services.pagos_service.routes.call_proc_one",
             return_value={"vencidos": 0},
         ):

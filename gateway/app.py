@@ -1294,8 +1294,31 @@ def create_app():
         cdata, _ = citas_client.get(f"/api/citas{params}")
         proximas_citas = cdata.get("citas", [])[:20]
 
+        bloqueos = []
+        rl = app.extensions.get("rate_limit")
+        if rl is not None:
+            bloqueos = rl.bloqueos_activos()
         return render_template("paneladmin.html", medicos=medicos, proximas_citas=proximas_citas,
-                               especialidades=especialidades, usuarios=usuarios)
+                               especialidades=especialidades, usuarios=usuarios,
+                               bloqueos=bloqueos)
+
+    @app.route("/panel_admin/desbloquear", methods=["POST"])
+    @_admin_required
+    def panel_admin_desbloquear():
+        clave = (request.form.get("clave") or "").strip()
+        if clave:
+            rl = app.extensions.get("rate_limit")
+            if rl is not None:
+                rl.liberar(clave)
+            log_accion(
+                usuario_id=session.get("usuario_id"),
+                accion="desbloquear_usuario",
+                tabla_afectada="rate_limit",
+                registro_id=None,
+                detalle=f"Clave desbloqueada: {clave}",
+            )
+            flash("exito:Usuario desbloqueado.")
+        return redirect(url_for("panel_admin"))
 
     @app.route("/panel_admin/auditoria")
     @_admin_required

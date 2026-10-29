@@ -126,6 +126,27 @@ class LimitadorIntentos:
                 self._fallos.pop(clave, None)
                 self._bloqueos.pop(clave, None)
 
+    def liberar(self, clave):
+        """Libera manualmente (admin) un bloqueo y su historial."""
+        with self._candado:
+            self._fallos.pop(clave, None)
+            self._bloqueos.pop(clave, None)
+
+    def bloqueos_activos(self, ahora=None):
+        """Lista de bloqueos vigentes: [{"clave": ..., "minutos_restantes": ...}]."""
+        ahora = time.time() if ahora is None else ahora
+        with self._candado:
+            self._purgar(ahora)
+            resultado = []
+            for clave, expira in self._bloqueos.items():
+                if expira > ahora:
+                    resultado.append({
+                        "clave": clave,
+                        "minutos_restantes": (expira - ahora) / 60.0,
+                    })
+            resultado.sort(key=lambda x: x["clave"])
+            return resultado
+
     def reiniciar(self):
         """Vacia todo (tests y arranque)."""
         with self._candado:

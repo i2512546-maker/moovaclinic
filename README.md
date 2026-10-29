@@ -160,9 +160,11 @@ Hay dos contadores independientes y **ambos tienen que pasar**:
 | `correo:<correo>` | quien prueba un mismo correo desde muchas IPs |
 
 Defaults: `LOGIN_MAX_INTENTOS=5` fallos dentro de `LOGIN_VENTANA_MIN=10`
-minutos bloquean `LOGIN_BLOQUEO_MIN=15` minutos. Al entrar bien se borra
+minutos bloquean `LOGIN_BLOQUEO_MIN=30` minutos. Al entrar bien se borra
 el historial de esas claves, para que cinco typos de la mañana no dejen
-al usuario real bloqueado.
+al usuario real bloqueado. Un administrador puede desbloquear manualmente
+una clave (`ip:`/`correo:`) desde `/panel_admin`
+(POST `/panel_admin/desbloquear`).
 
 Los mensajes son fijos y no dependen de lo que devuelva el
 módulo interno: ni el bloqueo ni la clave incorrecta dicen si el correo

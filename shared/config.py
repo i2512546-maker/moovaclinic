@@ -32,7 +32,7 @@ TEXTBEE_DEVICE_ID = os.getenv("TEXTBEE_DEVICE_ID")
 TEXTBEE_URL = os.getenv("TEXTBEE_URL")
 
 APIPERU_TOKEN = os.getenv("APIPERU_TOKEN")
-APIPERU_URL = os.getenv("APIPERU_URL")
+APIPERU_URL = os.getenv("APIPERU_URL", "https://dniruc.apisperu.com/api/v1/dni/{dni}?token={token}")
 
 OTP_EXPIRA_MIN = int(os.getenv("OTP_EXPIRA_MIN", 10))
 OTP_MAX_INTENTOS = int(os.getenv("OTP_MAX_INTENTOS", 3))
@@ -49,7 +49,7 @@ LOGIN_MAX_INTENTOS = int(os.getenv("LOGIN_MAX_INTENTOS", 5))
 # Ventana (minutos) en la que se acumulan los fallos.
 LOGIN_VENTANA_MIN = int(os.getenv("LOGIN_VENTANA_MIN", 10))
 # Minutos que dura el bloqueo una vez superado el maximo.
-LOGIN_BLOQUEO_MIN = int(os.getenv("LOGIN_BLOQUEO_MIN", 15))
+LOGIN_BLOQUEO_MIN = int(os.getenv("LOGIN_BLOQUEO_MIN", 30))
 # 1 = detras de un proxy (Render/ nginx): la IP real se toma del
 # PRIMER valor de X-Forwarded-For. En 0 (default) el header se ignora,
 # porque cualquiera podria inventarlo y quedar sin contador.
