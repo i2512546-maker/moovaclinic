@@ -81,7 +81,7 @@ class CrearCitaPagoRequeridoTest(unittest.TestCase):
         self.assertEqual(respuesta.status_code, 400)
         disponible.assert_not_called()
 
-    def test_pago_no_creado_no_cancela_cita(self):
+    def test_pago_no_creado_cancela_la_reserva_pendiente(self):
         self._with_prerequisites()
         with patch(
             "services.citas_service.routes.call_proc_one",
@@ -94,7 +94,7 @@ class CrearCitaPagoRequeridoTest(unittest.TestCase):
         self.assertEqual(respuesta.status_code, 201)
         self.assertEqual(proc.call_count, 1)
 
-    def test_excepcion_al_iniciar_pago_no_cancela_cita(self):
+    def test_excepcion_al_iniciar_pago_cancela_la_reserva_pendiente(self):
         self._with_prerequisites()
         with patch(
             "services.citas_service.routes.call_proc_one",
@@ -107,7 +107,7 @@ class CrearCitaPagoRequeridoTest(unittest.TestCase):
         self.assertEqual(respuesta.status_code, 201)
         self.assertEqual(proc.call_count, 1)
 
-    def test_respuesta_sin_id_de_pago_no_cancela_cita(self):
+    def test_respuesta_sin_id_de_pago_cancela_la_reserva_pendiente(self):
         self._with_prerequisites()
         with patch(
             "services.citas_service.routes.call_proc_one",
