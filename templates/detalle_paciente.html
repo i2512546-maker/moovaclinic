@@ -8,16 +8,44 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap-style.css') }}">
+    <style>
+        .print-only { display: none; }
+        @media print {
+            @page { size: A4 portrait; margin: 14mm 12mm; }
+            body { background: #fff !important; color: #111 !important; font-size: 10pt; }
+            .no-print, nav, .navbar, button, a.btn { display: none !important; }
+            .contenedor-estrecho { width: 100% !important; max-width: none !important; padding: 0 !important; margin: 0 !important; }
+            .print-only { display: block !important; }
+            .print-header { border-bottom: 2px solid #333; margin-bottom: 12px; padding-bottom: 8px; }
+            .card, .table-responsive { box-shadow: none !important; border: 1px solid #bbb !important; break-inside: avoid; }
+            .card-body { padding: 10px !important; }
+            h1, h2, h3 { color: #111 !important; break-after: avoid; }
+            table { width: 100% !important; border-collapse: collapse !important; font-size: 8.5pt; }
+            th, td { border: 1px solid #aaa !important; padding: 5px !important; color: #111 !important; }
+            .badge, .alert { border: 1px solid #aaa !important; color: #111 !important; background: #fff !important; }
+            .print-section { break-inside: avoid; margin-bottom: 12px; }
+            .print-footer { position: fixed; bottom: -8mm; left: 0; right: 0; border-top: 1px solid #aaa; padding-top: 4px; font-size: 8pt; }
+        }
+    </style>
 </head>
 <body>
     <div class="contenedor-estrecho py-4">
-        <div class="panel-header d-flex align-items-center justify-content-between rounded mb-4">
+        <div class="print-only print-header">
+            <h1>MOOVA Clinic — Ficha del paciente</h1>
+            <div><strong>Paciente:</strong> {{ paciente.nombre }} {{ paciente.apellido }}</div>
+            <div><strong>DNI:</strong> {{ paciente.dni }} <span style="margin-left:16px"><strong>Teléfono:</strong> {{ paciente.telefono or 'No registrado' }}</span></div>
+            <div><strong>Impreso:</strong> {{ hoy_impresion or 'Registro clínico' }}</div>
+        </div>
+        <div class="panel-header no-print d-flex align-items-center justify-content-between rounded mb-4">
             <h1 class="h4 mb-0">Historial del Paciente</h1>
             <div class="d-flex align-items-center gap-2">
+                <button type="button" onclick="window.print()" class="btn btn-outline-secondary d-inline-flex align-items-center gap-1 no-print">
+                    <i class="bi bi-printer"></i> Imprimir ficha
+                </button>
                 {% if es_admin %}
                 <a href="{{ url_for('ficha_clinica_pdf', paciente_dni=paciente.dni) }}" target="_blank"
-                    class="btn btn-moova d-inline-flex align-items-center gap-1">
-                    <i class="bi bi-file-earmark-pdf"></i> Descargar Ficha PDF
+                    class="btn btn-moova d-inline-flex align-items-center gap-1 no-print">
+                    <i class="bi bi-file-earmark-pdf"></i> Descargar PDF
                 </a>
                 {% endif %}
                 <a href="{{ url_for('pacientes_page') }}" class="btn btn-outline-secondary btn-sm">Volver a Pacientes</a>
@@ -70,7 +98,7 @@
             </div>
         </div>
 
-        <h2 class="h5 mb-3">Historial de Citas</h2>
+        <h2 class="h5 mb-3 print-section">Historial de Citas</h2>
         <div class="card card-moova shadow-sm mb-4">
             <div class="table-responsive">
                 <table class="table table-hover table-striped align-middle mb-0">
@@ -229,6 +257,7 @@
             </div>
         </div>
         {% endif %}
+        <div class="print-only print-footer">MOOVA Clinic · Expediente: DNI {{ paciente.dni }} · Documento generado desde el sistema</div>
     </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
