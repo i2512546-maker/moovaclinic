@@ -1607,3 +1607,34 @@ paths:
               nota_id: { type: integer }
         "400": { description: Nota vacia }
 
+
+  /api/citas/terapeuta/{terapeuta_id}/pacientes:
+    get:
+      tags: [citas]
+      summary: Listar IDs de pacientes con historial asignado a un terapeuta
+      parameters:
+        - name: terapeuta_id
+          in: path
+          required: true
+          type: integer
+      responses:
+        "200": { description: IDs únicos de pacientes asignados }
+  /api/citas/{cita_id}/confirmar-pago:
+    post:
+      tags: [citas]
+      summary: Activar una reserva tras confirmar el pago
+      parameters:
+        - name: cita_id
+          in: path
+          required: true
+          type: integer
+      responses:
+        "200": { description: Cita activada }
+        "409": { description: La cita no está pendiente de pago }
+
+  /api/pagos/demo/confirmar:
+    post:
+      tags: [pagos]
+      summary: Confirmar un pago en modo demostración
+      responses:
+        "200": { description: Pago de demostración confirmado }
