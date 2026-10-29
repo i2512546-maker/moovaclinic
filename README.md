@@ -152,29 +152,25 @@ impidiera. El gateway ahora cuenta los fallos y corta el intento
 **antes** de llamar al módulo de autenticación, que no recibe los intentos
 que ya superaron el límite.
 
-Hay dos contadores independientes y **ambos tienen que pasar**:
-
-| Clave | Corta a |
-| --- | --- |
-| `ip:<ip>` | quien prueba muchas claves desde un solo equipo |
-| `correo:<correo>` | quien prueba un mismo correo desde muchas IPs |
+El bloqueo del login es **por perfil/correo, no por IP**. Así, los
+intentos fallidos en una cuenta no bloquean a los demás usuarios que
+comparten la misma red o equipo. Los intentos contra el mismo correo
+se cuentan aunque cambie la IP.
 
 Defaults: `LOGIN_MAX_INTENTOS=5` fallos dentro de `LOGIN_VENTANA_MIN=10`
 minutos bloquean `LOGIN_BLOQUEO_MIN=30` minutos. Al entrar bien se borra
 el historial de esas claves, para que cinco typos de la mañana no dejen
 al usuario real bloqueado. Un administrador puede desbloquear manualmente
-una clave (`ip:`/`correo:`) desde `/panel_admin`
+una clave (`correo:`) desde `/panel_admin`
 (POST `/panel_admin/desbloquear`).
 
 Los mensajes son fijos y no dependen de lo que devuelva el
 módulo interno: ni el bloqueo ni la clave incorrecta dicen si el correo
 existe o no, y son indistinguibles entre sí.
 
-Detrás de un proxy (Render, nginx) `request.remote_addr` es la IP del
-proxy y todas las peticiones parecen venir del mismo sitio. Con
-`TRUST_PROXY=1` se toma el primer valor de `X-Forwarded-For`, que es el
-que anotó el proxy. **Sin esa variable el header se ignora**: cualquiera
-podría mandarlo inventado y quedar sin contador.
+La IP no participa en el límite de intentos del login. `TRUST_PROXY`
+sigue siendo relevante para otros controles del sistema que sí limitan
+consultas por IP.
 
 > **Limitación conocida.** El contador vive en un `dict` en memoria del
 > proceso, sin base de datos ni dependencias nuevas. Eso significa que
