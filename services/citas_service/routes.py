@@ -417,8 +417,16 @@ def crear_cita():
         )
         return jsonify({"error": "Servicio de pacientes no disponible, intenta de nuevo"}), 502
 
+    # Si hay anticipo, la cita queda oculta como pendiente de pago hasta
+    # que la pasarela confirme. Así no aparece en la agenda ni en reportes
+    # antes de completar el proceso.
+    requiere_pago = bool(metodo_pago and anticipo > 0)
+    procedimiento_creacion = "sp_crear_cita_pendiente_pago" if requiere_pago else "sp_crear_cita"
     try:
-        cita = call_proc_one("sp_crear_cita", (paciente_id, data["medico_id"], servicio_id, data["fecha_cita"], hora_cita))
+        cita = call_proc_one(
+            procedimiento_creacion,
+            (paciente_id, data["medico_id"], servicio_id, data["fecha_cita"], hora_cita),
+        )
     except mysql.connector.Error as exc:
         current_app.logger.error(
             "[crear_cita] Error en BD (sp_crear_cita): %s: %s",
@@ -444,9 +452,8 @@ def crear_cita():
         entidad_nombre=(" ".join(x for x in (data.get("nombre"), data.get("apellido")) if x).strip() or None),
     )
 
-    if cita_id and metodo_pago and anticipo > 0:
-        # Crear el pago anticipado mediante una llamada interna al modulo
-        # de pagos (antes sp_crear_pago_anticipo, CROSS-DB).
+    if cita_id and requiere_pago:
+        # Si no se puede crear el pago, liberar la reserva pendiente.
         try:
             pago_data, pago_status = pagos_client.post("/api/pagos/anticipo", {
                 "cita_id": cita_id,
@@ -469,6 +476,17 @@ def crear_cita():
                 "[crear_cita] No se pudo iniciar el pago para la cita %s: %s: %s",
                 cita_id, type(exc).__name__, exc,
             )
+            try:
+                call_proc_execute("sp_cancelar_cita_pago_vencido", (cita_id,))
+            except Exception as cancelar_exc:
+                current_app.logger.error(
+                    "[crear_cita] No se pudo liberar la cita pendiente %s: %s",
+                    cita_id, cancelar_exc,
+                )
+            return jsonify({
+                "success": False,
+                "error": "No se pudo iniciar el pago. La reserva no quedó confirmada; vuelve a intentarlo.",
+            }), 502
 
     return jsonify({
         "success": True, "cita_id": cita_id,
@@ -774,6 +792,22 @@ def cancelar_cita_pago_vencido(cita_id):
             ip_origen=request.remote_addr,
         )
     return jsonify({"success": True, "cancelada": cancelada})
+
+
+@citas_bp.route("/api/citas/<int:cita_id>/confirmar-pago", methods=["POST"])
+def confirmar_cita_pago(cita_id):
+    """Activa una reserva pendiente solo después de confirmar su pago."""
+    try:
+        resultado = call_proc_one("sp_confirmar_cita_pago", (cita_id,))
+    except Exception as exc:
+        current_app.logger.error("No se pudo activar la cita %s tras el pago: %s", cita_id, exc)
+        return jsonify({"success": False, "error": "No se pudo activar la cita."}), 500
+    if resultado and int(resultado.get("actualizadas") or 0) > 0:
+        return jsonify({"success": True})
+    cita = call_proc_one("sp_detalle_cita", (cita_id,))
+    if cita and cita.get("estado") in ("programada", "confirmada"):
+        return jsonify({"success": True, "ya_confirmada": True})
+    return jsonify({"success": False, "error": "La reserva no está pendiente de pago."}), 409
 
 
 @citas_bp.route("/api/citas/<int:cita_id>/completar", methods=["PUT"])
