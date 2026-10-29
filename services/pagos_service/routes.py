@@ -15,7 +15,7 @@ from services.pagos_service.providers import (
     qr_url,
 )
 from shared.audit import log_accion
-from shared.config import WEBHOOK_PROVIDER_TOKEN
+from shared.config import PAGOS_MODO_DEMO, WEBHOOK_PROVIDER_TOKEN
 from shared.proc import call_proc, call_proc_execute, call_proc_one
 from shared.service_client import auth_client, citas_client, pacientes_client
 
@@ -430,6 +430,42 @@ def estado_pago(cita_id):
     if not pago:
         return jsonify({"error": "Pago no encontrado"}), 404
     return jsonify({"success": True, "pago": pago})
+
+
+@pagos_bp.route("/api/pagos/demo/confirmar", methods=["POST"])
+def api_pago_demo_confirmar():
+    """Confirma un pago simulado unicamente cuando PAGOS_MODO_DEMO esta activado."""
+    if not PAGOS_MODO_DEMO:
+        return jsonify({"ok": False, "error": "El modo de demostracion de pagos esta desactivado."}), 403
+
+    data = request.get_json(silent=True) or {}
+    cita_id = data.get("cita_id")
+    if not cita_id or not str(cita_id).isdigit():
+        return jsonify({"ok": False, "error": "cita_id requerido."}), 400
+
+    pago = call_proc_one("sp_obtener_pago", (int(cita_id),))
+    if not pago:
+        return jsonify({"ok": False, "error": "Pago no encontrado para esta cita."}), 404
+    if pago.get("estado_pago") == "pagado":
+        return jsonify({"ok": True, "pagado": True, "demo": True})
+    if pago.get("estado_pago") != "pendiente":
+        return jsonify({"ok": False, "error": "El pago no esta pendiente."}), 409
+
+    referencia = f"DEMO-{cita_id}"
+    confirmado = confirmar_pago_servicio(
+        int(cita_id),
+        referencia=referencia,
+        datos_respuesta={
+            "modo": "demostracion",
+            "estado": "pagado",
+            "cita_id": int(cita_id),
+            "nota": "Pago simulado para sustentacion; no hubo transaccion real.",
+        },
+    )
+    if not confirmado:
+        return jsonify({"ok": False, "error": "No se pudo registrar el pago de demostracion."}), 500
+    current_app.logger.info("Pago de demostracion confirmado para cita %s", cita_id)
+    return jsonify({"ok": True, "pagado": True, "demo": True})
 
 
 @pagos_bp.route("/api/pagos/yape/iniciar", methods=["POST"])
