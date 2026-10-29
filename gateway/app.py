@@ -590,11 +590,17 @@ def create_app():
         es_hoy = fecha_str == hoy_lima().strftime("%Y-%m-%d")
         es_admin = session.get("rol") == "admin"
 
-        params = f"?fecha={fecha_str}&estado=programada"
-        data, _ = citas_client.get(f"/api/citas{params}")
-        # sp_listar_citas ahora devuelve desde p_fecha en adelante (>=);
-        # la agenda diaria solo debe mostrar ese día exacto.
-        pacientes = [c for c in data.get("citas", []) if str(c.get("fecha_cita", ""))[:10] == fecha_str]
+        # Mostrar tanto programadas como confirmadas; ambas ocupan agenda.
+        # El endpoint filtra desde la fecha, así que aquí se limita al día exacto.
+        citas_por_id = {}
+        for estado_cita in ("programada", "confirmada"):
+            params = f"?fecha={fecha_str}&estado={estado_cita}"
+            data, status = citas_client.get(f"/api/citas{params}")
+            if status == 200:
+                for cita in data.get("citas", []):
+                    if str(cita.get("fecha_cita", ""))[:10] == fecha_str:
+                        citas_por_id[str(cita.get("id"))] = cita
+        pacientes = list(citas_por_id.values())
         if not es_admin:
             terapeuta_id = _terapeuta_id_de_sesion()
             pacientes = [
