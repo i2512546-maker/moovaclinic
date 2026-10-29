@@ -89,11 +89,13 @@ class CrearCitaPagoRequeridoTest(unittest.TestCase):
         ) as proc, patch(
             "services.citas_service.routes.pagos_client.post",
             return_value=({"error": "fallo"}, 503),
-        ):
+        ), patch(
+            "services.citas_service.routes.call_proc_execute"
+        ) as cancelar:
             respuesta = self._post()
-        self.assertEqual(respuesta.status_code, 201)
+        self.assertEqual(respuesta.status_code, 502)
+        cancelar.assert_called_once_with("sp_cancelar_cita_pago_vencido", (88,))
         self.assertEqual(proc.call_count, 1)
-
     def test_excepcion_al_iniciar_pago_cancela_la_reserva_pendiente(self):
         self._with_prerequisites()
         with patch(
@@ -102,11 +104,13 @@ class CrearCitaPagoRequeridoTest(unittest.TestCase):
         ) as proc, patch(
             "services.citas_service.routes.pagos_client.post",
             side_effect=RuntimeError("pagos fuera de servicio"),
-        ):
+        ), patch(
+            "services.citas_service.routes.call_proc_execute"
+        ) as cancelar:
             respuesta = self._post()
-        self.assertEqual(respuesta.status_code, 201)
+        self.assertEqual(respuesta.status_code, 502)
+        cancelar.assert_called_once_with("sp_cancelar_cita_pago_vencido", (89,))
         self.assertEqual(proc.call_count, 1)
-
     def test_respuesta_sin_id_de_pago_cancela_la_reserva_pendiente(self):
         self._with_prerequisites()
         with patch(
@@ -115,11 +119,13 @@ class CrearCitaPagoRequeridoTest(unittest.TestCase):
         ) as proc, patch(
             "services.citas_service.routes.pagos_client.post",
             return_value=({"success": True, "id": None}, 201),
-        ):
+        ), patch(
+            "services.citas_service.routes.call_proc_execute"
+        ) as cancelar:
             respuesta = self._post()
-        self.assertEqual(respuesta.status_code, 201)
+        self.assertEqual(respuesta.status_code, 502)
+        cancelar.assert_called_once_with("sp_cancelar_cita_pago_vencido", (91,))
         self.assertEqual(proc.call_count, 1)
-
     def test_creacion_exige_pago_exitoso(self):
         self._with_prerequisites()
         with patch(
