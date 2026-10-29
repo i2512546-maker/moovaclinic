@@ -973,7 +973,7 @@ textarea::placeholder { color: #a8c2d6; }
 
 /* ─────────── 16. ESTRUCTURA DE PÁGINA ─────────── */
 .page-wrap {
-    max-width: 1300px;
+    max-width: 1100px;
     margin: 0 auto;
     padding: 110px 36px 60px;
 }
@@ -1393,4 +1393,16 @@ textarea::placeholder { color: #a8c2d6; }
     .wizard-dot { width: 32px; height: 32px; font-size: 0.72rem; }
     .wizard-label { font-size: 0.6rem; }
     .wizard-connector { min-width: 20px; margin-top: 14px; }
+}
+
+/* Contenedor estrecho reutilizable (~1100px centrado) */
+.contenedor-estrecho {
+    max-width: 1100px;
+    margin-inline: auto;
+    padding-inline: 16px;
+}
+@media (min-width: 768px) {
+    .contenedor-estrecho {
+        padding-inline: 24px;
+    }
 }

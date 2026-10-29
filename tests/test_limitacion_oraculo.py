@@ -44,7 +44,7 @@ class ReadmeDocumentaElOraculoTest(unittest.TestCase):
         """La tabla describe pago confirmado, ausente y pendiente."""
         for tramo in (
             "`302` a `/retorno`",
-            "`302` a `/citas`",
+            "`200` con los datos de la cita",
             "existe y está pendiente",
         ):
             with self.subTest(tramo=tramo):
@@ -81,13 +81,12 @@ class OraculoEnElCodigoTest(unittest.TestCase):
                 patch.object(ga.citas_client, "get", side_effect=self._citas_get):
             return self.cliente.get("/pago?cita_id=55")
 
-    def test_sin_pago_registrado_redirige_a_citas(self):
+    def test_sin_pago_registrado_devuelve_200_con_datos_de_cita(self):
         def pagos_get(url, *a, **k):
             return {}, 200
 
         r = self._get_pago(pagos_get)
-        self.assertEqual(r.status_code, 302)
-        self.assertIn("/citas", r.headers.get("Location", ""))
+        self.assertEqual(r.status_code, 200)
 
     def test_pendiente_devuelve_200_con_su_importe(self):
         def pagos_get(url, *a, **k):
