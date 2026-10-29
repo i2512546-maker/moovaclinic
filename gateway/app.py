@@ -34,6 +34,7 @@ from shared.config import (
     OTP_SESION_MIN,
     REDES_SOCIALES,
     TRUST_PROXY,
+    PAGOS_MODO_DEMO,
 )
 from shared.fechas import fmt_fecha, hoy_lima
 from shared.rate_limit import LimitadorIntentos, ip_del_request
@@ -1113,6 +1114,7 @@ def create_app():
         return render_template(
             "pago.html", cita=cita, niubiz_sdk_url=niubiz.sdk_url,
             niubiz_mode=niubiz.mode,
+            pagos_modo_demo=PAGOS_MODO_DEMO,
         )
 
     @app.route("/retorno")
@@ -1661,6 +1663,15 @@ def create_app():
     # filtro es _pago_denegado: solo la sesion que abrio /pago para esa
     # cita puede iniciarle o consultarle un cobro. /api/pagos/webhook y el
     # retorno de Niubiz no pasan por aqui y quedan tal cual estaban.
+    @app.route("/api/pagos/demo/confirmar", methods=["POST"])
+    def proxy_pago_demo_confirmar():
+        cuerpo = request.get_json(silent=True) or {}
+        denegado = _pago_denegado(cuerpo)
+        if denegado:
+            return denegado
+        data, status = pagos_client.post("/api/pagos/demo/confirmar", cuerpo)
+        return jsonify(data or {}), status
+
     @app.route("/api/pagos/yape/iniciar", methods=["POST"])
     @app.route("/api/pagos/plin/iniciar", methods=["POST"])
     def proxy_pago_scan_iniciar():
