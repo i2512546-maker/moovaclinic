@@ -25,17 +25,20 @@ class VerificacionCobroTest(unittest.TestCase):
     def setUp(self):
         self.html = open(PLANTILLA_PAGO, encoding="utf-8").read()
 
-    def test_no_hay_simulacion_de_pago_exitoso(self):
-        self.assertNotIn("TODO-DEMO", self.html)
-        # El exito solo puede venir tras un res.pagado verdadero devuelto
-        # por pagos_service; un setTimeout que lo dispare seria una simulacion.
+    def test_modo_demo_tiene_confirmacion_servidor_y_continuar(self):
+        self.assertIn("{% if pagos_modo_demo %}", self.html)
+        self.assertIn("fetch('/api/pagos/demo/confirmar'", self.html)
+        self.assertIn("respuesta.data.pagado", self.html)
+        self.assertIn("habilitarContinuar()", self.html)
+        self.assertIn("/api/pagos/yape/estado", self.html)
+        self.assertIn("/api/pagos/plin/estado", self.html)
+
+    def test_modo_real_sigue_verificando_el_estado_de_la_pasarela(self):
         inicio = self.html.find("function verificarCobro")
         self.assertGreater(inicio, -1, "falta verificarCobro")
         ventana = self.html[inicio:inicio + 1200]
         self.assertIn("res.pagado", ventana)
         self.assertNotIn("setTimeout", ventana)
-        self.assertIn("/api/pagos/yape/estado", self.html)
-        self.assertIn("/api/pagos/plin/estado", self.html)
 
     def test_verificar_yape_y_plin_usan_el_endpoint_real(self):
         self.assertRegex(self.html, r"function\s+verificarYape\s*\(\s*\)\s*\{\s*verificarCobro\(")
