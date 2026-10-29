@@ -72,10 +72,12 @@ def listar_pacientes():
 def obtener_paciente_id_por_dni(dni):
     """Resuelve el id de un paciente segun dni. Usado por los modulos
     internos de citas y pagos (antes era un JOIN CROSS-DB)."""
-    paciente = call_proc_one("sp_obtener_paciente_id_dni", (dni,))
+    # Endpoint ligero: devuelve el registro del paciente sin cargar citas,
+    # pagos ni notas. Se usa en el paso inicial de reserva por DNI.
+    paciente = call_proc_one("sp_obtener_paciente_por_dni", (dni,))
     if not paciente:
         return jsonify({"error": "Paciente no encontrado"}), 404
-    return jsonify({"success": True, "id": paciente["id"]})
+    return jsonify({"success": True, "id": paciente["id"], "paciente": paciente})
 
 
 @pacientes_bp.route("/api/pacientes/min", methods=["POST"])
