@@ -131,27 +131,31 @@
                     </div>
                     <div class="card-body">
                         <div class="mb-3">
-                            <label for="nombre" class="form-label"><i class="fas fa-user"></i> Nombre</label>
-                            <input type="text" name="nombre" id="nombre" class="form-control" placeholder="Tu nombre" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="apellido" class="form-label"><i class="fas fa-user"></i> Apellido</label>
-                            <input type="text" name="apellido" id="apellido" class="form-control" placeholder="Tu apellido" required>
-                        </div>
-                        <div class="row g-3">
-                            <div class="col-md-6 mb-3">
-                                <label for="dni" class="form-label"><i class="fas fa-id-card"></i> DNI</label>
-                                <input type="text" name="dni" id="dni" class="form-control" placeholder="12345678" maxlength="8" inputmode="numeric" required>
-                                <small id="dni-status" class="text-muted" style="display:none; margin-top:4px; font-size:0.8rem;"></small>
+                            <label for="dni" class="form-label"><i class="fas fa-id-card"></i> Primero, ingresa tu DNI</label>
+                            <div class="input-group">
+                                <input type="text" name="dni" id="dni" class="form-control" placeholder="12345678" maxlength="8" minlength="8" inputmode="numeric" pattern="[0-9]{8}" autocomplete="off" required>
+                                <button type="button" class="btn btn-moova" id="btnVerificarDni">Verificar DNI</button>
                             </div>
-                            <div class="col-md-6 mb-3">
+                            <small id="dni-status" class="text-muted d-block mt-2" style="display:none;"></small>
+                            <button type="button" class="btn btn-link btn-sm px-0" id="btnCambiarDni" style="display:none;">Usar otro DNI</button>
+                        </div>
+                        <div id="datos-personales" style="display:none;">
+                            <div class="mb-3">
+                                <label for="nombre" class="form-label"><i class="fas fa-user"></i> Nombre</label>
+                                <input type="text" name="nombre" id="nombre" class="form-control" placeholder="Tu nombre" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="apellido" class="form-label"><i class="fas fa-user"></i> Apellido</label>
+                                <input type="text" name="apellido" id="apellido" class="form-control" placeholder="Tu apellido" required>
+                            </div>
+                            <div class="mb-3">
                                 <label for="telefono" class="form-label"><i class="fas fa-phone"></i> Teléfono</label>
-                                <input type="text" name="telefono" id="telefono" class="form-control" placeholder="987654321" maxlength="9" inputmode="numeric" pattern="[0-9]{9}" title="Debe tener 9 dígitos" required>
+                                <input type="tel" name="telefono" id="telefono" class="form-control" placeholder="987654321" maxlength="9" minlength="9" inputmode="numeric" pattern="9[0-9]{8}" title="Ingresa un celular peruano de 9 dígitos que empiece por 9" required>
                             </div>
                         </div>
                         <div class="d-flex justify-content-end mt-4">
                             <a href="{{ url_for('index') }}" class="btn btn-moova-outline me-auto">Atrás</a>
-                            <button type="button" class="btn btn-moova btn-lg" id="btnNext1">Siguiente <i class="fas fa-arrow-right ms-2"></i></button>
+                            <button type="button" class="btn btn-moova btn-lg" id="btnNext1" style="display:none;">Siguiente <i class="fas fa-arrow-right ms-2"></i></button>
                         </div>
                     </div>
                 </div>
@@ -440,14 +444,103 @@
             cargarDisponibilidad(false);
         });
 
+        var dniVerificado = false;
+        var btnVerificarDni = document.getElementById('btnVerificarDni');
+        var dniInput = document.getElementById('dni');
+        var dniStatus = document.getElementById('dni-status');
+        var datosPersonales = document.getElementById('datos-personales');
+
+        function reiniciarVerificacionDni() {
+            dniVerificado = false;
+            ['nombre', 'apellido', 'telefono'].forEach(function (id) {
+                var campo = document.getElementById(id);
+                campo.value = '';
+                campo.readOnly = false;
+            });
+            datosPersonales.style.display = 'none';
+            document.getElementById('btnNext1').style.display = 'none';
+            btnVerificarDni.disabled = false;
+            btnVerificarDni.style.display = '';
+            dniInput.readOnly = false;
+            document.getElementById('btnCambiarDni').style.display = 'none';
+        }
+
+        dniInput.addEventListener('input', function () {
+            if (dniVerificado) reiniciarVerificacionDni();
+            dniStatus.style.display = 'none';
+        });
+
+        document.getElementById('btnCambiarDni').addEventListener('click', function () {
+            reiniciarVerificacionDni();
+            dniInput.value = '';
+            dniInput.focus();
+        });
+
+        btnVerificarDni.addEventListener('click', async function () {
+            var dni = dniInput.value.trim();
+            if (!/^\d{8}$/.test(dni)) {
+                mostrarPopup('Ingresa un DNI válido de 8 dígitos.', 'error');
+                dniInput.focus();
+                return;
+            }
+            btnVerificarDni.disabled = true;
+            dniStatus.style.display = 'block';
+            dniStatus.className = 'text-muted d-block mt-2';
+            dniStatus.textContent = 'Consultando DNI…';
+            try {
+                var response = await fetch('/api/verificar_dni', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+                    body: JSON.stringify({ dni: dni }),
+                    credentials: 'same-origin'
+                });
+                var data = await response.json();
+                if (!response.ok && !data.data) {
+                    throw new Error(data.error || 'No se pudo verificar el DNI.');
+                }
+                var paciente = data.paciente || data.data || {};
+                var nombre = paciente.nombre || paciente.nombres || '';
+                var apellido = paciente.apellido || (
+                    ((paciente.apellido_paterno || paciente.apellidoPaterno || '') + ' ' +
+                    (paciente.apellido_materno || paciente.apellidoMaterno || '')).trim()
+                );
+                document.getElementById('nombre').value = nombre;
+                document.getElementById('apellido').value = apellido;
+                document.getElementById('telefono').value = paciente.telefono || '';
+                var existe = data.existe === true;
+                ['nombre', 'apellido', 'telefono'].forEach(function (id) {
+                    document.getElementById(id).readOnly = existe;
+                });
+                dniVerificado = true;
+                dniInput.readOnly = existe;
+                datosPersonales.style.display = '';
+                document.getElementById('btnNext1').style.display = '';
+                btnVerificarDni.style.display = existe ? 'none' : '';
+                document.getElementById('btnCambiarDni').style.display = existe ? '' : 'none';
+                dniStatus.className = existe ? 'text-success d-block mt-2' : 'text-muted d-block mt-2';
+                if (existe) {
+                    dniStatus.textContent = 'Paciente encontrado en MOOVA Clinic. Sus datos registrados no se pueden editar.';
+                } else if (nombre || apellido) {
+                    dniStatus.textContent = 'DNI consultado. Revisa los datos y completa tu teléfono.';
+                } else {
+                    dniStatus.textContent = 'No se encontraron datos automáticos. Completa tus datos manualmente.';
+                }
+            } catch (error) {
+                dniStatus.className = 'text-danger d-block mt-2';
+                dniStatus.textContent = error.message || 'No se pudo consultar el DNI.';
+            } finally {
+                btnVerificarDni.disabled = false;
+            }
+        });
+
         document.getElementById('btnNext1').addEventListener('click', function () {
-            var campos = ['nombre', 'apellido', 'dni', 'telefono'].map(function (id) {
+            var campos = ['nombre', 'apellido', 'telefono'].map(function (id) {
                 return document.getElementById(id);
             });
-            var dni = document.getElementById('dni').value.trim();
-            if (campos.some(function (campo) { return !campo.value.trim() || !campo.checkValidity(); }) ||
-                    dni.length !== 8 || !/^\d+$/.test(dni)) {
-                mostrarPopup('Completa tus datos correctamente antes de continuar.', 'error');
+            if (!dniVerificado || campos.some(function (campo) {
+                return !campo.value.trim() || !campo.checkValidity();
+            })) {
+                mostrarPopup('Primero verifica el DNI y completa los datos requeridos.', 'error');
                 return;
             }
             irPaso(2);
@@ -571,46 +664,6 @@
                 return;
             }
             enviarFormAjax(formCita, document.getElementById('btn-submit'));
-        });
-
-        var dniInput = document.getElementById('dni');
-        var dniStatus = document.getElementById('dni-status');
-        var dniTimer = null;
-        dniInput.addEventListener('input', function () {
-            clearTimeout(dniTimer);
-            var dni = this.value.trim();
-            if (dni.length !== 8 || !/^\d+$/.test(dni)) {
-                dniStatus.style.display = 'none';
-                return;
-            }
-            dniStatus.style.display = 'block';
-            dniStatus.style.color = '#888';
-            dniStatus.textContent = 'Buscando...';
-            dniTimer = setTimeout(async function () {
-                try {
-                    var response = await fetch('/api/verificar_dni', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
-                        body: JSON.stringify({ dni: dni })
-                    });
-                    var data = await response.json();
-                    if (data.success && data.data && (data.data.nombres || data.data.nombre)) {
-                        var paciente = data.data;
-                        document.getElementById('nombre').value = paciente.nombres || paciente.nombre || '';
-                        document.getElementById('apellido').value =
-                            ((paciente.apellido_paterno || paciente.apellidoPaterno || '') + ' ' +
-                            (paciente.apellido_materno || paciente.apellidoMaterno || '')).trim();
-                        dniStatus.style.color = '#27ae60';
-                        dniStatus.textContent = '✓ Datos encontrados';
-                    } else {
-                        dniStatus.style.color = '#e74c3c';
-                        dniStatus.textContent = 'DNI no encontrado — ingresa los datos manualmente';
-                    }
-                } catch (error) {
-                    dniStatus.style.color = '#e74c3c';
-                    dniStatus.textContent = 'Error al consultar DNI';
-                }
-            }, 600);
         });
 
         var alertaTop = document.getElementById('alerta-top');
