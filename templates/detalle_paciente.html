@@ -14,12 +14,18 @@
         <div class="panel-header d-flex align-items-center justify-content-between rounded mb-4">
             <h1 class="h4 mb-0">Historial del Paciente</h1>
             <div class="d-flex align-items-center gap-2">
+                {% if es_admin %}
                 <a href="{{ url_for('ficha_clinica_pdf', paciente_dni=paciente.dni) }}" target="_blank"
                     class="btn btn-moova d-inline-flex align-items-center gap-1">
                     <i class="bi bi-file-earmark-pdf"></i> Descargar Ficha PDF
                 </a>
+                {% endif %}
                 <a href="{{ url_for('pacientes_page') }}" class="btn btn-outline-secondary btn-sm">Volver a Pacientes</a>
+                {% if es_admin %}
                 <a href="{{ url_for('panel_admin') }}" class="btn btn-outline-secondary btn-sm">Panel Admin</a>
+                {% else %}
+                <a href="{{ url_for('moovatrack_page') }}" class="btn btn-outline-secondary btn-sm">MoovaTrack</a>
+                {% endif %}
                 <a href="{{ url_for('logout') }}" class="btn btn-danger-moova btn-sm">Cerrar sesion</a>
             </div>
         </div>
