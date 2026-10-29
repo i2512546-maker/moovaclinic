@@ -45,7 +45,6 @@ jobs:
         run: |
           echo "SECRET_KEY=clave-de-pruebas-ci" >> "$GITHUB_ENV"
           echo "API_KEY=clave-interna-ci" >> "$GITHUB_ENV"
-          echo "ALLOW_INSECURE_INTERNAL_API=1" >> "$GITHUB_ENV"
 
       - name: pytest
         run: pytest -v
