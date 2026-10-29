@@ -130,37 +130,7 @@
 
                 <!-- ============ PANEL DE PAGO SEGÚN MÉTODO ============ -->
                 {% set monto_txt = '%.2f'|format(cita.monto) %}
-                {% if modo_demo %}
-                <div class="pago-panel">
-                    <div class="pago-method-head">
-                        <div class="pago-method-icon"><i class="fas fa-flask"></i></div>
-                        <div>
-                            <h2>Pago de demostración</h2>
-                            <p>Elige cualquier método para mostrar el flujo completo. No se realizará ningún cobro real.</p>
-                        </div>
-                    </div>
-                    <div class="pago-monto">S/ {{ monto_txt }}</div>
-                    <div class="alert alert-warning py-2">
-                        <strong>MODO DEMOSTRACIÓN</strong><br>
-                        La confirmación es simulada y no requiere QR, tarjeta ni una cuenta bancaria real.
-                    </div>
-                    <div class="d-grid gap-2">
-                        <button type="button" class="btn btn-moova btn-demo-pago" data-metodo="yape">
-                            <i class="fa-solid fa-wallet me-2"></i>Simular pago con Yape
-                        </button>
-                        <button type="button" class="btn btn-moova btn-demo-pago" data-metodo="plin">
-                            <i class="fa-solid fa-mobile-screen-button me-2"></i>Simular pago con Plin
-                        </button>
-                        <button type="button" class="btn btn-moova btn-demo-pago" data-metodo="tarjeta">
-                            <i class="fas fa-credit-card me-2"></i>Simular pago con tarjeta
-                        </button>
-                        <button type="button" class="btn btn-moova btn-demo-pago" data-metodo="transferencia">
-                            <i class="fas fa-university me-2"></i>Simular transferencia bancaria
-                        </button>
-                    </div>
-                    <p class="pago-error mt-3" id="msgPagoDemo" role="status"></p>
-                </div>
-                {% else %}
+                
                 {% if cita.metodo_pago == 'yape' %}
                 <div class="pago-panel">
                     <div class="pago-method-head">
@@ -239,7 +209,7 @@
                             </div>
                         </div>
                         <button type="submit" class="btn btn-moova w-100" id="btnPagarTarjeta">
-                            <i class="fas fa-lock me-1"></i> Pagar S/ {{ monto_txt }}
+                            <i class="fas fa-lock me-1"></i> Realizar pago
                         </button>
                         <p class="pago-error" id="msgTarjeta"></p>
                     </form>
@@ -261,7 +231,7 @@
                     <p class="pago-error" id="msgTransferencia"></p>
                 </div>
                 {% endif %}
-                {% endif %}
+                
 
                 <p class="text-center text-muted small mt-4">
                     <i class="fas fa-info-circle me-1"></i> Para reservar tu cita se requiere un anticipo del 50% del costo de la atención.
@@ -280,9 +250,6 @@
         <div class="modal-box">
             <button type="button" class="modal-close" onclick="cerrarModal('modalYape')">&times;</button>
             <h3 class="fs-5 fw-bold text-navy"><i class="fa-solid fa-wallet me-1"></i> Paga con Yape</h3>
-            {% if modo_demo %}
-            <p class="pago-nota" role="alert"><strong>MODO DEMOSTRACIÓN: no se cobra dinero real</strong></p>
-            {% endif %}
             <div class="modal-monto">S/ {{ monto_txt }}</div>
             <div class="qr-box" id="qrYape"></div>
             <ol class="modal-pasos">
@@ -302,9 +269,6 @@
         <div class="modal-box">
             <button type="button" class="modal-close" onclick="cerrarModal('modalPlin')">&times;</button>
             <h3 class="fs-5 fw-bold text-navy"><i class="fa-solid fa-mobile-screen-button me-1"></i> Paga con Plin</h3>
-            {% if modo_demo %}
-            <p class="pago-nota" role="alert"><strong>MODO DEMOSTRACIÓN: no se cobra dinero real</strong></p>
-            {% endif %}
             <div class="modal-monto">S/ {{ monto_txt }}</div>
             <div class="qr-box" id="qrPlin"></div>
             <ol class="modal-pasos">
@@ -359,39 +323,6 @@ function mostrarPlaceholderQR(boxId) {
             '<span>QR pendiente de configurar</span>' +
         '</div>';
 }
-
-/* ---------- PAGO SIMULADO: SOLO MODO DEMOSTRACIÓN ---------- */
-document.querySelectorAll('.btn-demo-pago').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-        var metodo = btn.dataset.metodo;
-        var msg = document.getElementById('msgPagoDemo');
-        var botones = document.querySelectorAll('.btn-demo-pago');
-        botones.forEach(function(b) { b.disabled = true; });
-        msg.textContent = 'Confirmando pago simulado...';
-        fetch('/api/pagos/demo/confirmar', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
-            body: JSON.stringify({cita_id: CITA_ID, metodo_pago: metodo})
-        })
-        .then(function(r) {
-            return r.json().then(function(res) {
-                if (!r.ok || !res.ok || !res.pagado) {
-                    throw new Error(res.error || 'No se pudo confirmar la demostración.');
-                }
-                return res;
-            });
-        })
-        .then(function() {
-            msg.textContent = 'Pago simulado correctamente. No se cobró dinero real.';
-            mostrarOverlayExito();
-            habilitarContinuar();
-        })
-        .catch(function(err) {
-            msg.textContent = err.message || 'Error al simular el pago.';
-            botones.forEach(function(b) { b.disabled = false; });
-        });
-    });
-});
 
 document.querySelectorAll('.modal-close').forEach(function(b){
     b.addEventListener('click', function(){ b.closest('.modal-overlay').style.display = 'none'; });
