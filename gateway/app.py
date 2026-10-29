@@ -1500,17 +1500,55 @@ def create_app():
         return redirect(url_for("panel_admin"))
 
     @app.route("/pacientes")
-    @_admin_required
+    @_login_required
     def pacientes_page():
+        if session.get("rol") not in ("admin", "terapeuta"):
+            return redirect(url_for("login"))
         data, _ = pacientes_client.get("/api/pacientes")
-        return render_template("pacientes.html", pacientes=data.get("pacientes", []))
+        pacientes = data.get("pacientes", [])
+        es_admin = session.get("rol") == "admin"
+
+        # Los terapeutas solo ven pacientes con citas asignadas a su perfil.
+        if not es_admin:
+            terapeuta_id = _terapeuta_id_de_sesion()
+            if terapeuta_id is None:
+                abort(403)
+            pacientes_asignados = []
+            for paciente in pacientes:
+                paciente_id = paciente.get("id")
+                if not paciente_id:
+                    continue
+                try:
+                    hdata, hstatus = citas_client.get(f"/api/citas/paciente/{paciente_id}")
+                    historial_paciente = (hdata or {}).get("citas", []) if hstatus == 200 else []
+                    if any(str(c.get("terapeuta_id")) == str(terapeuta_id) for c in historial_paciente):
+                        pacientes_asignados.append(paciente)
+                except Exception as exc:
+                    app.logger.warning("No se pudo verificar asignación del paciente %s: %s", paciente_id, exc)
+            pacientes = pacientes_asignados
+
+        return render_template("pacientes.html", pacientes=pacientes, es_admin=es_admin)
 
     @app.route("/pacientes/<paciente_dni>")
-    @_admin_required
+    @_login_required
     def detalle_paciente_page(paciente_dni):
+        if session.get("rol") not in ("admin", "terapeuta"):
+            return redirect(url_for("login"))
         data, _ = pacientes_client.get(f"/api/pacientes/{paciente_dni}")
         paciente = data.get("paciente", {})
         historial = data.get("historial", [])
+        es_admin = session.get("rol") == "admin"
+        if not es_admin:
+            terapeuta_id = _terapeuta_id_de_sesion()
+            if terapeuta_id is None:
+                abort(403)
+            historial = [
+                cita for cita in historial
+                if str(cita.get("terapeuta_id")) == str(terapeuta_id)
+            ]
+            if not historial:
+                abort(403)
+
         paquetes, evaluaciones, consentimientos = _cargar_anexos_paciente(paciente.get("id"))
 
         # Las notas clínicas se guardan por cita; reunirlas para mostrarlas
