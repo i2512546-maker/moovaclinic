@@ -1518,23 +1518,34 @@ def create_app():
         # no impedir que el administrador consulte el resto de la ficha.
         notas_paciente = []
         for cita in historial:
-            cita_id = cita.get("id")
+            # El historial puede exponer el identificador como id,
+            # historial_id o cita_id según el origen de los datos.
+            cita_id = cita.get("id") or cita.get("historial_id") or cita.get("cita_id")
             if not cita_id:
+                app.logger.warning(
+                    "No se encontró el ID de cita en el historial del paciente %s: %s",
+                    paciente.get("dni"), list(cita.keys()),
+                )
                 continue
             try:
                 ndata, status = notas_client.get(f"/api/notas/{cita_id}")
-                if status == 200:
-                    for nota in (ndata or {}).get("notas", []):
+                if status == 200 and isinstance(ndata, dict):
+                    for nota in (ndata.get("notas") or []):
                         notas_paciente.append({
                             **nota,
                             "cita_id": cita_id,
                             "fecha_cita": cita.get("fecha_cita"),
                             "terapeuta": cita.get("terapeuta"),
                         })
+                else:
+                    app.logger.warning(
+                        "No se pudieron cargar notas de cita %s (HTTP %s)",
+                        cita_id, status,
+                    )
             except Exception as exc:
                 app.logger.warning(
-                    "No se pudieron cargar las notas de la cita %s: %s",
-                    cita_id, exc,
+                    "No se pudieron cargar las notas de la cita %s: %s: %s",
+                    cita_id, type(exc).__name__, exc,
                 )
 
         return render_template("detalle_paciente.html", paciente=paciente,
