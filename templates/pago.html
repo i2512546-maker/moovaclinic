@@ -131,7 +131,22 @@
                 <!-- ============ PANEL DE PAGO SEGÚN MÉTODO ============ -->
                 {% set monto_txt = '%.2f'|format(cita.monto) %}
                 
-                {% if cita.metodo_pago == 'yape' %}
+                {% if pagos_modo_demo %}
+                <div class="pago-panel">
+                    <div class="pago-method-head">
+                        <div class="pago-method-icon"><i class="fas fa-flask"></i></div>
+                        <div>
+                            <h2>Pago de demostración</h2>
+                            <p>Este flujo es para la sustentación. No se realizará ningún cobro real.</p>
+                        </div>
+                    </div>
+                    <div class="pago-monto">S/ {{ monto_txt }}</div>
+                    <button type="button" class="btn btn-moova w-100" id="btnPagoDemo">
+                        <i class="fas fa-check-circle me-1"></i> Confirmar pago de demostración
+                    </button>
+                    <p class="pago-error" id="msgPagoDemo"></p>
+                </div>
+                {% elif cita.metodo_pago == 'yape' %}
                 <div class="pago-panel">
                     <div class="pago-method-head">
                         <div class="pago-method-icon"><i class="fa-solid fa-wallet"></i></div>
@@ -327,6 +342,36 @@ function mostrarPlaceholderQR(boxId) {
 document.querySelectorAll('.modal-close').forEach(function(b){
     b.addEventListener('click', function(){ b.closest('.modal-overlay').style.display = 'none'; });
 });
+
+/* ---------- PAGO DE DEMOSTRACION ---------- */
+var btnPagoDemo = document.getElementById('btnPagoDemo');
+if (btnPagoDemo) {
+    btnPagoDemo.addEventListener('click', function () {
+        var msg = document.getElementById('msgPagoDemo');
+        btnPagoDemo.disabled = true;
+        msg.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registrando pago...';
+        fetch('/api/pagos/demo/confirmar', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
+            body: JSON.stringify({cita_id: CITA_ID})
+        })
+        .then(function (r) { return r.json().then(function (data) { return {ok: r.ok, data: data}; }); })
+        .then(function (respuesta) {
+            if (respuesta.ok && respuesta.data.ok && respuesta.data.pagado) {
+                msg.textContent = '';
+                mostrarOverlayExito();
+                habilitarContinuar();
+            } else {
+                throw new Error(respuesta.data.error || 'No se pudo registrar el pago.');
+            }
+        })
+        .catch(function (err) {
+            msg.innerHTML = '<span class="text-danger"></span>';
+            msg.firstChild.textContent = err.message || 'No se pudo registrar el pago.';
+            btnPagoDemo.disabled = false;
+        });
+    });
+}
 
 /* ---------- YAPE ---------- */
 var yapeCobroId = null;
