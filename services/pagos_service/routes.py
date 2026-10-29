@@ -15,7 +15,7 @@ from services.pagos_service.providers import (
     qr_url,
 )
 from shared.audit import log_accion
-from shared.config import PAGOS_MODO_DEMO, WEBHOOK_PROVIDER_TOKEN
+from shared.config import WEBHOOK_PROVIDER_TOKEN
 from shared.proc import call_proc, call_proc_execute, call_proc_one
 from shared.service_client import auth_client, citas_client, pacientes_client
 
@@ -423,61 +423,6 @@ def obtener_anio_inicio():
 # ============================================================
 # Pasarelas de pago
 # ============================================================
-
-@pagos_bp.route("/api/pagos/demo/confirmar", methods=["POST"])
-def api_pago_demo_confirmar():
-    """Confirma un pago simulado solo cuando el modo demostración está activo."""
-    if not PAGOS_MODO_DEMO:
-        return jsonify({"ok": False, "error": "El modo demostración está desactivado."}), 404
-
-    data = request.get_json(silent=True) or {}
-    try:
-        cita_id = int(data.get("cita_id"))
-    except (TypeError, ValueError):
-        return jsonify({"ok": False, "error": "Cita inválida."}), 400
-
-    metodo = str(data.get("metodo_pago") or "").strip().lower()
-    if metodo not in {"yape", "plin", "tarjeta", "transferencia"}:
-        return jsonify({"ok": False, "error": "Método de pago inválido."}), 400
-
-    pago = call_proc_one("sp_obtener_pago", (cita_id,))
-    if not pago:
-        return jsonify({
-            "ok": False,
-            "error": "No existe un anticipo para esta cita. Vuelve a abrir el pago desde la reserva.",
-        }), 404
-    if pago.get("estado_pago") == "pagado":
-        return jsonify({"ok": True, "pagado": True, "demo": True})
-
-    datos_demo = json.dumps({
-        "modo": "demostracion",
-        "simulado": True,
-        "metodo_pago": metodo,
-        "mensaje": "No se realizó ningún cobro real.",
-    })
-    resultado = call_proc_one("sp_confirmar_pago", (
-        cita_id, f"DEMO-{metodo}-{cita_id}", datos_demo, None,
-    ))
-    pagado = bool(resultado and int(resultado.get("pagado") or 0) > 0)
-    if not pagado:
-        return jsonify({"ok": False, "error": "No se pudo confirmar el pago de demostración."}), 409
-
-    try:
-        log_accion(
-            accion="pago_demo",
-            tabla_afectada="pagos",
-            registro_id=cita_id,
-            detalle=f"Pago de demostración confirmado con {metodo}; no se cobró dinero real.",
-            ip_origen=request.remote_addr,
-        )
-    except Exception as exc:
-        current_app.logger.warning(
-            "Pago demo de cita %s confirmado sin auditoría: %s: %s",
-            cita_id, type(exc).__name__, exc,
-        )
-
-    return jsonify({"ok": True, "pagado": True, "demo": True})
-
 
 @pagos_bp.route("/api/pagos/<int:cita_id>", methods=["GET"])
 def estado_pago(cita_id):
