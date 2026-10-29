@@ -1,3 +1,5 @@
+import csv
+import io
 import math
 import os
 import random
@@ -1414,6 +1416,46 @@ def create_app():
         desde, hasta = _rango_kpis()
         return render_template("kpis.html", desde=desde.isoformat(), hasta=hasta.isoformat())
 
+    @app.route("/panel_admin/kpis.csv")
+    @_admin_required
+    def panel_admin_kpis_csv():
+        """Descarga CSV de los indicadores y el resumen por terapeuta."""
+        desde, hasta = _rango_kpis()
+        try:
+            data, status = citas_client.get(
+                f"/api/kpis?desde={desde.isoformat()}&hasta={hasta.isoformat()}"
+            )
+        except Exception as exc:
+            app.logger.warning("No se pudo generar CSV de KPIs: %s", exc)
+            return "No se pudieron cargar los reportes.", 502
+        if status != 200 or not (data or {}).get("success"):
+            return ((data or {}).get("error") or "No se pudieron cargar los reportes."), 502
+
+        archivo = io.StringIO()
+        writer = csv.writer(archivo)
+        writer.writerow(["Reporte de indicadores MOOVA Clinic"])
+        writer.writerow(["Desde", desde.isoformat(), "Hasta", hasta.isoformat()])
+        writer.writerow([])
+        writer.writerow(["Indicador", "Valor"])
+        for clave, valor in (data.get("resumen") or {}).items():
+            writer.writerow([clave, valor])
+        writer.writerow([])
+        writer.writerow(["Resultados por terapeuta"])
+        writer.writerow(["Terapeuta", "Total de citas", "Citas completadas", "Ingresos"])
+        for terapeuta in data.get("por_terapeuta") or []:
+            writer.writerow([
+                terapeuta.get("terapeuta_nombre", ""),
+                terapeuta.get("total_citas", 0),
+                terapeuta.get("citas_completadas", 0),
+                terapeuta.get("ingresos", 0),
+            ])
+        nombre = f"moova_reportes_{desde.isoformat()}_{hasta.isoformat()}.csv"
+        return Response(
+            "\ufeff" + archivo.getvalue(),
+            mimetype="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{nombre}"'},
+        )
+
     @app.route("/panel_admin/kpis.json")
     def panel_admin_kpis_json():
         """KPIs en JSON para el panel React. Sin sesion: 401; sin rol admin: 403 (nunca redirect)."""
@@ -1603,7 +1645,8 @@ def create_app():
         return render_template("detalle_paciente.html", paciente=paciente,
                                historial=historial, paquetes=paquetes,
                                evaluaciones=evaluaciones, consentimientos=consentimientos,
-                               notas_paciente=notas_paciente, es_admin=es_admin)
+                               notas_paciente=notas_paciente, es_admin=es_admin,
+                               hoy_impresion=hoy_lima().strftime("%d/%m/%Y %H:%M"))
 
     @app.route("/pacientes/<paciente_dni>/ficha-clinica.pdf")
     @_admin_required
