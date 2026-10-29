@@ -81,7 +81,8 @@ class RetornoPageTest(unittest.TestCase):
     def test_los_proxies_de_pagos_existen(self):
         reglas = {r.rule for r in self.app.url_map.iter_rules()}
         for ruta in ("/api/pagos/yape/estado", "/api/pagos/plin/estado",
-                     "/api/pagos/yape/iniciar", "/api/pagos/plin/iniciar"):
+                     "/api/pagos/yape/iniciar", "/api/pagos/plin/iniciar",
+                     "/api/pagos/demo/confirmar"):
             self.assertIn(ruta, reglas)
 
 
