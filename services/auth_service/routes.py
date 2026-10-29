@@ -133,12 +133,10 @@ def actualizar_usuario(usuario_id):
     telefono = None
     if telefono_presente:
         crudo = data.get("telefono")
-        telefono = "" if crudo is None else re.sub(r"[\s\-()]", "", str(crudo).strip())
-        if telefono.startswith("+51"):
-            telefono = telefono[3:]
+        telefono = "" if crudo is None else str(crudo).strip()
         if telefono and not _RE_TELEFONO_PE.fullmatch(telefono):
             return jsonify({
-                "error": "Teléfono inválido: usa 9 dígitos que empiecen por 9.",
+                "error": "telefono invalido: se esperan 9 digitos que empiezan por 9.",
             }), 400
 
     clave_hash = None
