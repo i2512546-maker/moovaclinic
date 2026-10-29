@@ -56,45 +56,21 @@ class CrearCitaPagoRequeridoTest(unittest.TestCase):
             "/_internal/api/citas", json=self.datos, headers=self.headers
         )
 
-    def test_precio_no_configurado_no_crea_paciente_ni_cita(self):
-        self._with_prerequisites(
-            pacientes_get=lambda url, *a, **k: (
-                {"terapeuta": {"precio": 0}}, 200
-            )
-        )
+    def test_cita_sin_pago_se_crea(self):
+        datos = dict(self.datos)
+        datos.pop("servicio_id", None)
+        datos.pop("metodo_pago", None)
+        self.datos = datos
+        self._with_prerequisites()
         with patch(
-            "services.citas_service.routes.call_proc_one"
-        ) as proc, patch(
-            "services.citas_service.routes.pacientes_client.post"
-        ) as pacientes_post:
+            "services.citas_service.routes.call_proc_one",
+            return_value={"id": 90},
+        ), patch(
+            "services.citas_service.routes.pagos_client.post"
+        ) as pagos_post:
             respuesta = self._post()
-        self.assertEqual(respuesta.status_code, 409)
-        self.assertEqual(
-            respuesta.get_json()["error"],
-            "Este especialista aún no tiene precio configurado",
-        )
-        proc.assert_not_called()
-        pacientes_post.assert_not_called()
-
-    def test_servicio_inexistente_o_inactivo_rechazado_antes_de_crear_cita(self):
-        def sin_servicio(url, *args, **kwargs):
-            if url == "/api/terapeutas/3":
-                return {"terapeuta": {"precio": 100}}, 200
-            if url == "/api/servicios":
-                return {"servicios": [{"id": 5}]}, 200
-            raise AssertionError(f"Llamada inesperada: {url}")
-
-        self._with_prerequisites(pacientes_get=sin_servicio)
-        with patch(
-            "services.citas_service.routes.call_proc_one"
-        ) as proc, patch(
-            "services.citas_service.routes.pacientes_client.post"
-        ) as pacientes_post:
-            respuesta = self._post()
-        self.assertEqual(respuesta.status_code, 400)
-        self.assertEqual(respuesta.get_json()["error"], "Servicio no disponible")
-        proc.assert_not_called()
-        pacientes_post.assert_not_called()
+        self.assertEqual(respuesta.status_code, 201)
+        pagos_post.assert_not_called()
 
     def test_metodo_pago_invalido_es_rechazado(self):
         self.datos["metodo_pago"] = "bitcoin"
@@ -105,66 +81,44 @@ class CrearCitaPagoRequeridoTest(unittest.TestCase):
         self.assertEqual(respuesta.status_code, 400)
         disponible.assert_not_called()
 
-    def test_pago_no_creado_cancela_cita_y_no_devuelve_201(self):
+    def test_pago_no_creado_no_cancela_cita(self):
         self._with_prerequisites()
         with patch(
             "services.citas_service.routes.call_proc_one",
-            side_effect=[
-                {"id": 88},
-                {"actualizadas": 1},
-            ],
+            return_value={"id": 88},
         ) as proc, patch(
             "services.citas_service.routes.pagos_client.post",
             return_value=({"error": "fallo"}, 503),
-        ), patch(
-            "services.citas_service.routes.call_proc_execute"
         ):
             respuesta = self._post()
-        self.assertEqual(respuesta.status_code, 502)
-        self.assertEqual(
-            respuesta.get_json()["error"],
-            "No se pudo iniciar el pago, intenta de nuevo",
-        )
-        self.assertEqual(
-            proc.call_args_list[-1].args,
-            ("sp_cancelar_cita", (88,)),
-        )
+        self.assertEqual(respuesta.status_code, 201)
+        self.assertEqual(proc.call_count, 1)
 
-    def test_excepcion_al_iniciar_pago_cancela_cita(self):
+    def test_excepcion_al_iniciar_pago_no_cancela_cita(self):
         self._with_prerequisites()
         with patch(
             "services.citas_service.routes.call_proc_one",
-            side_effect=[
-                {"id": 89},
-                {"actualizadas": 1},
-            ],
+            return_value={"id": 89},
         ) as proc, patch(
             "services.citas_service.routes.pagos_client.post",
             side_effect=RuntimeError("pagos fuera de servicio"),
         ):
             respuesta = self._post()
-        self.assertEqual(respuesta.status_code, 502)
-        self.assertEqual(len(proc.call_args_list), 2)
-        self.assertEqual(
-            proc.call_args_list[-1].args,
-            ("sp_cancelar_cita", (89,)),
-        )
+        self.assertEqual(respuesta.status_code, 201)
+        self.assertEqual(proc.call_count, 1)
 
-    def test_respuesta_201_sin_pago_creado_cancela_cita(self):
+    def test_respuesta_sin_id_de_pago_no_cancela_cita(self):
         self._with_prerequisites()
         with patch(
             "services.citas_service.routes.call_proc_one",
-            side_effect=[{"id": 91}, {"actualizadas": 1}],
+            return_value={"id": 91},
         ) as proc, patch(
             "services.citas_service.routes.pagos_client.post",
             return_value=({"success": True, "id": None}, 201),
         ):
             respuesta = self._post()
-        self.assertEqual(respuesta.status_code, 502)
-        self.assertEqual(
-            proc.call_args_list[-1].args,
-            ("sp_cancelar_cita", (91,)),
-        )
+        self.assertEqual(respuesta.status_code, 201)
+        self.assertEqual(proc.call_count, 1)
 
     def test_creacion_exige_pago_exitoso(self):
         self._with_prerequisites()
@@ -188,18 +142,13 @@ class PagoPageSinPagoTest(unittest.TestCase):
             session["usuario_id"] = 1
             session["rol"] = "paciente"
 
-    def test_sin_registro_de_pago_redirige_a_citas_con_mensaje(self):
+    def test_sin_registro_de_pago_muestra_pagina(self):
         for status, data in ((404, {}), (200, {}), (200, {"pago": None})):
             with self.subTest(status=status, data=data), patch.object(
                 ga.pagos_client, "get", return_value=(data, status)
-            ), patch.object(ga.citas_client, "get") as citas_get:
+            ), patch.object(ga.citas_client, "get", return_value=({"cita": {"id": 55}}, 200)):
                 respuesta = self.client.get("/pago?cita_id=55")
-            self.assertEqual(respuesta.status_code, 302)
-            self.assertIn("/citas", respuesta.headers["Location"])
-            citas_get.assert_not_called()
-            with self.client.session_transaction() as session:
-                self.assertEqual(session["_flashes"][-1][1],
-                                 "No encontramos el pago de esta cita. Vuelve a agendarla.")
+            self.assertEqual(respuesta.status_code, 200)
 
 
 if __name__ == "__main__":

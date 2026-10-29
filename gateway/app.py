@@ -1090,23 +1090,26 @@ def create_app():
             return redirect(url_for("citas_page"))
         data, pago_status = pagos_client.get(f"/api/pagos/{cita_id}")
         pago = (data or {}).get("pago")
-        if pago_status == 404 or not pago:
-            flash("No encontramos el pago de esta cita. Vuelve a agendarla.", "warning")
-            return redirect(url_for("citas_page"))
 
         cdata, _ = citas_client.get(f"/api/citas/{cita_id}")
         cita = cdata.get("cita", {})
 
-        if pago.get("estado_pago") == "pagado":
-            return redirect(url_for("retorno_page", cita_id=cita_id))
+        if pago:
+            if pago.get("estado_pago") == "pagado":
+                return redirect(url_for("retorno_page", cita_id=cita_id))
 
-        # Se muestra el formulario: esta sesion queda habilitada para
-        # iniciar y consultar el cobro de esta cita (ver _pago_denegado).
-        _registrar_cita_pagable(cita_id)
+            # Se muestra el formulario: esta sesion queda habilitada para
+            # iniciar y consultar el cobro de esta cita (ver _pago_denegado).
+            _registrar_cita_pagable(cita_id)
 
-        cita["monto"] = float(pago.get("monto") or 0)
-        cita["metodo_pago"] = pago.get("metodo_pago", "")
-        cita["estado_pago"] = pago.get("estado_pago", "pendiente")
+            cita["monto"] = float(pago.get("monto") or 0)
+            cita["metodo_pago"] = pago.get("metodo_pago", "")
+            cita["estado_pago"] = pago.get("estado_pago", "pendiente")
+        else:
+            # Sin pago asociado: se muestra la pagina con los datos de la cita.
+            cita.setdefault("monto", 0)
+            cita.setdefault("metodo_pago", "")
+            cita.setdefault("estado_pago", "")
 
         from services.pagos_service.providers import NiubizClient
         niubiz = NiubizClient()
