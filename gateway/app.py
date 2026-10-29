@@ -646,21 +646,28 @@ def create_app():
 
     @app.route("/citas", methods=["GET", "POST"])
     def citas_page():
+        registrar_fallo_cita = lambda: None
+        ip_claves, dni_claves = [], []
+        limite_ip = app.extensions["citas_rate_limit_ip"]
+        limite_dni = app.extensions["citas_rate_limit_dni"]
         if request.method == "POST":
             ip_claves = [f"citas:{ip_del_request(request, TRUST_PROXY)}"]
             dni = str(request.form.get("dni") or "").strip()
-            dni_claves = [f"citas:dni:{dni}"] if dni else []
-            limite_ip = app.extensions["citas_rate_limit_ip"]
-            limite_dni = app.extensions["citas_rate_limit_dni"]
+            dni_claves = [f"citas:dni:{dni}"] if _dni_ok(dni) else []
             bloqueado_ip, _ = limite_ip.bloqueado(ip_claves)
             bloqueado_dni, _ = limite_dni.bloqueado(dni_claves) if dni_claves else (False, None)
             if bloqueado_ip or bloqueado_dni:
                 return jsonify({
-                    "error": "Límite de citas alcanzado. Intenta de nuevo dentro de una hora.",
+                    "error": "Se alcanzó el límite de intentos fallidos. Espera una hora antes de volver a intentar.",
                 }), 429
-            limite_ip.registrar_fallo(ip_claves)
-            if dni_claves:
-                limite_dni.registrar_fallo(dni_claves)
+
+            # Solo se cuentan envíos fallidos, nunca los pasos normales ni
+            # una reserva correcta. El comportamiento anterior bloqueaba a
+            # cualquiera después de varios envíos, incluso exitosos.
+            def registrar_fallo_cita():
+                limite_ip.registrar_fallo(ip_claves)
+                if dni_claves:
+                    limite_dni.registrar_fallo(dni_claves)
 
         # El formulario SIEMPRE se muestra (paso 1 -> 2). Ya no se redirige
         # al pago de una cita vieja de la sesion: eso impedia agendar de
@@ -678,6 +685,7 @@ def create_app():
                          ["nombre", "apellido", "dni", "telefono", "medico_id", "fecha_cita", "metodo_pago", "servicio_id"]}
             if not all(form_data.values()):
                 msg = "Por favor completa todos los campos, selecciona un médico y elige una fecha."
+                registrar_fallo_cita()
                 if _is_ajax():
                     return jsonify({"error": msg}), 400
                 flash("campos_vacios")
@@ -690,6 +698,7 @@ def create_app():
                 form_data["dni"], form_data["telefono"],
             )
             if error_formato:
+                registrar_fallo_cita()
                 if _is_ajax():
                     return jsonify({"error": error_formato}), 400
                 flash(error_formato)
@@ -697,6 +706,9 @@ def create_app():
 
             result, status = citas_client.post("/api/citas", form_data)
             if status == 201 and result.get("success"):
+                limite_ip.registrar_exito(ip_claves)
+                if dni_claves:
+                    limite_dni.registrar_exito(dni_claves)
                 session["cita_pendiente_id"] = str(result["cita_id"])
                 redirect_to = url_for("pago_page", cita_id=result["cita_id"])
                 if _is_ajax():
@@ -706,6 +718,8 @@ def create_app():
                         "redirect": redirect_to,
                     }), 201
                 return redirect(redirect_to)
+            if status in (400, 422):
+                registrar_fallo_cita()
             if _is_ajax():
                 return jsonify(result or {"error": "Error al crear cita"}), status
             flash(result.get("error", "Error al crear cita"))
@@ -1692,9 +1706,35 @@ def create_app():
             consultas_por_ip[ip] = historial_ip + [ahora]
         session["_dn_consultas"] = historial + [ahora]
 
-        # El servicio de pacientes ya devuelve solo nombres y apellidos.
+        # Primero buscar en la base local. Si ya existe, devolver los datos
+        # registrados y marcarlos como no editables en el formulario.
+        try:
+            local_data, local_status = pacientes_client.get(f"/api/pacientes/{dni}")
+            paciente = (local_data or {}).get("paciente") if local_status == 200 else None
+            if paciente:
+                return jsonify({
+                    "success": True,
+                    "existe": True,
+                    "paciente": paciente,
+                    "data": {
+                        "nombres": paciente.get("nombre") or "",
+                        "nombre": paciente.get("nombre") or "",
+                        "apellido_paterno": paciente.get("apellido") or "",
+                        "apellido_materno": "",
+                        "apellidoPaterno": paciente.get("apellido") or "",
+                        "apellidoMaterno": "",
+                        "telefono": paciente.get("telefono") or "",
+                    },
+                }), 200
+        except Exception as exc:
+            app.logger.warning("No se pudo consultar el paciente local por DNI: %s", exc)
+
+        # Si no existe en MOOVA, consultar el servicio externo para ayudar a
+        # completar los nombres. El paciente podrá corregirlos si hace falta.
         try:
             data, status = pacientes_client.post("/api/pacientes/buscar_dni", {"dni": dni})
+            if isinstance(data, dict):
+                data.setdefault("existe", False)
             return jsonify(data), status
         except Exception:
             return jsonify({
