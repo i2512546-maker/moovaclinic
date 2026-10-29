@@ -1750,7 +1750,7 @@ def create_app():
         # Primero buscar en la base local. Si ya existe, devolver los datos
         # registrados y marcarlos como no editables en el formulario.
         try:
-            local_data, local_status = pacientes_client.get(f"/api/pacientes/{dni}")
+            local_data, local_status = pacientes_client.get(f"/api/pacientes/dni/{dni}")
             paciente = (local_data or {}).get("paciente") if local_status == 200 else None
             if paciente:
                 return jsonify({
