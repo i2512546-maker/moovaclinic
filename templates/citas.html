@@ -495,8 +495,14 @@
                     credentials: 'same-origin'
                 });
                 var data = await response.json();
-                if (!response.ok && !data.data) {
+                // Un DNI no encontrado en la API externa no debe bloquear la
+                // reserva: permite completar los datos manualmente. Los errores
+                // de límite o de servidor sí se muestran al usuario.
+                if (!response.ok && response.status !== 404 && !data.data) {
                     throw new Error(data.error || 'No se pudo verificar el DNI.');
+                }
+                if (response.status === 404 && !data.data) {
+                    data = { success: false, existe: false, data: {} };
                 }
                 var paciente = data.paciente || data.data || {};
                 var nombre = paciente.nombre || paciente.nombres || '';
