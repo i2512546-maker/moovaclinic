@@ -1564,24 +1564,23 @@ def create_app():
         pacientes = data.get("pacientes", [])
         es_admin = session.get("rol") == "admin"
 
-        # Los terapeutas solo ven pacientes con citas asignadas a su perfil.
+        # Evitar una llamada por paciente (N+1): el servicio de citas
+        # devuelve de una sola vez los IDs que corresponden al terapeuta.
         if not es_admin:
             terapeuta_id = _terapeuta_id_de_sesion()
             if terapeuta_id is None:
                 abort(403)
-            pacientes_asignados = []
-            for paciente in pacientes:
-                paciente_id = paciente.get("id")
-                if not paciente_id:
-                    continue
-                try:
-                    hdata, hstatus = citas_client.get(f"/api/citas/paciente/{paciente_id}")
-                    historial_paciente = (hdata or {}).get("citas", []) if hstatus == 200 else []
-                    if any(str(c.get("terapeuta_id")) == str(terapeuta_id) for c in historial_paciente):
-                        pacientes_asignados.append(paciente)
-                except Exception as exc:
-                    app.logger.warning("No se pudo verificar asignación del paciente %s: %s", paciente_id, exc)
-            pacientes = pacientes_asignados
+            try:
+                asignados, status = citas_client.get(
+                    f"/api/citas/terapeuta/{terapeuta_id}/pacientes"
+                )
+                if status != 200 or not (asignados or {}).get("success"):
+                    abort(502, description="No se pudieron cargar los pacientes asignados.")
+                ids_asignados = {str(pid) for pid in asignados.get("paciente_ids", [])}
+                pacientes = [p for p in pacientes if str(p.get("id")) in ids_asignados]
+            except Exception as exc:
+                app.logger.error("No se pudo cargar el listado de pacientes del terapeuta: %s", exc)
+                abort(502, description="No se pudieron cargar los pacientes asignados.")
 
         return render_template("pacientes.html", pacientes=pacientes, es_admin=es_admin)
 
