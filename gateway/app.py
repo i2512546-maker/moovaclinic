@@ -32,7 +32,6 @@ from shared.config import (
     LOGIN_MAX_INTENTOS,
     LOGIN_VENTANA_MIN,
     OTP_SESION_MIN,
-    PAGOS_MODO_DEMO,
     REDES_SOCIALES,
     TRUST_PROXY,
 )
@@ -271,10 +270,6 @@ MENSAJE_PAGO_NO_PERMITIDO = "No se puede procesar el pago con estos datos."
 
 def create_app():
     app = Flask(__name__, template_folder="../templates", static_folder="../static")
-    if PAGOS_MODO_DEMO:
-        app.logger.warning(
-            "Pagos en MODO DEMOSTRACIÓN: no se cobra dinero real"
-        )
     app.config["MOOVA_MONOLITH"] = True
     secret_key = os.getenv("SECRET_KEY")
     if not secret_key:
@@ -1094,34 +1089,6 @@ def create_app():
         cdata, _ = citas_client.get(f"/api/citas/{cita_id}")
         cita = cdata.get("cita", {})
 
-        # En modo demo, crear el anticipo si la cita no lo tiene todavía.
-        # Esto permite mostrar y probar el flujo aunque no se haya iniciado
-        # un pago real al momento de reservar.
-        if not pago and PAGOS_MODO_DEMO and cita:
-            paciente_id = cita.get("paciente_id")
-            terapeuta_id = cita.get("terapeuta_id") or cita.get("medico_id")
-            try:
-                terapeuta_data, terapeuta_status = pacientes_client.get(
-                    f"/api/terapeutas/{terapeuta_id}"
-                ) if terapeuta_id else ({}, 404)
-                terapeuta = (terapeuta_data or {}).get("terapeuta") or {}
-                precio = float(terapeuta.get("precio") or 0)
-                monto_demo = round(precio / 2, 2)
-                if paciente_id and monto_demo > 0 and terapeuta_status == 200:
-                    creado, creado_status = pagos_client.post("/api/pagos/anticipo", {
-                        "cita_id": cita_id,
-                        "paciente_id": paciente_id,
-                        "monto": monto_demo,
-                        "metodo_pago": "transferencia",
-                    })
-                    if creado_status in (200, 201) and (creado or {}).get("success"):
-                        data, pago_status = pagos_client.get(f"/api/pagos/{cita_id}")
-                        pago = (data or {}).get("pago")
-            except Exception as exc:
-                app.logger.warning(
-                    "No se pudo preparar el pago demo para la cita %s: %s: %s",
-                    cita_id, type(exc).__name__, exc,
-                )
 
         if pago:
             if pago.get("estado_pago") == "pagado":
@@ -1139,14 +1106,12 @@ def create_app():
             cita.setdefault("monto", 0)
             cita.setdefault("metodo_pago", "")
             cita.setdefault("estado_pago", "")
-            if PAGOS_MODO_DEMO:
-                _registrar_cita_pagable(cita_id)
 
         from services.pagos_service.providers import NiubizClient
         niubiz = NiubizClient()
         return render_template(
             "pago.html", cita=cita, niubiz_sdk_url=niubiz.sdk_url,
-            niubiz_mode=niubiz.mode, modo_demo=PAGOS_MODO_DEMO,
+            niubiz_mode=niubiz.mode,
         )
 
     @app.route("/retorno")
@@ -1695,17 +1660,6 @@ def create_app():
     # filtro es _pago_denegado: solo la sesion que abrio /pago para esa
     # cita puede iniciarle o consultarle un cobro. /api/pagos/webhook y el
     # retorno de Niubiz no pasan por aqui y quedan tal cual estaban.
-    @app.route("/api/pagos/demo/confirmar", methods=["POST"])
-    def proxy_pago_demo_confirmar():
-        cuerpo = request.get_json(silent=True) or {}
-        denegado = _pago_denegado(cuerpo)
-        if denegado:
-            return denegado
-        if not PAGOS_MODO_DEMO:
-            return jsonify({"ok": False, "error": "El modo demostración está desactivado."}), 404
-        data, status = pagos_client.post("/api/pagos/demo/confirmar", cuerpo)
-        return jsonify(data or {}), status
-
     @app.route("/api/pagos/yape/iniciar", methods=["POST"])
     @app.route("/api/pagos/plin/iniciar", methods=["POST"])
     def proxy_pago_scan_iniciar():
