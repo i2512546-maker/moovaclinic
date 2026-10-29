@@ -599,7 +599,7 @@ def create_app():
             if status == 200:
                 for cita in data.get("citas", []):
                     if str(cita.get("fecha_cita", ""))[:10] == fecha_str:
-                        citas_por_id[str(cita.get("id"))] = cita
+                        citas_por_id.setdefault(str(cita.get("id")), cita)
         pacientes = list(citas_por_id.values())
         if not es_admin:
             terapeuta_id = _terapeuta_id_de_sesion()
