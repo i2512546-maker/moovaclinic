@@ -205,6 +205,15 @@ Google Fonts hacen que una política estricta rompa páginas en cuanto se
 mueva una plantilla; plantearlo bien merece una fase aparte con revisión
 página por página, no un encabezado de relleno.
 
+### Pago de demostración para sustentación
+
+Para probar el recorrido completo sin cobrar dinero real, define
+`PAGOS_MODO_DEMO=1` en las variables de entorno de Railway. En la pantalla
+de pago aparecerá **Confirmar pago de demostración**; al usarlo, el servicio
+marca el pago pendiente como pagado en MySQL y habilita **Continuar**.
+No se contacta a Yape, Plin ni Niubiz. Para volver al flujo de pasarelas,
+cambia la variable a `PAGOS_MODO_DEMO=0` (o elimínala) y vuelve a desplegar.
+
 ### Oráculo de existencia de citas (limitación aceptada)
 
 `/pago` y `/retorno` piden `cita_id` por query y **no comprueban que la
