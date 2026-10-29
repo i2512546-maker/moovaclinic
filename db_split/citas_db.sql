@@ -47,7 +47,7 @@ CREATE TABLE `historial_citas` (
   `fecha_cita` date NOT NULL,
   `hora_cita` time DEFAULT NULL,
   `descripcion` text DEFAULT NULL,
-  `estado` enum('programada','confirmada','cancelada','completada','no_asistio') NOT NULL DEFAULT 'programada',
+  `estado` enum('pendiente_pago','programada','confirmada','cancelada','completada','no_asistio') NOT NULL DEFAULT 'programada',
   `recordatorio_enviado` tinyint(1) DEFAULT 0,
   `creado_en` datetime DEFAULT NULL,
   `actualizado_en` datetime DEFAULT NULL
@@ -177,7 +177,7 @@ BEGIN
     FROM historial_citas
     WHERE terapeuta_id = p_medico_id
       AND fecha_cita = p_fecha
-      AND estado = 'programada'
+      AND estado IN ('pendiente_pago', 'programada', 'confirmada')
       AND (p_excluir_cita_id IS NULL OR id <> p_excluir_cita_id);
 END$$
 
@@ -196,6 +196,32 @@ BEGIN
         UTC_TIMESTAMP(), UTC_TIMESTAMP()
     );
     SELECT LAST_INSERT_ID() AS id;
+END$$
+
+DROP PROCEDURE IF EXISTS `sp_crear_cita_pendiente_pago`$$
+CREATE PROCEDURE `sp_crear_cita_pendiente_pago`(
+    IN p_paciente_id INT, IN p_terapeuta_id INT, IN p_servicio_id INT,
+    IN p_fecha DATETIME, IN p_hora TIME
+)
+BEGIN
+    INSERT INTO historial_citas (
+        paciente_id, terapeuta_id, servicio_id, fecha_cita, hora_cita, estado,
+        creado_en, actualizado_en
+    )
+    VALUES (
+        p_paciente_id, p_terapeuta_id, p_servicio_id, p_fecha, p_hora,
+        'pendiente_pago', UTC_TIMESTAMP(), UTC_TIMESTAMP()
+    );
+    SELECT LAST_INSERT_ID() AS id;
+END$$
+
+DROP PROCEDURE IF EXISTS `sp_confirmar_cita_pago`$$
+CREATE PROCEDURE `sp_confirmar_cita_pago`(IN p_cita_id INT)
+BEGIN
+    UPDATE historial_citas
+    SET estado = 'programada', actualizado_en = UTC_TIMESTAMP()
+    WHERE id = p_cita_id AND estado = 'pendiente_pago';
+    SELECT ROW_COUNT() AS actualizadas;
 END$$
 
 DROP PROCEDURE IF EXISTS `sp_modificar_cita`$$
@@ -332,9 +358,9 @@ BEGIN
             ' | ', NULLIF(TRIM(descripcion), ''), 'pago vencido'
         ),
         actualizado_en = UTC_TIMESTAMP()
-    WHERE id = p_cita_id AND estado = 'programada';
+    WHERE id = p_cita_id AND estado IN ('pendiente_pago', 'programada');
     SELECT ROW_COUNT() AS actualizadas;
-END$$
+END$
 
 --
 -- sp_existe_cita_programada_paciente  |  LOCAL (FASE 2)
