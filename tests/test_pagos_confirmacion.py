@@ -81,9 +81,16 @@ class RetornoPageTest(unittest.TestCase):
     def test_los_proxies_de_pagos_existen(self):
         reglas = {r.rule for r in self.app.url_map.iter_rules()}
         for ruta in ("/api/pagos/yape/estado", "/api/pagos/plin/estado",
-                     "/api/pagos/yape/iniciar", "/api/pagos/plin/iniciar",
-                     "/api/pagos/demo/confirmar"):
+                     "/api/pagos/yape/iniciar", "/api/pagos/plin/iniciar"):
             self.assertIn(ruta, reglas)
+        # La confirmación simulada solo debe existir si el modo demo está activado.
+        self.assertNotIn("/api/pagos/demo/confirmar", reglas)
+
+    def test_proxy_demo_solo_se_registra_en_modo_demo(self):
+        with patch("gateway.app.PAGOS_MODO_DEMO", True):
+            app_demo = ga.create_app()
+        reglas = {r.rule for r in app_demo.url_map.iter_rules()}
+        self.assertIn("/api/pagos/demo/confirmar", reglas)
 
 
 if __name__ == "__main__":
