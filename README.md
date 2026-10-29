@@ -601,3 +601,29 @@ tests/              pytest
   la cita existe, si está pagada y a quién pertenece: el gateway no
   valida la propiedad de la cita. Limitación aceptada de la FASE S7,
   detallada en `Oráculo de existencia de citas` (apartado Seguridad).
+
+---
+
+## Actualización para reservas pendientes de pago (2026-10-29)
+
+Las reservas que requieren anticipo se guardan primero con estado `pendiente_pago`.
+No aparecen en la agenda ni en los reportes de citas programadas hasta que la pasarela
+confirma el pago. Si el pago no se puede iniciar, el sistema libera la reserva; si
+el paciente abandona el proceso, el job de pagos vencidos la cancela.
+
+**Antes de desplegar esta versión en una base existente**, ejecutar una sola vez:
+
+```bash
+mysql -u USUARIO -p moovacloud_citas < db_split/migraciones/2026-10-29_reservas_pendientes_pago.sql
+```
+
+La migración agrega el estado y los procedimientos de creación, confirmación y liberación
+de la reserva. Para instalaciones nuevas, el esquema actualizado está en
+`db_split/citas_db.sql`.
+
+### Teléfono de usuarios
+
+Si la edición del teléfono del terapeuta devuelve error de base de datos, ejecutar también
+la migración `db_split/migraciones/2026-10-18_telefono_usuarios.sql` sobre
+`moovacloud_auth`. Esa migración crea el procedimiento almacenado que utiliza el backend
+para guardar el teléfono.
