@@ -97,6 +97,7 @@ BEGIN
                    ), 0) AS ingresos
               FROM moovacloud_citas.historial_citas h
              WHERE h.fecha_cita BETWEEN p_desde AND p_hasta
+               AND h.estado <> 'pendiente_pago'
              GROUP BY h.terapeuta_id
       ) v ON v.terapeuta_id = t.id
      ORDER BY v.ingresos DESC, v.total_citas DESC;
