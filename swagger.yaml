@@ -539,6 +539,33 @@ paths:
             type: object
             properties:
               disponible: { type: boolean, example: true }
+  /api/citas/ocupadas:
+    get:
+      tags: [citas]
+      summary: Fechas ocupadas de un terapeuta en un rango
+      parameters:
+        - name: medico_id
+          in: query
+          required: true
+          type: integer
+        - name: desde
+          in: query
+          required: true
+          type: string
+          format: date
+        - name: hasta
+          in: query
+          required: true
+          type: string
+          format: date
+      responses:
+        "200":
+          description: Fechas ocupadas
+          schema:
+            type: object
+            properties:
+              fechas: { type: array }
+        "400": { description: Parametros invalidos }
   /api/citas/{cita_id}:
     get:
       tags: [citas]
@@ -599,6 +626,23 @@ paths:
             properties:
               success: { type: boolean, example: true }
         "404": { description: Cita no encontrada }
+  /api/citas/{cita_id}/cancelar-pago-vencido:
+    post:
+      tags: [citas]
+      summary: Cancelar cita cuyo pago vencio
+      parameters:
+        - name: cita_id
+          in: path
+          required: true
+          type: integer
+      responses:
+        "200":
+          description: Resultado de cancelacion
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              cancelada: { type: boolean, example: true }
   /api/citas/otp/solicitar:
     post:
       tags: [citas]
@@ -1562,3 +1606,4 @@ paths:
               success: { type: boolean, example: true }
               nota_id: { type: integer }
         "400": { description: Nota vacia }
+
