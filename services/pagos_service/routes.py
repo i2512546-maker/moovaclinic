@@ -122,6 +122,22 @@ def confirmar_pago_servicio(cita_id, referencia=None, datos_respuesta=None, veri
     pagado = bool(res and int(res.get("pagado") or 0) > 0)
 
     if pagado:
+        # La cita se activa únicamente cuando el pago fue confirmado.
+        try:
+            activacion, activacion_status = citas_client.post(
+                f"/api/citas/{cita_id}/confirmar-pago", {}
+            )
+            if activacion_status != 200 or not (activacion or {}).get("success"):
+                current_app.logger.error(
+                    "Pago confirmado pero la cita %s no se pudo activar: %s",
+                    cita_id, activacion,
+                )
+        except Exception as exc:
+            current_app.logger.error(
+                "Pago confirmado pero falló la activación de la cita %s: %s",
+                cita_id, exc,
+            )
+
         try:
             paciente_id = cita.get("paciente_id") if cita else None
             entidad_nombre = " ".join(
