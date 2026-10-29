@@ -61,13 +61,12 @@ del proveedor. Si el token no está configurado, el endpoint falla cerrado.
 
 ## Modo demostración de Yape/Plin
 
-Para una sustentación en un entorno sin credenciales de Yape/Plin, se puede
-definir `PAGOS_MODO_DEMO=1` en el servicio web. La opción está apagada por
-defecto. Solo genera y confirma cobros de demostración cuando el proveedor no
-tiene credenciales configuradas; si existen credenciales, se usa el flujo real.
-El gateway registra un warning al arrancar y los modales muestran que no se
-cobra dinero real. Activar únicamente para demostraciones y quitar la variable
-al terminar; no dejarla habilitada como configuración permanente.
+Para la sustentación, define `PAGOS_MODO_DEMO=1` en las variables de
+entorno del servicio web. La pantalla mostrará **Confirmar pago de demostración**;
+el backend registrará el pago pendiente como pagado en MySQL y permitirá continuar,
+sin llamar a Yape, Plin ni Niubiz. La opción está apagada por defecto
+(`PAGOS_MODO_DEMO=0`); actívala solo para la demostración y desactívala al
+terminar.
 
 ## 4. Cron de pagos vencidos
 
