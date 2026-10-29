@@ -57,4 +57,25 @@ BEGIN
     SELECT ROW_COUNT() AS actualizadas;
 END$$
 
+
+DROP PROCEDURE IF EXISTS sp_listar_citas_paciente$
+CREATE PROCEDURE sp_listar_citas_paciente(IN p_paciente_id INT)
+BEGIN
+    SELECT id, id AS historial_id, fecha_cita, hora_cita, estado,
+           descripcion, terapeuta_id, servicio_id
+    FROM historial_citas
+    WHERE paciente_id = p_paciente_id
+      AND estado <> 'pendiente_pago'
+    ORDER BY fecha_cita DESC;
+END$
+
+DROP PROCEDURE IF EXISTS sp_resumen_pacientes$
+CREATE PROCEDURE sp_resumen_pacientes()
+BEGIN
+    SELECT paciente_id, COUNT(*) AS total, MAX(fecha_cita) AS ultima
+    FROM historial_citas
+    WHERE estado <> 'pendiente_pago'
+    GROUP BY paciente_id;
+END$
+
 DELIMITER ;
