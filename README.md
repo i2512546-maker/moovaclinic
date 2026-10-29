@@ -621,6 +621,12 @@ La migración agrega el estado y los procedimientos de creación, confirmación 
 de la reserva. Para instalaciones nuevas, el esquema actualizado está en
 `db_split/citas_db.sql`.
 
+Como los reportes también deben excluir reservas sin pagar, ejecutar después:
+
+```bash
+mysql -u USUARIO -p moovacloud_kpis < db_split/migraciones/2026-10-29_kpis_exclude_pending.sql
+```
+
 ### Teléfono de usuarios
 
 Si la edición del teléfono del terapeuta devuelve error de base de datos, ejecutar también
