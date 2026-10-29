@@ -533,10 +533,11 @@ def create_app():
             # Dos contadores independientes y ambos tienen que pasar:
             # por IP corta a quien prueba claves desde un solo equipo,
             # por correo corta a quien prueba un correo desde muchos.
-            # El corte ocurre ANTES de llamar a auth_service, que asi
-            # ni se entera de los intentos que ya no valen.
+            # El bloqueo de login es por cuenta, no por IP: un usuario
+            # bloqueado no impide que otras cuentas de la misma red inicien sesion.
+            # El corte ocurre ANTES de llamar a auth_service.
             limite = app.extensions["rate_limit"]
-            claves = (f"ip:{ip_del_request(request, TRUST_PROXY)}", f"correo:{correo.lower()}")
+            claves = (f"correo:{correo.lower()}",)
             bloqueado, _ = limite.bloqueado(claves)
             if bloqueado:
                 flash(MENSAJE_LOGIN_BLOQUEADO)
