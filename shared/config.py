@@ -100,9 +100,6 @@ PLIN_MERCHANT_ID = os.getenv("PLIN_MERCHANT_ID") or ""
 # por la exencion del filtro de API_KEY interna.
 WEBHOOK_PROVIDER_TOKEN = os.getenv("WEBHOOK_PROVIDER_TOKEN") or ""
 
-PAGOS_MODO_DEMO = (os.getenv("PAGOS_MODO_DEMO") or "").strip().lower() in (
-    "1", "true", "yes", "on",
-)
 
 REDES_SOCIALES = {
     "facebook": "https://www.facebook.com/people/Moova-Clinic/61575855088670/#",
