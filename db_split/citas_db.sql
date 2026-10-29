@@ -389,6 +389,7 @@ BEGIN
            descripcion, terapeuta_id, servicio_id
     FROM historial_citas
     WHERE paciente_id = p_paciente_id
+      AND estado <> 'pendiente_pago'
     ORDER BY fecha_cita DESC;
 END$$
 
@@ -402,6 +403,7 @@ CREATE PROCEDURE `sp_resumen_pacientes`()
 BEGIN
     SELECT paciente_id, COUNT(*) AS total, MAX(fecha_cita) AS ultima
     FROM historial_citas
+    WHERE estado <> 'pendiente_pago'
     GROUP BY paciente_id;
 END$$
 
