@@ -220,6 +220,7 @@ casos (comprobado con el flujo de prueba real):
 | --- | --- |
 | `302` a `/retorno` | la cita existe y ya está pagada |
 | `302` a `/citas` | no hay un pago registrado para esa cita |
+| `200` con los datos de la cita | la cita existe, pero no hay un pago registrado para mostrar |
 | `200` con el importe | existe y está pendiente, con su monto |
 
 Y cuando la cita existe, la página se pinta con lo que enriquece
