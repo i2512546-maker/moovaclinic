@@ -51,11 +51,19 @@ def crear_usuario():
     nombre = data.get("nombre", "").strip()
     correo = data.get("correo", "").strip()
     clave = data.get("clave", "").strip()
-    telefono = data.get("telefono") or None
+    telefono_crudo = data.get("telefono") or None
     rol_nombre = data.get("rol", "terapeuta").strip()
 
     if not nombre or not correo or not clave:
         return jsonify({"error": "Nombre, correo y clave son requeridos."}), 400
+
+    telefono = None
+    if telefono_crudo:
+        telefono = re.sub(r"[\s\-()]", "", str(telefono_crudo).strip())
+        if telefono.startswith("+51"):
+            telefono = telefono[3:]
+        if not _RE_TELEFONO_PE.fullmatch(telefono):
+            return jsonify({"error": "Teléfono inválido: usa 9 dígitos que empiecen por 9."}), 400
 
     clave_hash = bcrypt.generate_password_hash(clave).decode("utf-8")
 
@@ -125,10 +133,12 @@ def actualizar_usuario(usuario_id):
     telefono = None
     if telefono_presente:
         crudo = data.get("telefono")
-        telefono = "" if crudo is None else str(crudo).strip()
-        if telefono and not _RE_TELEFONO_PE.match(telefono):
+        telefono = "" if crudo is None else re.sub(r"[\s\-()]", "", str(crudo).strip())
+        if telefono.startswith("+51"):
+            telefono = telefono[3:]
+        if telefono and not _RE_TELEFONO_PE.fullmatch(telefono):
             return jsonify({
-                "error": "telefono invalido: se esperan 9 digitos que empiezan por 9.",
+                "error": "Teléfono inválido: usa 9 dígitos que empiecen por 9.",
             }), 400
 
     clave_hash = None
