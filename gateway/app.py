@@ -1513,9 +1513,34 @@ def create_app():
         historial = data.get("historial", [])
         paquetes, evaluaciones, consentimientos = _cargar_anexos_paciente(paciente.get("id"))
 
+        # Las notas clínicas se guardan por cita; reunirlas para mostrarlas
+        # juntas al final de la ficha del paciente. Si notas_service falla,
+        # no impedir que el administrador consulte el resto de la ficha.
+        notas_paciente = []
+        for cita in historial:
+            cita_id = cita.get("id")
+            if not cita_id:
+                continue
+            try:
+                ndata, status = notas_client.get(f"/api/notas/{cita_id}")
+                if status == 200:
+                    for nota in (ndata or {}).get("notas", []):
+                        notas_paciente.append({
+                            **nota,
+                            "cita_id": cita_id,
+                            "fecha_cita": cita.get("fecha_cita"),
+                            "terapeuta": cita.get("terapeuta"),
+                        })
+            except Exception as exc:
+                app.logger.warning(
+                    "No se pudieron cargar las notas de la cita %s: %s",
+                    cita_id, exc,
+                )
+
         return render_template("detalle_paciente.html", paciente=paciente,
                                historial=historial, paquetes=paquetes,
-                               evaluaciones=evaluaciones, consentimientos=consentimientos)
+                               evaluaciones=evaluaciones, consentimientos=consentimientos,
+                               notas_paciente=notas_paciente)
 
     @app.route("/pacientes/<paciente_dni>/ficha-clinica.pdf")
     @_admin_required
