@@ -36,9 +36,18 @@
                 <div class="card card-moova shadow-sm h-100">
                     <div class="card-body">
                         <h3 class="h6 mb-2">{{ p.nombre }} {{ p.apellido }}</h3>
-                        <div class="text-muted small">DNI: {{ p.dni }} | Tel: {{ p.telefono }}</div>
-                        <div class="text-muted small">Email: {{ p.email or 'No registrado' }}</div>
-                        <div class="text-muted small mb-3">Citas: {{ p.total_citas }} | Ultima: {{ p.ultima_cita or 'Ninguna' }}</div>
+                        <div class="text-muted small mb-1">
+                            <span data-bs-toggle="tooltip" title="Documento nacional de identidad">DNI: {{ p.dni }}</span>
+                        </div>
+                        <div class="text-muted small mb-1">
+                            <span data-bs-toggle="tooltip" title="Número de contacto registrado">Tel: {{ p.telefono or 'No registrado' }}</span>
+                        </div>
+                        <div class="text-muted small mb-1">
+                            <span data-bs-toggle="tooltip" title="Correo asociado al expediente">Email: {{ p.email or 'No registrado' }}</span>
+                        </div>
+                        <div class="text-muted small mb-3">
+                            <span data-bs-toggle="tooltip" title="Cantidad total de citas y fecha de la más reciente">Citas: {{ p.total_citas }} | Última: {{ p.ultima_cita or 'Ninguna' }}</span>
+                        </div>
                         <span class="badge badge-{{ p.estado }}">{{ p.estado|capitalize }}</span>
                         <a href="{{ url_for('detalle_paciente_page', paciente_dni=p.dni) }}" class="btn btn-moova btn-sm mt-3 d-inline-flex align-items-center gap-1">Ver historial</a>
                     </div>
@@ -60,5 +69,10 @@
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
+            new bootstrap.Tooltip(el);
+        });
+    </script>
 </body>
 </html>
