@@ -1,6 +1,3 @@
-import re
-from urllib.parse import quote
-
 import requests
 
 from shared.config import (
@@ -11,7 +8,6 @@ from shared.config import (
     NIUBIZ_SANDBOX_URL,
     NIUBIZ_SDK_URL,
     NIUBIZ_USER,
-    PAGOS_MODO_DEMO,
     PLIN_API_URL,
     PLIN_CLIENT_ID,
     PLIN_CLIENT_SECRET,
@@ -26,40 +22,6 @@ API_TIMEOUT = 20
 # Timeout corto para la generacion/consulta de QR de Yape/Plin: la UI de
 # pago corta a los 10s el spinner, el backend debe fallar ANTES que eso.
 QR_API_TIMEOUT = 8
-
-
-def _demo_qr_data_uri():
-    svg = (
-        '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" '
-        'viewBox="0 0 320 180"><rect width="320" height="180" rx="12" '
-        'fill="#f3f4f6"/><text x="160" y="82" text-anchor="middle" '
-        'font-family="sans-serif" font-size="20" font-weight="bold" '
-        'fill="#17324d">MODO DEMOSTRACIÓN</text><text x="160" y="116" '
-        'text-anchor="middle" font-family="sans-serif" font-size="16" '
-        'fill="#17324d">Sin cobro real</text></svg>'
-    )
-    return f"data:image/svg+xml,{quote(svg, safe='')}"
-
-
-def _demo_cobro(monto, referencia):
-    return {
-        "cobro_id": f"DEMO-{referencia}-{float(monto):.2f}",
-        "qr_base64": _demo_qr_data_uri(),
-    }
-
-
-def _demo_respuesta(cobro_id):
-    match = re.fullmatch(r"DEMO-(\d+)-(\d+\.\d{2})", str(cobro_id))
-    if not match:
-        raise PaymentProviderError("Cobro demo con formato inválido.")
-    return {
-        "pagado": True,
-        "datos_respuesta": {
-            "referencia": match.group(1),
-            "monto": float(match.group(2)),
-            "estado": "pagado",
-        },
-    }
 
 
 class PaymentNotConfigured(Exception):
@@ -178,8 +140,6 @@ class YapeClient:
         return resp.json().get("access_token")
 
     def crear_cobro(self, monto, concepto, referencia):
-        if PAGOS_MODO_DEMO and not self.is_configured():
-            return _demo_cobro(monto, referencia)
         token = self._token()
         body = {"monto": round(float(monto), 2), "moneda": "PEN", "concepto": concepto,
                 "referencia": referencia, "negocio": self.merchant_id}
@@ -201,8 +161,6 @@ class YapeClient:
         return {"cobro_id": str(cobro_id), "qr_base64": qr_b64}
 
     def consultar_pago(self, cobro_id):
-        if PAGOS_MODO_DEMO and not self.is_configured():
-            return _demo_respuesta(cobro_id)
         token = self._token()
         try:
             resp = requests.get(
@@ -248,8 +206,6 @@ class PlinClient:
         return resp.json().get("access_token")
 
     def crear_cobro(self, monto, concepto, referencia):
-        if PAGOS_MODO_DEMO and not self.is_configured():
-            return _demo_cobro(monto, referencia)
         token = self._token()
         body = {"monto": round(float(monto), 2), "moneda": "PEN", "concepto": concepto,
                 "referencia": referencia, "negocio": self.merchant_id}
@@ -271,8 +227,6 @@ class PlinClient:
         return {"cobro_id": str(cobro_id), "qr_base64": qr_b64}
 
     def consultar_pago(self, cobro_id):
-        if PAGOS_MODO_DEMO and not self.is_configured():
-            return _demo_respuesta(cobro_id)
         token = self._token()
         try:
             resp = requests.get(
