@@ -34,9 +34,9 @@ from shared.config import (
     LOGIN_MAX_INTENTOS,
     LOGIN_VENTANA_MIN,
     OTP_SESION_MIN,
+    PAGOS_MODO_DEMO,
     REDES_SOCIALES,
     TRUST_PROXY,
-    PAGOS_MODO_DEMO,
 )
 from shared.fechas import fmt_fecha, hoy_lima
 from shared.rate_limit import LimitadorIntentos, ip_del_request
@@ -648,7 +648,6 @@ def create_app():
 
     @app.route("/citas", methods=["GET", "POST"])
     def citas_page():
-        registrar_fallo_cita = lambda: None
         ip_claves, dni_claves = [], []
         limite_ip = app.extensions["citas_rate_limit_ip"]
         limite_dni = app.extensions["citas_rate_limit_dni"]
@@ -660,7 +659,7 @@ def create_app():
             bloqueado_dni, _ = limite_dni.bloqueado(dni_claves) if dni_claves else (False, None)
             if bloqueado_ip or bloqueado_dni:
                 return jsonify({
-                    "error": "Se alcanzó el límite de intentos fallidos. Espera una hora antes de volver a intentar.",
+                    "error": "Límite de citas alcanzado por intentos fallidos. Espera una hora antes de volver a intentar.",
                 }), 429
 
             # Solo se cuentan envíos fallidos, nunca los pasos normales ni
@@ -1819,14 +1818,15 @@ def create_app():
     # filtro es _pago_denegado: solo la sesion que abrio /pago para esa
     # cita puede iniciarle o consultarle un cobro. /api/pagos/webhook y el
     # retorno de Niubiz no pasan por aqui y quedan tal cual estaban.
-    @app.route("/api/pagos/demo/confirmar", methods=["POST"])
-    def proxy_pago_demo_confirmar():
-        cuerpo = request.get_json(silent=True) or {}
-        denegado = _pago_denegado(cuerpo)
-        if denegado:
-            return denegado
-        data, status = pagos_client.post("/api/pagos/demo/confirmar", cuerpo)
-        return jsonify(data or {}), status
+    if PAGOS_MODO_DEMO:
+        @app.route("/api/pagos/demo/confirmar", methods=["POST"])
+        def proxy_pago_demo_confirmar():
+            cuerpo = request.get_json(silent=True) or {}
+            denegado = _pago_denegado(cuerpo)
+            if denegado:
+                return denegado
+            data, status = pagos_client.post("/api/pagos/demo/confirmar", cuerpo)
+            return jsonify(data or {}), status
 
     @app.route("/api/pagos/yape/iniciar", methods=["POST"])
     @app.route("/api/pagos/plin/iniciar", methods=["POST"])
