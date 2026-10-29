@@ -415,6 +415,13 @@ def crear_cita():
         pac_data, pac_status = pacientes_client.get(f"/api/pacientes/dni/{data['dni']}")
         if pac_status == 200:
             paciente_id = pac_data.get("id")
+            # El expediente existente es la fuente de verdad: ignorar cualquier
+            # modificación enviada desde el navegador para nombre, apellido o teléfono.
+            paciente_existente = (pac_data or {}).get("paciente") or {}
+            if paciente_existente:
+                data["nombre"] = paciente_existente.get("nombre") or data["nombre"]
+                data["apellido"] = paciente_existente.get("apellido") or data["apellido"]
+                data["telefono"] = paciente_existente.get("telefono") or data["telefono"]
         else:
             creado, creado_status = pacientes_client.post("/api/pacientes/min", {
                 "nombre": data["nombre"], "apellido": data["apellido"],
