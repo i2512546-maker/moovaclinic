@@ -258,6 +258,21 @@ def listar_citas_paciente(paciente_id):
     return jsonify({"success": True, "citas": citas})
 
 
+@citas_bp.route("/api/citas/terapeuta/<int:terapeuta_id>/pacientes", methods=["GET"])
+def listar_pacientes_de_terapeuta(terapeuta_id):
+    """IDs únicos de pacientes con historial asignado al terapeuta."""
+    estados = ("programada", "confirmada", "completada", "cancelada", "no_asistio")
+    paciente_ids = set()
+    for estado in estados:
+        filas = call_proc("sp_listar_citas", (estado, None, None, terapeuta_id)) or []
+        paciente_ids.update(
+            int(fila["paciente_id"])
+            for fila in filas
+            if fila.get("paciente_id") is not None
+        )
+    return jsonify({"success": True, "paciente_ids": sorted(paciente_ids)})
+
+
 @citas_bp.route("/api/citas/resumen_pacientes", methods=["GET"])
 def resumen_pacientes():
     """Conteo de citas por paciente. Lo usa pacientes_service para
