@@ -493,17 +493,6 @@ BEGIN
 END$$
 
 --
--- sp_obtener_paciente_id_dni  |  LOCAL (FASE 2)
---   Devuelve el id del paciente segun dni (para resolver ids que antes
---   resolvian ingresando a moovacloud_citas via JOIN).
---
-DROP PROCEDURE IF EXISTS `sp_obtener_paciente_id_dni`$$
-CREATE PROCEDURE `sp_obtener_paciente_id_dni`(IN p_dni VARCHAR(20))
-BEGIN
-    SELECT id FROM pacientes WHERE dni = p_dni;
-END$$
-
---
 -- sp_crear_paciente_min  |  LOCAL (FASE 2)
 --   Crea paciente con datos minimos (nombre, apellido, dni, telefono).
 --   Usado por citas_service cuando el hub de reserva trae un dni
