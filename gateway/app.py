@@ -1589,7 +1589,7 @@ def create_app():
         return render_template("detalle_paciente.html", paciente=paciente,
                                historial=historial, paquetes=paquetes,
                                evaluaciones=evaluaciones, consentimientos=consentimientos,
-                               notas_paciente=notas_paciente)
+                               notas_paciente=notas_paciente, es_admin=es_admin)
 
     @app.route("/pacientes/<paciente_dni>/ficha-clinica.pdf")
     @_admin_required
