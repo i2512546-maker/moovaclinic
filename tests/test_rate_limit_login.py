@@ -31,7 +31,8 @@ HORA = 60 * MINUTO
 
 
 def _claves(ip="1.1.1.1", correo="ana@moova.pe"):
-    return (f"ip:{ip}", f"correo:{correo}")
+    # Login se limita por cuenta; el parametro ip se conserva por compatibilidad.
+    return (f"correo:{correo}",)
 
 
 class _PeticionFalsa:
@@ -87,13 +88,13 @@ class LimitadorTest(unittest.TestCase):
             self.lim.registrar_fallo(_claves(), ahora=i * 2 * MINUTO)
         self.assertTrue(self.lim.bloqueado(_claves(), ahora=5 * MINUTO)[0])
 
-    def test_la_ip_bloqueada_corta_a_todos_los_correos_de_ese_ip(self):
+    def test_la_ip_no_bloquea_otros_correos(self):
         for correo in ("a@x.pe", "b@x.pe", "c@x.pe"):
             self.lim.registrar_fallo(_claves(ip="9.9.9.9", correo=correo), ahora=0)
         bloqueado, _ = self.lim.bloqueado(
             _claves(ip="9.9.9.9", correo="nuevo@x.pe"), ahora=1
         )
-        self.assertTrue(bloqueado)
+        self.assertFalse(bloqueado)
 
     def test_el_correo_bloqueado_corta_desde_cualquier_ip(self):
         for ip in ("1.1.1.1", "2.2.2.2", "3.3.3.3"):
@@ -233,22 +234,23 @@ class LoginRutaTest(unittest.TestCase):
             self.assertEqual(post.call_count, 5)
         self.assertIn(MENSAJE_LOGIN_BLOQUEADO, self._pagina(respuesta))
 
-    # -- corte por IP --
+    # -- sin bloqueo por IP --
 
-    def test_una_ip_que_prueba_varios_correos_queda_cortada(self):
+    def test_una_ip_no_bloquea_otros_perfiles(self):
         with patch("gateway.app.auth_client.post",
                    side_effect=self._auth_falso()) as post:
             for i in range(5):
                 self._intentar(correo=f"intento{i}@moova.pe", ip="198.51.100.1")
             respuesta = self._intentar(correo="otro@moova.pe", ip="198.51.100.1")
-            self.assertEqual(post.call_count, 5)
-        self.assertIn(MENSAJE_LOGIN_BLOQUEADO, self._pagina(respuesta))
+            self.assertEqual(post.call_count, 6)
+        self.assertIn(MENSAJE_LOGIN_INVALIDO, self._pagina(respuesta))
 
-    def test_otra_ip_sigue_libre_cuando_se_corta_por_ip(self):
+    def test_el_perfil_bloqueado_no_se_libera_cambiando_de_ip(self):
         with patch("gateway.app.auth_client.post", side_effect=self._auth_falso()) as post:
             self._bloquear(veces=5, ip="198.51.100.1")
-            self._intentar(correo="otro@moova.pe", ip="203.0.113.50")
-            self.assertEqual(post.call_count, 6)
+            respuesta = self._intentar(correo="ana@moova.pe", ip="203.0.113.50")
+            self.assertEqual(post.call_count, 5)
+        self.assertIn(MENSAJE_LOGIN_BLOQUEADO, self._pagina(respuesta))
 
     # -- corte por correo --
 
@@ -288,34 +290,18 @@ class LoginRutaTest(unittest.TestCase):
         self.assertNotIn("no existe", MENSAJE_LOGIN_BLOQUEADO.lower())
         self.assertNotEqual(MENSAJE_LOGIN_BLOQUEADO, MENSAJE_LOGIN_INVALIDO)
 
-    # -- X-Forwarded-For --
+    # La IP y X-Forwarded-For no intervienen en el bloqueo de login.
 
-    def test_sin_trust_proxy_el_header_no_hace_nada(self):
+    def test_cambiar_headers_o_ip_no_bloquea_otras_cuentas(self):
         with patch("gateway.app.auth_client.post",
                    side_effect=self._auth_falso()) as post:
             for i in range(5):
-                # Cada intento con un X-Forwarded-For distinto: si se
-                # creyera el header, nunca se llegaria al maximo.
-                self._intentar(ip="203.0.113.5", correo=f"intento{i}@moova.pe",
+                self._intentar(correo=f"intento{i}@moova.pe", ip="203.0.113.5",
                                **{"X-Forwarded-For": f"8.8.8.{i}"})
-            respuesta = self._intentar(ip="203.0.113.5", correo="nuevo@moova.pe",
+            respuesta = self._intentar(correo="nuevo@moova.pe", ip="203.0.113.5",
                                        **{"X-Forwarded-For": "9.9.9.9"})
-            self.assertEqual(post.call_count, 5)
-        self.assertIn(MENSAJE_LOGIN_BLOQUEADO, self._pagina(respuesta))
-
-    def test_con_trust_proxy_se_cuenta_por_el_header(self):
-        with patch("gateway.app.TRUST_PROXY", True), \
-                patch("gateway.app.auth_client.post", side_effect=self._auth_falso()) as post:
-            # El REMOTE_ADDR es el proxy en todos los casos; lo que va
-            # cambiando es el X-Forwarded-For.
-            for i in range(5):
-                self._intentar(ip="10.0.0.1", correo=f"intento{i}@moova.pe",
-                               **{"X-Forwarded-For": f"8.8.8.{i}"})
-            respuesta = self._intentar(ip="10.0.0.1", correo="nuevo@moova.pe",
-                                       **{"X-Forwarded-For": "7.7.7.7"})
-            # La sexta SI llega: cada cliente venia de una IP distinta.
             self.assertEqual(post.call_count, 6)
-        self.assertNotIn(MENSAJE_LOGIN_BLOQUEADO, self._pagina(respuesta))
+        self.assertIn(MENSAJE_LOGIN_INVALIDO, self._pagina(respuesta))
 
 
 if __name__ == "__main__":
