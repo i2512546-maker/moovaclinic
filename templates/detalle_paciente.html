@@ -195,6 +195,34 @@
             </div>
         </div>
         {% endif %}
+
+        <h2 class="h5 mb-3">Notas Clínicas</h2>
+        {% if notas_paciente %}
+        {% for nota in notas_paciente %}
+        <div class="card card-moova shadow-sm mb-3">
+            <div class="card-body">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                    <strong><i class="bi bi-journal-medical me-1"></i> Cita #{{ nota.cita_id }}</strong>
+                    <span class="text-muted small">Sesión: {{ nota.fecha_cita | fecha }}</span>
+                </div>
+                <div class="small text-muted mb-2">
+                    Terapeuta: {{ nota.autor or nota.terapeuta or 'No registrado' }}
+                    {% if nota.fecha_creacion %} · Registrada: {{ nota.fecha_creacion | fechahora }}{% endif %}
+                </div>
+                {% if nota.diagnostico %}
+                <div class="alert alert-info py-2 mb-2"><strong>Diagnóstico:</strong> {{ nota.diagnostico }}</div>
+                {% endif %}
+                <div style="white-space: pre-wrap;">{{ nota.nota }}</div>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="card card-moova shadow-sm mb-4">
+            <div class="card-body text-muted">
+                <i class="bi bi-journal-text me-1"></i> Todavía no hay notas clínicas registradas para este paciente.
+            </div>
+        </div>
+        {% endif %}
     </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
