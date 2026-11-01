@@ -692,6 +692,24 @@ def create_app():
         if request.method == "POST":
             form_data = {k: request.form.get(k, "").strip() for k in
                          ["nombre", "apellido", "dni", "telefono", "medico_id", "fecha_cita", "metodo_pago", "servicio_id"]}
+            identidad = session.get("cita_identidad_verificada") or {}
+            def normalizar_identidad_post(valor):
+                import unicodedata
+                texto = unicodedata.normalize("NFD", str(valor or ""))
+                texto = "".join(ch for ch in texto if unicodedata.category(ch) != "Mn")
+                return " ".join(texto.casefold().split())
+
+            identidad_valida = (
+                identidad.get("dni") == form_data["dni"]
+                and identidad.get("nombre") == normalizar_identidad_post(form_data["nombre"])
+                and identidad.get("apellido") == normalizar_identidad_post(form_data["apellido"])
+            )
+            if not identidad_valida:
+                session.pop("cita_identidad_verificada", None)
+                return jsonify({
+                    "error": "La identidad no está verificada para estos datos. Vuelve al primer paso y verifica tu DNI."
+                }), 403
+
             if not all(form_data.values()):
                 msg = "Por favor completa todos los campos, selecciona un médico y elige una fecha."
                 registrar_fallo_cita()
@@ -715,6 +733,7 @@ def create_app():
 
             result, status = citas_client.post("/api/citas", form_data)
             if status == 201 and result.get("success"):
+                session.pop("cita_identidad_verificada", None)
                 limite_ip.registrar_exito(ip_claves)
                 if dni_claves:
                     limite_dni.registrar_exito(dni_claves)
@@ -1722,10 +1741,15 @@ def create_app():
     @app.route("/api/verificar_dni", methods=["POST"])
     def verificar_dni():
         cuerpo = request.get_json(silent=True)
-        valor_dni = cuerpo.get("dni", "") if isinstance(cuerpo, dict) else ""
-        dni = valor_dni.strip() if isinstance(valor_dni, str) else ""
+        cuerpo = cuerpo if isinstance(cuerpo, dict) else {}
+        dni = str(cuerpo.get("dni") or "").strip()
+        nombre_ingresado = str(cuerpo.get("nombre") or "").strip()
+        apellido_ingresado = str(cuerpo.get("apellido") or "").strip()
+        session.pop("cita_identidad_verificada", None)
         if not _dni_ok(dni):
             return jsonify({"success": False, "error": "DNI inválido"}), 400
+        if not nombre_ingresado or not apellido_ingresado:
+            return jsonify({"success": False, "error": "Ingresa tus nombres y apellidos."}), 400
 
         # Rate limit simple: máximo 5 consultas DNI por sesión para evitar force brute
         historial = session.get("_dn_consultas", [])
@@ -1755,40 +1779,53 @@ def create_app():
             consultas_por_ip[ip] = historial_ip + [ahora]
         session["_dn_consultas"] = historial + [ahora]
 
-        # Primero buscar en la base local. Si ya existe, devolver los datos
-        # registrados y marcarlos como no editables en el formulario.
-        try:
-            local_data, local_status = pacientes_client.get(f"/api/pacientes/dni/{dni}")
-            paciente = (local_data or {}).get("paciente") if local_status == 200 else None
-            if paciente:
-                return jsonify({
-                    "success": True,
-                    "existe": True,
-                    "paciente": paciente,
-                    "data": {
-                        "nombres": paciente.get("nombre") or "",
-                        "nombre": paciente.get("nombre") or "",
-                        "apellido_paterno": paciente.get("apellido") or "",
-                        "apellido_materno": "",
-                        "apellidoPaterno": paciente.get("apellido") or "",
-                        "apellidoMaterno": "",
-                        "telefono": paciente.get("telefono") or "",
-                    },
-                }), 200
-        except Exception as exc:
-            app.logger.warning("No se pudo consultar el paciente local por DNI: %s", exc)
-
-        # Si no existe en MOOVA, consultar el servicio externo para ayudar a
-        # completar los nombres. El paciente podrá corregirlos si hace falta.
+        # La identidad se contrasta siempre con APIPerú, no con datos locales
+        # que podrían estar desactualizados. Solo se guarda una verificación
+        # en sesión cuando DNI, nombres y apellidos coinciden.
         try:
             data, status = pacientes_client.post("/api/pacientes/buscar_dni", {"dni": dni})
-            if isinstance(data, dict):
-                data.setdefault("existe", False)
-            return jsonify(data), status
-        except Exception:
+            if status != 200 or not isinstance(data, dict) or not data.get("success"):
+                return jsonify({
+                    "success": False,
+                    "error": (data or {}).get("error") or "No se pudo validar el DNI en APIPerú."
+                }), status if status in (400, 404, 429) else 502
+
+            datos_api = data.get("data") or {}
+            nombre_api = str(datos_api.get("nombres") or datos_api.get("nombre") or "").strip()
+            apellidos_api = " ".join(filter(None, [
+                str(datos_api.get("apellido_paterno") or datos_api.get("apellidoPaterno") or "").strip(),
+                str(datos_api.get("apellido_materno") or datos_api.get("apellidoMaterno") or "").strip()
+            ])).strip()
+
+            def normalizar_identidad(valor):
+                import unicodedata
+                texto = unicodedata.normalize("NFD", str(valor or ""))
+                texto = "".join(ch for ch in texto if unicodedata.category(ch) != "Mn")
+                return " ".join(texto.casefold().split())
+
+            coincide = (
+                normalizar_identidad(nombre_ingresado) == normalizar_identidad(nombre_api)
+                and normalizar_identidad(apellido_ingresado) == normalizar_identidad(apellidos_api)
+            )
+            if not nombre_api or not apellidos_api or not coincide:
+                return jsonify({
+                    "success": False,
+                    "verificado": False,
+                    "error": "Los nombres o apellidos no coinciden con los datos de APIPerú. Corrígelos e inténtalo nuevamente."
+                }), 422
+
+            session["cita_identidad_verificada"] = {
+                "dni": dni,
+                "nombre": normalizar_identidad(nombre_ingresado),
+                "apellido": normalizar_identidad(apellido_ingresado),
+            }
+            return jsonify({"success": True, "verificado": True}), 200
+        except Exception as exc:
+            app.logger.error("[verificar_dni] Error consultando APIPerú: %s", exc)
+            session.pop("cita_identidad_verificada", None)
             return jsonify({
                 "success": False,
-                "error": "No se pudo consultar el DNI",
+                "error": "No se pudo consultar APIPerú. Inténtalo nuevamente."
             }), 502
 
     @app.route("/api/estadisticas")
