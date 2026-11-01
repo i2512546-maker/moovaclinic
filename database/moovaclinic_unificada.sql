@@ -3,7 +3,7 @@
 -- Archivo maestro generado desde los SQL de db_split/ en main.
 -- Ejecutar una sola vez en MySQL/MariaDB.
 --
--- Crea: moovaclinic
+-- Utiliza la base existente: moovacloud_db
 -- Incluye tablas, datos iniciales, indices, claves y procedimientos
 -- almacenados que estan definidos en los siete SQL originales.
 --
@@ -14,13 +14,10 @@
 -- 3) Los SQL originales omitian algunas FK entre dominios. Se
 --    conservan esas decisiones para evitar fallos por datos historicos.
 --    Las consultas/procedimientos KPI se adaptan a tablas locales.
--- 4) Configurar DB_NAME=moovaclinic en el entorno de la aplicacion.
+-- 4) Configurar DB_NAME=moovacloud_db en el entorno de la aplicacion.
 -- =============================================================
 
-CREATE DATABASE IF NOT EXISTS `moovaclinic`
-  DEFAULT CHARACTER SET utf8mb4
-  COLLATE utf8mb4_general_ci;
-USE `moovaclinic`;
+USE `moovacloud_db`;
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
