@@ -20,23 +20,9 @@ services:
       - key: DB_PASSWORD
         sync: false
       - key: DB_NAME
-        value: moovacloud_auth
+        value: moovacloud_database
       - key: DB_PORT
         value: "3306"
-      - key: AUTH_DB_NAME
-        value: moovacloud_auth
-      - key: PACIENTES_DB_NAME
-        value: moovacloud_pacientes
-      - key: CITAS_DB_NAME
-        value: moovacloud_citas
-      - key: PAGOS_DB_NAME
-        value: moovacloud_pagos
-      - key: NOTAS_DB_NAME
-        value: moovacloud_notas
-      - key: AUDIT_DB_NAME
-        value: moovacloud_auditoria
-      - key: KPIS_DB_NAME
-        value: moovacloud_kpis
       - key: APIPERU_TOKEN
         sync: false
       - key: APIPERU_URL
