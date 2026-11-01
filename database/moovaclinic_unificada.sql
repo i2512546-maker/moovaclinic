@@ -8,44 +8,44 @@
 USE `moovacloud_database`;
 
 -- Procedimientos de db_split/auth_db.sql
-DELIMITER $$
-DROP PROCEDURE IF EXISTS `sp_login`$$
+DELIMITER //
+DROP PROCEDURE IF EXISTS `sp_login`//
 CREATE PROCEDURE `sp_login`(IN p_correo VARCHAR(120))
 BEGIN
     SELECT u.*, r.nombre AS rol_nombre
     FROM usuarios u
     JOIN roles r ON u.rol_id = r.id
     WHERE u.correo = p_correo AND u.activo = 1;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_actualizar_ultimo_acceso`$$
+DROP PROCEDURE IF EXISTS `sp_actualizar_ultimo_acceso`//
 CREATE PROCEDURE `sp_actualizar_ultimo_acceso`(IN p_id INT)
 BEGIN
     UPDATE usuarios SET ultimo_acceso = NOW() WHERE id = p_id;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_listar_usuarios`$$
+DROP PROCEDURE IF EXISTS `sp_listar_usuarios`//
 CREATE PROCEDURE `sp_listar_usuarios`()
 BEGIN
     SELECT u.id, u.nombre, u.correo, u.telefono, r.nombre AS rol, u.activo, u.ultimo_acceso
     FROM usuarios u
     JOIN roles r ON u.rol_id = r.id
     ORDER BY r.nombre, u.nombre;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_obtener_rol_id`$$
+DROP PROCEDURE IF EXISTS `sp_obtener_rol_id`//
 CREATE PROCEDURE `sp_obtener_rol_id`(IN p_nombre VARCHAR(50))
 BEGIN
     SELECT id FROM roles WHERE nombre = p_nombre;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_obtener_usuario_por_correo`$$
+DROP PROCEDURE IF EXISTS `sp_obtener_usuario_por_correo`//
 CREATE PROCEDURE `sp_obtener_usuario_por_correo`(IN p_correo VARCHAR(120))
 BEGIN
     SELECT id FROM usuarios WHERE correo = p_correo;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_crear_usuario`$$
+DROP PROCEDURE IF EXISTS `sp_crear_usuario`//
 CREATE PROCEDURE `sp_crear_usuario`(
     IN p_nombre VARCHAR(100), IN p_correo VARCHAR(120),
     IN p_clave VARCHAR(255), IN p_rol_id INT
@@ -53,9 +53,9 @@ CREATE PROCEDURE `sp_crear_usuario`(
 BEGIN
     INSERT INTO usuarios (nombre, correo, clave, rol_id) VALUES (p_nombre, p_correo, p_clave, p_rol_id);
     SELECT LAST_INSERT_ID() AS id;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_actualizar_usuario`$$
+DROP PROCEDURE IF EXISTS `sp_actualizar_usuario`//
 CREATE PROCEDURE `sp_actualizar_usuario`(
     IN p_usuario_id INT, IN p_nombre VARCHAR(100), IN p_correo VARCHAR(120),
     IN p_activo TINYINT, IN p_clave VARCHAR(255), IN p_rol_id INT
@@ -69,7 +69,7 @@ BEGIN
         rol_id = IF(p_rol_id IS NOT NULL, p_rol_id, rol_id)
     WHERE id = p_usuario_id;
     SELECT ROW_COUNT() AS actualizados;
-END$$
+END//
 
 --
 -- sp_actualizar_telefono_usuario  (FASE 3: aviso al terapeuta)
@@ -83,7 +83,7 @@ END$$
 --   cualquier otro valor lo sobrescribe. El formato lo valida el
 --   codigo antes de llegar aqui (^9\d{8}$).
 --
-DROP PROCEDURE IF EXISTS `sp_actualizar_telefono_usuario`$$
+DROP PROCEDURE IF EXISTS `sp_actualizar_telefono_usuario`//
 CREATE PROCEDURE `sp_actualizar_telefono_usuario`(
     IN p_usuario_id INT, IN p_telefono VARCHAR(20)
 )
@@ -92,35 +92,35 @@ BEGIN
     SET telefono = NULLIF(p_telefono, '')
     WHERE id = p_usuario_id;
     SELECT ROW_COUNT() AS actualizados;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_listar_roles`$$
+DROP PROCEDURE IF EXISTS `sp_listar_roles`//
 CREATE PROCEDURE `sp_listar_roles`()
 BEGIN
     SELECT * FROM roles WHERE activo = 1 ORDER BY nombre;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_verificar_usuario`$$
+DROP PROCEDURE IF EXISTS `sp_verificar_usuario`//
 CREATE PROCEDURE `sp_verificar_usuario`(IN p_usuario_id INT)
 BEGIN
     SELECT u.id, u.nombre, u.rol_id, r.nombre AS rol
     FROM usuarios u
     JOIN roles r ON u.rol_id = r.id
     WHERE u.id = p_usuario_id AND u.activo = 1;
-END$$
+END//
 
 -- --------------------------------------------------------
 -- Procedimientos de gestion de usuarios usados por el gateway/admin
 -- (solo tocan usuarios / roles: internos de moovacloud_auth)
 -- --------------------------------------------------------
 
-DROP PROCEDURE IF EXISTS `sp_obtener_usuario_por_nombre`$$
+DROP PROCEDURE IF EXISTS `sp_obtener_usuario_por_nombre`//
 CREATE PROCEDURE `sp_obtener_usuario_por_nombre`(IN p_nombre VARCHAR(100))
 BEGIN
     SELECT u.id FROM usuarios u WHERE u.nombre = p_nombre;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_obtener_usuario_por_id`$$
+DROP PROCEDURE IF EXISTS `sp_obtener_usuario_por_id`//
 CREATE PROCEDURE `sp_obtener_usuario_por_id`(IN p_usuario_id INT)
 BEGIN
     SELECT u.id, u.nombre, u.correo, u.telefono, u.rol_id, u.activo,
@@ -128,9 +128,9 @@ BEGIN
     FROM usuarios u
     JOIN roles r ON u.rol_id = r.id
     WHERE u.id = p_usuario_id;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_crear_usuario_admin`$$
+DROP PROCEDURE IF EXISTS `sp_crear_usuario_admin`//
 CREATE PROCEDURE `sp_crear_usuario_admin`(
     IN p_nombre VARCHAR(100), IN p_correo VARCHAR(120),
     IN p_telefono VARCHAR(20), IN p_clave VARCHAR(255), IN p_rol_id INT
@@ -139,7 +139,7 @@ BEGIN
     INSERT INTO usuarios (nombre, correo, telefono, clave, rol_id)
     VALUES (p_nombre, p_correo, p_telefono, p_clave, p_rol_id);
     SELECT LAST_INSERT_ID() AS id;
-END$$
+END//
 
 -- NOTA: cambiar clave y activar/desactivar usuario se hacen con
 -- sp_actualizar_usuario (arriba), que ya cubre nombre, correo, activo,
@@ -148,20 +148,20 @@ END$$
 DELIMITER ;
 
 -- Procedimientos de db_split/pacientes_db.sql
-DELIMITER $$
-DROP PROCEDURE IF EXISTS `sp_obtener_paciente_por_dni`$$
+DELIMITER //
+DROP PROCEDURE IF EXISTS `sp_obtener_paciente_por_dni`//
 CREATE PROCEDURE `sp_obtener_paciente_por_dni`(IN p_dni VARCHAR(20))
 BEGIN
     SELECT * FROM pacientes WHERE dni = p_dni;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_existe_paciente_por_dni`$$
+DROP PROCEDURE IF EXISTS `sp_existe_paciente_por_dni`//
 CREATE PROCEDURE `sp_existe_paciente_por_dni`(IN p_dni VARCHAR(20))
 BEGIN
     SELECT dni FROM pacientes WHERE dni = p_dni;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_crear_paciente`$$
+DROP PROCEDURE IF EXISTS `sp_crear_paciente`//
 CREATE PROCEDURE `sp_crear_paciente`(
     IN p_nombre VARCHAR(100), IN p_apellido VARCHAR(100),
     IN p_dni VARCHAR(20), IN p_telefono VARCHAR(20),
@@ -172,9 +172,9 @@ BEGIN
     INSERT INTO pacientes (nombre, apellido, dni, telefono, email, fecha_nacimiento, sexo, direccion, seguro)
     VALUES (p_nombre, p_apellido, p_dni, p_telefono, p_email, p_fecha_nacimiento, p_sexo, p_direccion, p_seguro);
     SELECT LAST_INSERT_ID() AS id;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_actualizar_paciente`$$
+DROP PROCEDURE IF EXISTS `sp_actualizar_paciente`//
 CREATE PROCEDURE `sp_actualizar_paciente`(
     IN p_dni_actual VARCHAR(20),
     IN p_nombre VARCHAR(100), IN p_apellido VARCHAR(100),
@@ -197,15 +197,15 @@ BEGIN
         dni = IF(p_dni_nuevo IS NOT NULL, p_dni_nuevo, dni)
     WHERE dni = p_dni_actual;
     SELECT ROW_COUNT() AS actualizadas;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_listar_servicios`$$
+DROP PROCEDURE IF EXISTS `sp_listar_servicios`//
 CREATE PROCEDURE `sp_listar_servicios`()
 BEGIN
     SELECT * FROM servicios WHERE activo = 1 ORDER BY nombre;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_listar_evaluaciones`$$
+DROP PROCEDURE IF EXISTS `sp_listar_evaluaciones`//
 CREATE PROCEDURE `sp_listar_evaluaciones`(IN p_paciente_id INT)
 BEGIN
     -- FASE 2: local. El nombre del terapeuta (usuarios vive en
@@ -214,9 +214,9 @@ BEGIN
     FROM evaluaciones_iniciales ei
     WHERE ei.paciente_id = p_paciente_id
     ORDER BY ei.fecha_creacion DESC;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_crear_evaluacion`$$
+DROP PROCEDURE IF EXISTS `sp_crear_evaluacion`//
 CREATE PROCEDURE `sp_crear_evaluacion`(
     IN p_paciente_id INT, IN p_terapeuta_id INT, IN p_motivo_consulta TEXT,
     IN p_escala_dolor_eva INT, IN p_rango_movimiento TEXT, IN p_objetivos_terapeuticos TEXT
@@ -226,15 +226,15 @@ BEGIN
         (paciente_id, terapeuta_id, motivo_consulta, escala_dolor_eva, rango_movimiento, objetivos_terapeuticos)
     VALUES (p_paciente_id, p_terapeuta_id, p_motivo_consulta, p_escala_dolor_eva, p_rango_movimiento, p_objetivos_terapeuticos);
     SELECT LAST_INSERT_ID() AS id;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_listar_consentimientos`$$
+DROP PROCEDURE IF EXISTS `sp_listar_consentimientos`//
 CREATE PROCEDURE `sp_listar_consentimientos`(IN p_paciente_id INT)
 BEGIN
     SELECT * FROM consentimientos WHERE paciente_id = p_paciente_id ORDER BY aceptado_en DESC;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_crear_consentimiento`$$
+DROP PROCEDURE IF EXISTS `sp_crear_consentimiento`//
 CREATE PROCEDURE `sp_crear_consentimiento`(
     IN p_paciente_id INT, IN p_tipo VARCHAR(50), IN p_texto_version VARCHAR(50), IN p_ip_origen VARCHAR(45)
 )
@@ -242,48 +242,48 @@ BEGIN
     INSERT INTO consentimientos (paciente_id, tipo, texto_version, ip_origen)
     VALUES (p_paciente_id, p_tipo, p_texto_version, p_ip_origen);
     SELECT LAST_INSERT_ID() AS id;
-END$$
+END//
 
 -- --------------------------------------------------------
 -- Procedimientos de gestion (gateway/admin) sobre tablas de moovacloud_pacientes
 -- --------------------------------------------------------
 
-DROP PROCEDURE IF EXISTS `sp_obtener_especialidad_id`$$
+DROP PROCEDURE IF EXISTS `sp_obtener_especialidad_id`//
 CREATE PROCEDURE `sp_obtener_especialidad_id`(IN p_nombre VARCHAR(100))
 BEGIN
     SELECT id FROM especialidades WHERE nombre = p_nombre;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_listar_especialidades`$$
+DROP PROCEDURE IF EXISTS `sp_listar_especialidades`//
 CREATE PROCEDURE `sp_listar_especialidades`()
 BEGIN
     SELECT id, nombre FROM especialidades WHERE activa = 1 ORDER BY nombre;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_actualizar_precio`$$
+DROP PROCEDURE IF EXISTS `sp_actualizar_precio`//
 CREATE PROCEDURE `sp_actualizar_precio`(IN p_medico_id INT, IN p_precio DECIMAL(10,2))
 BEGIN
     UPDATE terapeutas SET precio = p_precio WHERE id = p_medico_id;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_set_terapeuta_activo`$$
+DROP PROCEDURE IF EXISTS `sp_set_terapeuta_activo`//
 CREATE PROCEDURE `sp_set_terapeuta_activo`(IN p_medico_id INT, IN p_activo TINYINT)
 BEGIN
     UPDATE terapeutas SET activo = p_activo WHERE id = p_medico_id;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_estadisticas_especialistas`$$
+DROP PROCEDURE IF EXISTS `sp_estadisticas_especialistas`//
 CREATE PROCEDURE `sp_estadisticas_especialistas`()
 BEGIN
     SELECT COUNT(*) AS total FROM terapeutas WHERE activo = 1;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_estadisticas_opiniones`$$
+DROP PROCEDURE IF EXISTS `sp_estadisticas_opiniones`//
 CREATE PROCEDURE `sp_estadisticas_opiniones`()
 BEGIN
     SELECT COUNT(*) AS total, SUM(CASE WHEN calificacion >= 4 THEN 1 ELSE 0 END) AS buenas
     FROM opiniones WHERE visible = 1;
-END$$
+END//
 
 -- --------------------------------------------------------
 -- Procedimientos CROSS-DB de FASE 1 COMENTADOS: migrados a funciones
@@ -299,13 +299,13 @@ END$$
 --   vive en moovacloud_citas). Se calculan en pacientes_service usando
 --   citas_client (GET /api/citas/resumen_pacientes).
 --
-DROP PROCEDURE IF EXISTS `sp_listar_pacientes`$$
+DROP PROCEDURE IF EXISTS `sp_listar_pacientes`//
 CREATE PROCEDURE `sp_listar_pacientes`()
 BEGIN
     SELECT p.*
     FROM pacientes p
     ORDER BY p.apellido ASC;
-END$$
+END//
 
 --
 -- sp_crear_paciente_min  |  LOCAL (FASE 2)
@@ -313,7 +313,7 @@ END$$
 --   Usado por citas_service cuando el hub de reserva trae un dni
 --   desconocido.
 --
-DROP PROCEDURE IF EXISTS `sp_crear_paciente_min`$$
+DROP PROCEDURE IF EXISTS `sp_crear_paciente_min`//
 CREATE PROCEDURE `sp_crear_paciente_min`(
     IN p_nombre VARCHAR(100), IN p_apellido VARCHAR(100),
     IN p_dni VARCHAR(20), IN p_telefono VARCHAR(20)
@@ -322,7 +322,7 @@ BEGIN
     INSERT INTO pacientes (nombre, apellido, dni, telefono)
     VALUES (p_nombre, p_apellido, p_dni, p_telefono);
     SELECT LAST_INSERT_ID() AS id;
-END$$
+END//
 
 --
 -- sp_listar_terapeutas  |  LOCAL (FASE 2)
@@ -330,41 +330,41 @@ END$$
 --   enriquecen en pacientes_service via auth_client
 --   (GET /api/auth/usuarios/por-nombre o lista de usuarios).
 --
-DROP PROCEDURE IF EXISTS `sp_listar_terapeutas`$$
+DROP PROCEDURE IF EXISTS `sp_listar_terapeutas`//
 CREATE PROCEDURE `sp_listar_terapeutas`()
 BEGIN
     SELECT t.id AS ID, t.usuario_id, t.especialidad_id, t.precio, t.activo
     FROM terapeutas t
     ORDER BY t.id;
-END$$
+END//
 
 --
 -- sp_obtener_terapeuta  |  LOCAL (FASE 2)
 --
-DROP PROCEDURE IF EXISTS `sp_obtener_terapeuta`$$
+DROP PROCEDURE IF EXISTS `sp_obtener_terapeuta`//
 CREATE PROCEDURE `sp_obtener_terapeuta`(IN p_medico_id INT)
 BEGIN
     SELECT id AS ID, usuario_id, especialidad_id, precio, activo
     FROM terapeutas
     WHERE id = p_medico_id;
-END$$
+END//
 
 --
 -- sp_crear_terapeuta  |  LOCAL (FASE 2)
 --   El usuario se crea primero via auth_service; este SP solo inserta
 --   la fila de terapeutas con el usuario_id resultante.
 --
-DROP PROCEDURE IF EXISTS `sp_crear_terapeuta`$$
+DROP PROCEDURE IF EXISTS `sp_crear_terapeuta`//
 CREATE PROCEDURE `sp_crear_terapeuta`(IN p_usuario_id INT, IN p_especialidad_id INT, IN p_precio DECIMAL(10,2))
 BEGIN
     INSERT INTO terapeutas (usuario_id, especialidad_id, precio) VALUES (p_usuario_id, p_especialidad_id, p_precio);
     SELECT LAST_INSERT_ID() AS id;
-END$$
+END//
 DELIMITER ;
 
 -- Procedimientos de db_split/citas_db.sql
-DELIMITER $$
-DROP PROCEDURE IF EXISTS `sp_medico_disponible`$$
+DELIMITER //
+DROP PROCEDURE IF EXISTS `sp_medico_disponible`//
 CREATE PROCEDURE `sp_medico_disponible`(IN p_medico_id INT, IN p_fecha DATETIME, IN p_excluir_cita_id INT)
 BEGIN
     SELECT COUNT(*) AS n
@@ -373,9 +373,9 @@ BEGIN
       AND fecha_cita = p_fecha
       AND estado IN ('pendiente_pago', 'programada', 'confirmada')
       AND (p_excluir_cita_id IS NULL OR id <> p_excluir_cita_id);
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_crear_cita`$$
+DROP PROCEDURE IF EXISTS `sp_crear_cita`//
 CREATE PROCEDURE `sp_crear_cita`(
     IN p_paciente_id INT, IN p_terapeuta_id INT, IN p_servicio_id INT,
     IN p_fecha DATETIME, IN p_hora TIME
@@ -390,9 +390,9 @@ BEGIN
         UTC_TIMESTAMP(), UTC_TIMESTAMP()
     );
     SELECT LAST_INSERT_ID() AS id;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_crear_cita_pendiente_pago`$$
+DROP PROCEDURE IF EXISTS `sp_crear_cita_pendiente_pago`//
 CREATE PROCEDURE `sp_crear_cita_pendiente_pago`(
     IN p_paciente_id INT, IN p_terapeuta_id INT, IN p_servicio_id INT,
     IN p_fecha DATETIME, IN p_hora TIME
@@ -407,18 +407,18 @@ BEGIN
         'pendiente_pago', UTC_TIMESTAMP(), UTC_TIMESTAMP()
     );
     SELECT LAST_INSERT_ID() AS id;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_confirmar_cita_pago`$$
+DROP PROCEDURE IF EXISTS `sp_confirmar_cita_pago`//
 CREATE PROCEDURE `sp_confirmar_cita_pago`(IN p_cita_id INT)
 BEGIN
     UPDATE historial_citas
     SET estado = 'programada', actualizado_en = UTC_TIMESTAMP()
     WHERE id = p_cita_id AND estado = 'pendiente_pago';
     SELECT ROW_COUNT() AS actualizadas;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_modificar_cita`$$
+DROP PROCEDURE IF EXISTS `sp_modificar_cita`//
 CREATE PROCEDURE `sp_modificar_cita`(IN p_cita_id INT, IN p_fecha DATETIME, IN p_medico_id INT, IN p_hora TIME)
 BEGIN
     UPDATE historial_citas
@@ -428,60 +428,60 @@ BEGIN
         actualizado_en = UTC_TIMESTAMP()
     WHERE id = p_cita_id AND estado = 'programada';
     SELECT ROW_COUNT() AS actualizadas;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_completar_cita`$$
+DROP PROCEDURE IF EXISTS `sp_completar_cita`//
 CREATE PROCEDURE `sp_completar_cita`(IN p_historial_id INT, IN p_descripcion TEXT)
 BEGIN
     UPDATE historial_citas SET descripcion = p_descripcion, estado = 'completada',
         actualizado_en = UTC_TIMESTAMP()
     WHERE id = p_historial_id;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_estadisticas_recuperados`$$
+DROP PROCEDURE IF EXISTS `sp_estadisticas_recuperados`//
 CREATE PROCEDURE `sp_estadisticas_recuperados`()
 BEGIN
     SELECT COUNT(DISTINCT paciente_id) AS total FROM historial_citas WHERE estado = 'completada';
-END$$
+END//
 
 -- --------------------------------------------------------
 -- Procedimientos OTP (dominio de citas: modificar/cancelar con OTP)
 -- --------------------------------------------------------
 
-DROP PROCEDURE IF EXISTS `sp_invalidar_otps_previos`$$
+DROP PROCEDURE IF EXISTS `sp_invalidar_otps_previos`//
 CREATE PROCEDURE `sp_invalidar_otps_previos`(IN p_dni VARCHAR(20), IN p_accion VARCHAR(20))
 BEGIN
     UPDATE otp_verificaciones SET usado = 1 WHERE dni = p_dni AND accion = p_accion AND usado = 0;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_insertar_otp`$$
+DROP PROCEDURE IF EXISTS `sp_insertar_otp`//
 CREATE PROCEDURE `sp_insertar_otp`(
     IN p_dni VARCHAR(20), IN p_codigo VARCHAR(10), IN p_accion VARCHAR(20), IN p_expira_en DATETIME
 )
 BEGIN
     INSERT INTO otp_verificaciones (dni, codigo, accion, expira_en)
     VALUES (p_dni, p_codigo, p_accion, p_expira_en);
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_obtener_otp`$$
+DROP PROCEDURE IF EXISTS `sp_obtener_otp`//
 CREATE PROCEDURE `sp_obtener_otp`(IN p_dni VARCHAR(20), IN p_accion VARCHAR(20))
 BEGIN
     SELECT * FROM otp_verificaciones
     WHERE dni = p_dni AND accion = p_accion AND usado = 0
     ORDER BY creado_en DESC LIMIT 1;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_incrementar_intentos_otp`$$
+DROP PROCEDURE IF EXISTS `sp_incrementar_intentos_otp`//
 CREATE PROCEDURE `sp_incrementar_intentos_otp`(IN p_id INT)
 BEGIN
     UPDATE otp_verificaciones SET intentos = intentos + 1 WHERE id = p_id;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_marcar_otp_usado`$$
+DROP PROCEDURE IF EXISTS `sp_marcar_otp_usado`//
 CREATE PROCEDURE `sp_marcar_otp_usado`(IN p_id INT)
 BEGIN
     UPDATE otp_verificaciones SET usado = 1 WHERE id = p_id;
-END$$
+END//
 
 -- --------------------------------------------------------
 -- Procedimientos de consulta de citas (FASE 2: ahora locales;
@@ -498,7 +498,7 @@ END$$
 --   historial_id = alias del id para compatibilidad con el contrato
 --   de interfaz.html (form guardar_descripcion).
 --
-DROP PROCEDURE IF EXISTS `sp_listar_citas`$$
+DROP PROCEDURE IF EXISTS `sp_listar_citas`//
 CREATE PROCEDURE `sp_listar_citas`(
     IN p_estado VARCHAR(20), IN p_dni VARCHAR(20), IN p_fecha DATETIME, IN p_medico_id INT
 )
@@ -510,20 +510,20 @@ BEGIN
       AND (p_fecha IS NULL OR h.fecha_cita >= p_fecha)
       AND (p_medico_id IS NULL OR h.terapeuta_id = p_medico_id)
     ORDER BY h.fecha_cita ASC;
-END$$
+END//
 
 --
 -- sp_detalle_cita  |  LOCAL (FASE 2)
 --   Nombre/telefono del paciente y terapeuta se agregan en
 --   citas_service via pacientes_service.
 --
-DROP PROCEDURE IF EXISTS `sp_detalle_cita`$$
+DROP PROCEDURE IF EXISTS `sp_detalle_cita`//
 CREATE PROCEDURE `sp_detalle_cita`(IN p_cita_id INT)
 BEGIN
     SELECT h.*, h.id AS historial_id
     FROM historial_citas h
     WHERE h.id = p_cita_id;
-END$$
+END//
 
 --
 -- sp_cancelar_cita  |  LOCAL (FASE 2)
@@ -531,7 +531,7 @@ END$$
 --   ('cancelado') se delega via HTTP a pagos_service
 --   (POST /api/pagos/<cita_id>/cancelar).
 --
-DROP PROCEDURE IF EXISTS `sp_cancelar_cita`$$
+DROP PROCEDURE IF EXISTS `sp_cancelar_cita`//
 CREATE PROCEDURE `sp_cancelar_cita`(IN p_cita_id INT)
 BEGIN
     DECLARE v_afectadas INT DEFAULT 0;
@@ -539,11 +539,11 @@ BEGIN
     WHERE id = p_cita_id AND estado = 'programada';
     SET v_afectadas = ROW_COUNT();
     SELECT v_afectadas AS actualizadas;
-END$$
+END//
 
 -- Cancela solo citas programadas cuando el pago anticipado vencio.
 -- Las citas completadas o ya canceladas permanecen intactas.
-DROP PROCEDURE IF EXISTS `sp_cancelar_cita_pago_vencido`$$
+DROP PROCEDURE IF EXISTS `sp_cancelar_cita_pago_vencido`//
 CREATE PROCEDURE `sp_cancelar_cita_pago_vencido`(IN p_cita_id INT)
 BEGIN
     UPDATE historial_citas
@@ -562,21 +562,21 @@ END$
 --   tenga al menos una cita programada. Reemplaza la logica que
 --   hacia sp_obtener_telefono_otp (CROSS-DB).
 --
-DROP PROCEDURE IF EXISTS `sp_existe_cita_programada_paciente`$$
+DROP PROCEDURE IF EXISTS `sp_existe_cita_programada_paciente`//
 CREATE PROCEDURE `sp_existe_cita_programada_paciente`(IN p_paciente_id INT)
 BEGIN
     SELECT 1 AS existe
     FROM historial_citas
     WHERE paciente_id = p_paciente_id AND estado = 'programada'
     LIMIT 1;
-END$$
+END//
 
 --
 -- sp_listar_citas_paciente  |  LOCAL (FASE 2)
 --   Historial de citas de un paciente (para el detalle de paciente
 --   servido por pacientes_service, que enriquece terapeuta y pago).
 --
-DROP PROCEDURE IF EXISTS `sp_listar_citas_paciente`$$
+DROP PROCEDURE IF EXISTS `sp_listar_citas_paciente`//
 CREATE PROCEDURE `sp_listar_citas_paciente`(IN p_paciente_id INT)
 BEGIN
     SELECT id, id AS historial_id, fecha_cita, hora_cita, estado,
@@ -585,21 +585,21 @@ BEGIN
     WHERE paciente_id = p_paciente_id
       AND estado <> 'pendiente_pago'
     ORDER BY fecha_cita DESC;
-END$$
+END//
 
 --
 -- sp_resumen_pacientes  |  LOCAL (FASE 2)
 --   Conteo de citas y ultima cita por paciente (para que
 --   pacientes_service enriquezca sp_listar_pacientes vía HTTP).
 --
-DROP PROCEDURE IF EXISTS `sp_resumen_pacientes`$$
+DROP PROCEDURE IF EXISTS `sp_resumen_pacientes`//
 CREATE PROCEDURE `sp_resumen_pacientes`()
 BEGIN
     SELECT paciente_id, COUNT(*) AS total, MAX(fecha_cita) AS ultima
     FROM historial_citas
     WHERE estado <> 'pendiente_pago'
     GROUP BY paciente_id;
-END$$
+END//
 
 -- --------------------------------------------------------
 -- Recordatorios automaticos por SMS (sustentacion).
@@ -614,7 +614,7 @@ END$$
 --   Solo 'programada' y 'confirmada': 'cancelada' y 'completada'
 --   no deben recibir SMS.
 --
-DROP PROCEDURE IF EXISTS `sp_citas_pendientes_recordatorio`$$
+DROP PROCEDURE IF EXISTS `sp_citas_pendientes_recordatorio`//
 CREATE PROCEDURE `sp_citas_pendientes_recordatorio`(IN p_fecha DATE)
 BEGIN
     SELECT id, paciente_id, terapeuta_id, fecha_cita, hora_cita
@@ -623,7 +623,7 @@ BEGIN
       AND estado IN ('programada', 'confirmada')
       AND COALESCE(recordatorio_enviado, 0) = 0
     ORDER BY hora_cita ASC;
-END$$
+END//
 
 --
 -- sp_marcar_recordatorio_enviado  |  LOCAL
@@ -632,28 +632,28 @@ END$$
 --   lo que evita el doble SMS si dos procesos corren a la vez
 --   (el scheduler de APScheduler y el endpoint manual).
 --
-DROP PROCEDURE IF EXISTS `sp_marcar_recordatorio_enviado`$$
+DROP PROCEDURE IF EXISTS `sp_marcar_recordatorio_enviado`//
 CREATE PROCEDURE `sp_marcar_recordatorio_enviado`(IN p_cita_id INT)
 BEGIN
     UPDATE historial_citas
     SET recordatorio_enviado = 1, actualizado_en = UTC_TIMESTAMP()
     WHERE id = p_cita_id AND COALESCE(recordatorio_enviado, 0) = 0;
     SELECT ROW_COUNT() AS marcadas;
-END$$
+END//
 
 --
 -- sp_desmarcar_recordatorio  |  LOCAL
 --   Deshace el reclamo cuando el SMS fallo o el paciente no tiene
 --   telefono, para que el siguiente ciclo reintente la misma cita.
 --
-DROP PROCEDURE IF EXISTS `sp_desmarcar_recordatorio`$$
+DROP PROCEDURE IF EXISTS `sp_desmarcar_recordatorio`//
 CREATE PROCEDURE `sp_desmarcar_recordatorio`(IN p_cita_id INT)
 BEGIN
     UPDATE historial_citas
     SET recordatorio_enviado = 0, actualizado_en = UTC_TIMESTAMP()
     WHERE id = p_cita_id;
     SELECT ROW_COUNT() AS desmarcadas;
-END$$
+END//
 
 -- --------------------------------------------------------
 -- Reporte de pacientes en riesgo de fuga (sustentacion).
@@ -677,7 +677,7 @@ END$$
 --   p_fecha: dia de referencia (hoy en America/Lima).
 --   p_dias_umbral: dias desde la ultima cita para la senal 1.
 --
-DROP PROCEDURE IF EXISTS `sp_pacientes_en_riesgo`$$
+DROP PROCEDURE IF EXISTS `sp_pacientes_en_riesgo`//
 CREATE PROCEDURE `sp_pacientes_en_riesgo`(IN p_fecha DATE, IN p_dias_umbral INT)
 BEGIN
     SELECT
@@ -702,12 +702,12 @@ BEGIN
         OR (faltas >= 3)
     )
     ORDER BY dias_desde_ultima DESC, faltas DESC;
-END$$
+END//
 DELIMITER ;
 
 -- Procedimientos de db_split/pagos_db.sql
-DELIMITER $$
-DROP PROCEDURE IF EXISTS `sp_guardar_referencia`$$
+DELIMITER //
+DROP PROCEDURE IF EXISTS `sp_guardar_referencia`//
 CREATE PROCEDURE `sp_guardar_referencia`(IN p_cita_id INT, IN p_cobro_id VARCHAR(100))
 BEGIN
     -- Solo mientras el pago sigue pendiente. Sin esta condicion cualquier
@@ -716,15 +716,15 @@ BEGIN
     UPDATE pagos
     SET referencia = p_cobro_id
     WHERE cita_id = p_cita_id AND estado_pago = 'pendiente';
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_obtener_pago`$$
+DROP PROCEDURE IF EXISTS `sp_obtener_pago`//
 CREATE PROCEDURE `sp_obtener_pago`(IN p_cita_id INT)
 BEGIN
     SELECT * FROM pagos WHERE cita_id = p_cita_id;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_confirmar_pago`$$
+DROP PROCEDURE IF EXISTS `sp_confirmar_pago`//
 CREATE PROCEDURE `sp_confirmar_pago`(
     IN p_cita_id INT, IN p_referencia VARCHAR(100),
     IN p_datos_respuesta TEXT, IN p_verificado_por INT
@@ -754,9 +754,9 @@ BEGIN
           AND estado_pago IN ('pendiente', 'vencido');
     END IF;
     SELECT ROW_COUNT() AS pagado;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_crear_pago_anticipo`$$
+DROP PROCEDURE IF EXISTS `sp_crear_pago_anticipo`//
 CREATE PROCEDURE `sp_crear_pago_anticipo`(
     IN p_cita_id INT, IN p_paciente_id INT, IN p_monto DECIMAL(10,2), IN p_metodo_pago VARCHAR(20)
 )
@@ -771,13 +771,13 @@ BEGIN
         SET v_id = LAST_INSERT_ID();
     END IF;
     SELECT v_id AS id;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_obtener_configuracion_anio`$$
+DROP PROCEDURE IF EXISTS `sp_obtener_configuracion_anio`//
 CREATE PROCEDURE `sp_obtener_configuracion_anio`()
 BEGIN
     SELECT valor FROM configuracion WHERE clave = 'anio_inicio';
-END$$
+END//
 
 -- --------------------------------------------------------
 -- Procedimientos CROSS-DB de FASE 1 ELIMINADOS en FASE 2:
@@ -793,13 +793,13 @@ END$$
 --   pagos_service (POST /api/pagos/<cita_id>/cancelar) cuando
 --   citas_service cancela una cita.
 --
-DROP PROCEDURE IF EXISTS `sp_cancelar_pago_cita`$$
+DROP PROCEDURE IF EXISTS `sp_cancelar_pago_cita`//
 CREATE PROCEDURE `sp_cancelar_pago_cita`(IN p_cita_id INT)
 BEGIN
     UPDATE pagos SET estado_pago = 'cancelado'
     WHERE cita_id = p_cita_id AND estado_pago = 'pendiente';
     SELECT ROW_COUNT() AS cancelados;
-END$$
+END//
 
 --
 -- sp_liberar_pagos_vencidos  |  LOCAL (FASE 4)
@@ -813,7 +813,7 @@ END$$
 --   Los 'pagado' y 'cancelado' no se alteran. Usa creado_en (indice idx_fecha cubre fecha_pago, pero
 --   los pendientes la tienen a NULL, asi que no sirve aqui).
 --
-DROP PROCEDURE IF EXISTS `sp_liberar_pagos_vencidos`$$
+DROP PROCEDURE IF EXISTS `sp_liberar_pagos_vencidos`//
 CREATE PROCEDURE `sp_liberar_pagos_vencidos`(IN p_horas INT)
 BEGIN
     DECLARE v_limite DATETIME;
@@ -848,15 +848,15 @@ BEGIN
     SELECT cita_id FROM tmp_citas_pago_vencido ORDER BY cita_id;
     SELECT v_nuevos AS vencidos;
     DROP TEMPORARY TABLE tmp_citas_pago_vencido;
-END$$
+END//
 
-DROP PROCEDURE IF EXISTS `sp_marcar_citas_pago_vencido_liberadas`$$
+DROP PROCEDURE IF EXISTS `sp_marcar_citas_pago_vencido_liberadas`//
 CREATE PROCEDURE `sp_marcar_citas_pago_vencido_liberadas`(IN p_cita_id INT)
 BEGIN
     UPDATE pagos
     SET cita_liberada = 1
     WHERE cita_id = p_cita_id AND estado_pago = 'vencido';
-END$$
+END//
 
 --
 -- sp_listar_paquetes_paciente  |  LOCAL (FASE 2)
@@ -864,19 +864,19 @@ END$$
 --   (servicios vive en moovacloud_pacientes) se agrega en pagos_service
 --   via pacientes_client (GET /api/servicios).
 --
-DROP PROCEDURE IF EXISTS `sp_listar_paquetes_paciente`$$
+DROP PROCEDURE IF EXISTS `sp_listar_paquetes_paciente`//
 CREATE PROCEDURE `sp_listar_paquetes_paciente`(IN p_paciente_id INT)
 BEGIN
     SELECT ps.*
     FROM paquetes_sesiones ps
     WHERE ps.paciente_id = p_paciente_id
     ORDER BY ps.fecha_compra DESC;
-END$$
+END//
 
 --
 -- sp_crear_paquete  |  LOCAL (FASE 2)
 --
-DROP PROCEDURE IF EXISTS `sp_crear_paquete`$$
+DROP PROCEDURE IF EXISTS `sp_crear_paquete`//
 CREATE PROCEDURE `sp_crear_paquete`(
     IN p_paciente_id INT, IN p_servicio_id INT,
     IN p_total_sesiones INT, IN p_fecha_compra DATE, IN p_fecha_vencimiento DATE
@@ -885,20 +885,20 @@ BEGIN
     INSERT INTO paquetes_sesiones (paciente_id, servicio_id, total_sesiones, fecha_compra, fecha_vencimiento)
     VALUES (p_paciente_id, p_servicio_id, p_total_sesiones, p_fecha_compra, p_fecha_vencimiento);
     SELECT LAST_INSERT_ID() AS id;
-END$$
+END//
 
 --
 -- sp_obtener_pagos_paciente  |  LOCAL (FASE 2)
 --   Pagos de un paciente (para el historial mostrado en el detalle de
 --   paciente servido por pacientes_service, que lo pide via HTTP).
 --
-DROP PROCEDURE IF EXISTS `sp_obtener_pagos_paciente`$$
+DROP PROCEDURE IF EXISTS `sp_obtener_pagos_paciente`//
 CREATE PROCEDURE `sp_obtener_pagos_paciente`(IN p_paciente_id INT)
 BEGIN
     SELECT * FROM pagos
     WHERE paciente_id = p_paciente_id
     ORDER BY creado_en DESC;
-END$$
+END//
 
 --
 -- sp_usar_sesion_paquete  |  LOCAL (FASE 2)
@@ -910,7 +910,7 @@ END$$
 --   desde el flujo publico /tratamiento, justo despues de crear la
 --   cita de la siguiente sesion del tratamiento.
 --
-DROP PROCEDURE IF EXISTS `sp_usar_sesion_paquete`$$
+DROP PROCEDURE IF EXISTS `sp_usar_sesion_paquete`//
 CREATE PROCEDURE `sp_usar_sesion_paquete`(
     IN p_paquete_id INT, IN p_cita_id INT
 )
@@ -932,12 +932,12 @@ BEGIN
     END IF;
 
     SELECT v_actualizadas AS usadas;
-END$$
+END//
 DELIMITER ;
 
 -- Procedimientos de db_split/notas_db.sql
-DELIMITER $$
-DROP PROCEDURE IF EXISTS `sp_crear_nota`$$
+DELIMITER //
+DROP PROCEDURE IF EXISTS `sp_crear_nota`//
 CREATE PROCEDURE `sp_crear_nota`(
     IN p_cita_id INT, IN p_paciente_id INT, IN p_terapeuta_id INT,
     IN p_nota TEXT, IN p_diagnostico TEXT
@@ -946,7 +946,7 @@ BEGIN
     INSERT INTO notas_clinicas (cita_id, paciente_id, terapeuta_id, nota, diagnostico)
     VALUES (p_cita_id, p_paciente_id, p_terapeuta_id, p_nota, p_diagnostico);
     SELECT LAST_INSERT_ID() AS id;
-END$$
+END//
 
 -- --------------------------------------------------------
 -- Procedimientos CROSS-DB de FASE 1 ELIMINADOS en FASE 2:
@@ -961,19 +961,19 @@ END$$
 --   moovacloud_auth, via terapeutas de moovacloud_pacientes) se enriquece en
 --   notas_service usando la lista de terapeutas de pacientes_client.
 --
-DROP PROCEDURE IF EXISTS `sp_listar_notas`$$
+DROP PROCEDURE IF EXISTS `sp_listar_notas`//
 CREATE PROCEDURE `sp_listar_notas`(IN p_cita_id INT)
 BEGIN
     SELECT nc.*
     FROM notas_clinicas nc
     WHERE nc.cita_id = p_cita_id
     ORDER BY nc.fecha_creacion DESC;
-END$$
+END//
 DELIMITER ;
 
 -- Procedimientos de db_split/audit_db.sql
-DELIMITER $$
-DROP PROCEDURE IF EXISTS `sp_insertar_log_auditoria`$$
+DELIMITER //
+DROP PROCEDURE IF EXISTS `sp_insertar_log_auditoria`//
 CREATE PROCEDURE `sp_insertar_log_auditoria`(
     IN p_usuario_id INT,
     IN p_usuario_tipo VARCHAR(20),
@@ -990,7 +990,7 @@ BEGIN
                                 entidad_tipo, entidad_id, entidad_nombre)
     VALUES (p_usuario_id, p_usuario_tipo, p_usuario_nombre, p_accion, p_detalles, p_ip_origen,
             p_entidad_tipo, p_entidad_id, p_entidad_nombre);
-END$$
+END//
 
 -- --------------------------------------------------------
 --
@@ -1000,7 +1000,7 @@ END$$
 -- a los ultimos 200 registros.
 --
 
-DROP PROCEDURE IF EXISTS `sp_listar_auditoria`$$
+DROP PROCEDURE IF EXISTS `sp_listar_auditoria`//
 CREATE PROCEDURE `sp_listar_auditoria`(
     IN p_usuario_id INT,
     IN p_usuario_tipo VARCHAR(20),
@@ -1022,18 +1022,18 @@ BEGIN
       AND (p_entidad_tipo IS NULL OR entidad_tipo = p_entidad_tipo)
     ORDER BY fecha_creacion DESC
     LIMIT 200;
-END$$
+END//
 DELIMITER ;
 
 -- Procedimientos de db_split/kpis_db.sql
-DELIMITER $$
+DELIMITER //
 -- --------------------------------------------------------
 -- Resumen general de KPIs en un rango de fechas.
 -- Las fechas se interpretan en hora de Peru (America/Lima);
 -- las columnas de fecha (date/datetime) se almacenan en hora local.
 -- Devuelve UNA fila (todas las metricas del panel).
 -- --------------------------------------------------------
-DROP PROCEDURE IF EXISTS `sp_kpis_resumen`$$
+DROP PROCEDURE IF EXISTS `sp_kpis_resumen`//
 CREATE PROCEDURE `sp_kpis_resumen`(IN p_desde DATE, IN p_hasta DATE)
 BEGIN
     DECLARE v_total INT DEFAULT 0;
@@ -1071,7 +1071,7 @@ BEGIN
                 WHERE estado = 'activo'
                   AND fecha_compra BETWEEN p_desde AND p_hasta
            ), 0) AS sesiones_consumidas;
-END$$
+END//
 
 -- --------------------------------------------------------
 -- KPIs por terapeuta en un rango de fechas.
@@ -1079,7 +1079,7 @@ END$$
 -- panel muestre todo el equipo. El nombre sale de usuarios (auth).
 -- Los ingresos se atribuyen al terapeuta via la cita del pago.
 -- --------------------------------------------------------
-DROP PROCEDURE IF EXISTS `sp_kpis_por_terapeuta`$$
+DROP PROCEDURE IF EXISTS `sp_kpis_por_terapeuta`//
 CREATE PROCEDURE `sp_kpis_por_terapeuta`(IN p_desde DATE, IN p_hasta DATE)
 BEGIN
     SELECT t.id AS terapeuta_id,
@@ -1108,7 +1108,7 @@ BEGIN
              GROUP BY h.terapeuta_id
       ) v ON v.terapeuta_id = t.id
      ORDER BY v.ingresos DESC, v.total_citas DESC;
-END$$
+END//
 DELIMITER ;
 
 -- Fin de procedimientos almacenados.
