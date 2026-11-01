@@ -554,7 +554,7 @@ BEGIN
         actualizado_en = UTC_TIMESTAMP()
     WHERE id = p_cita_id AND estado IN ('pendiente_pago', 'programada');
     SELECT ROW_COUNT() AS actualizadas;
-END$
+END//
 
 --
 -- sp_existe_cita_programada_paciente  |  LOCAL (FASE 2)
