@@ -542,6 +542,9 @@
                     credentials: 'same-origin'
                 });
                 var data = await response.json();
+                if (dniInput.value.trim() !== dni) {
+                    throw new Error('El DNI cambió durante la consulta. Vuelve a verificarlo.');
+                }
                 if (!response.ok || !data.success || !data.verificado) {
                     nombreInput.value = '';
                     apellidoInput.value = '';
