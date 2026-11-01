@@ -12,13 +12,15 @@ DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_NAME = os.getenv("DB_NAME")
 DB_PORT = int(os.getenv("DB_PORT", 3306))
-AUTH_DB_NAME = os.getenv("AUTH_DB_NAME", "moovacloud_auth")
-PACIENTES_DB_NAME = os.getenv("PACIENTES_DB_NAME", "moovacloud_pacientes")
-CITAS_DB_NAME = os.getenv("CITAS_DB_NAME", "moovacloud_citas")
-PAGOS_DB_NAME = os.getenv("PAGOS_DB_NAME", "moovacloud_pagos")
-AUDIT_DB_NAME = os.getenv("AUDIT_DB_NAME", "moovacloud_auditoria")
-NOTAS_DB_NAME = os.getenv("NOTAS_DB_NAME", "moovacloud_notas")
-KPIS_DB_NAME = os.getenv("KPIS_DB_NAME", "moovacloud_kpis")
+# Todos los módulos comparten una única base de datos.
+# Se conservan estos nombres por compatibilidad con los módulos existentes.
+AUTH_DB_NAME = DB_NAME
+PACIENTES_DB_NAME = DB_NAME
+CITAS_DB_NAME = DB_NAME
+PAGOS_DB_NAME = DB_NAME
+AUDIT_DB_NAME = DB_NAME
+NOTAS_DB_NAME = DB_NAME
+KPIS_DB_NAME = DB_NAME
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
