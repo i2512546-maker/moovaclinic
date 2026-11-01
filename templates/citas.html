@@ -16,6 +16,14 @@
         .wizard-step:disabled { cursor: default; }
         .wizard-step.completed { cursor: pointer; }
         .wizard-step:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 8px; }
+        #step-1 .form-control.campo-verificado,
+        #step-1 .form-control.campo-verificado:focus {
+            background-color: #e9ecef !important;
+            color: #495057;
+            border-color: #ced4da;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
         .servicio-card, .terapeuta-card { cursor: pointer; transition: border-color .2s, box-shadow .2s; }
         .servicio-card:hover, .terapeuta-card:hover { border-color: var(--green) !important; }
         .servicio-card.selected, .terapeuta-card.selected { border: 2px solid var(--green) !important; box-shadow: 0 0 0 .2rem rgba(34, 197, 94, .12); }
@@ -131,27 +139,29 @@
                     </div>
                     <div class="card-body">
                         <div class="mb-3">
-                            <label for="dni" class="form-label"><i class="fas fa-id-card"></i> Primero, ingresa tu DNI</label>
-                            <div class="input-group">
-                                <input type="text" name="dni" id="dni" class="form-control" placeholder="12345678" maxlength="8" minlength="8" inputmode="numeric" pattern="[0-9]{8}" autocomplete="off" required>
-                                <button type="button" class="btn btn-moova" id="btnVerificarDni">Verificar DNI</button>
-                            </div>
-                            <small id="dni-status" class="text-muted d-block mt-2" style="display:none;"></small>
-                            <button type="button" class="btn btn-link btn-sm px-0" id="btnCambiarDni" style="display:none;">Usar otro DNI</button>
+                            <label for="dni" class="form-label"><i class="fas fa-id-card"></i> DNI</label>
+                            <input type="text" name="dni" id="dni" class="form-control" placeholder="12345678" maxlength="8" minlength="8" inputmode="numeric" pattern="[0-9]{8}" autocomplete="off" required>
                         </div>
-                        <div id="datos-personales" style="display:none;">
-                            <div class="mb-3">
-                                <label for="nombre" class="form-label"><i class="fas fa-user"></i> Nombre</label>
-                                <input type="text" name="nombre" id="nombre" class="form-control" placeholder="Tu nombre" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="apellido" class="form-label"><i class="fas fa-user"></i> Apellido</label>
-                                <input type="text" name="apellido" id="apellido" class="form-control" placeholder="Tu apellido" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="telefono" class="form-label"><i class="fas fa-phone"></i> Teléfono</label>
-                                <input type="tel" name="telefono" id="telefono" class="form-control" placeholder="987654321" maxlength="9" minlength="9" inputmode="numeric" pattern="9[0-9]{8}" title="Ingresa un celular peruano de 9 dígitos que empiece por 9" required>
-                            </div>
+                        <div class="mb-3">
+                            <label for="nombre" class="form-label"><i class="fas fa-user"></i> Nombres</label>
+                            <input type="text" name="nombre" id="nombre" class="form-control" placeholder="Escribe tus nombres" autocomplete="given-name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="apellido" class="form-label"><i class="fas fa-user"></i> Apellidos</label>
+                            <input type="text" name="apellido" id="apellido" class="form-control" placeholder="Escribe tus apellidos" autocomplete="family-name" required>
+                        </div>
+                        <div class="mb-3" id="verificar-identidad-container">
+                            <button type="button" class="btn btn-moova w-100" id="btnVerificarDni">
+                                <i class="fas fa-shield-alt me-1"></i> Verificar identidad
+                            </button>
+                            <small id="dni-status" class="text-muted d-block mt-2" role="status" aria-live="polite"></small>
+                        </div>
+                        <div class="mb-3" id="telefono-container" style="display:none;">
+                            <label for="telefono" class="form-label"><i class="fas fa-phone"></i> Teléfono</label>
+                            <input type="tel" name="telefono" id="telefono" class="form-control" placeholder="987654321" maxlength="9" minlength="9" inputmode="numeric" pattern="9[0-9]{8}" title="Ingresa un celular peruano de 9 dígitos que empiece por 9" autocomplete="tel" disabled required>
+                        </div>
+                        <div class="alert alert-success py-2 mb-0" id="identidad-confirmada" style="display:none;" role="status">
+                            <i class="fas fa-check-circle me-1"></i> Identidad verificada correctamente.
                         </div>
                         <div class="d-flex justify-content-end mt-4">
                             <a href="{{ url_for('index') }}" class="btn btn-moova-outline me-auto">Atrás</a>
@@ -445,108 +455,135 @@
         });
 
         var dniVerificado = false;
+        var dniValidado = '';
         var btnVerificarDni = document.getElementById('btnVerificarDni');
         var dniInput = document.getElementById('dni');
         var dniStatus = document.getElementById('dni-status');
-        var datosPersonales = document.getElementById('datos-personales');
+        var nombreInput = document.getElementById('nombre');
+        var apellidoInput = document.getElementById('apellido');
+        var telefonoInput = document.getElementById('telefono');
 
-        function reiniciarVerificacionDni() {
+        function normalizarTextoIdentidad(valor) {
+            return (valor || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')
+                .toLocaleLowerCase('es').replace(/\\s+/g, ' ').trim();
+        }
+
+        function limpiarDatosPosterioresDni() {
+            // Al cambiar el DNI se descarta toda la información asociada
+            // a la identidad anterior y también el avance del agendamiento.
             dniVerificado = false;
-            ['nombre', 'apellido', 'telefono'].forEach(function (id) {
-                var campo = document.getElementById(id);
-                campo.value = '';
-                campo.readOnly = false;
-            });
-            datosPersonales.style.display = 'none';
+            dniValidado = '';
+            nombreInput.value = '';
+            apellidoInput.value = '';
+            nombreInput.readOnly = false;
+            apellidoInput.readOnly = false;
+            nombreInput.classList.remove('campo-verificado');
+            apellidoInput.classList.remove('campo-verificado');
+            telefonoInput.value = '';
+            telefonoInput.disabled = true;
+            document.getElementById('telefono-container').style.display = 'none';
+            document.getElementById('identidad-confirmada').style.display = 'none';
             document.getElementById('btnNext1').style.display = 'none';
             btnVerificarDni.disabled = false;
             btnVerificarDni.style.display = '';
-            dniInput.readOnly = false;
-            document.getElementById('btnCambiarDni').style.display = 'none';
+            dniStatus.className = 'text-muted d-block mt-2';
+            dniStatus.textContent = 'Escribe tus nombres y apellidos tal como aparecen en tu documento.';
+            // Limpiar tratamiento, especialista, fecha y pago.
+            document.getElementById('servicio_id').value = '';
+            document.querySelectorAll('.servicio-card.selected, .terapeuta-card.selected').forEach(function (card) {
+                card.classList.remove('selected');
+                card.setAttribute('aria-pressed', 'false');
+            });
+            document.getElementById('medico_id').value = '';
+            document.getElementById('fecha_cita').value = '';
+            document.getElementById('metodo_pago').value = '';
+            document.getElementById('resumen-servicio').textContent = '—';
+            document.getElementById('resumen-medico').textContent = '—';
+            document.getElementById('resumen-fecha').textContent = '—';
+            document.getElementById('costo-cita').textContent = 'S/ —';
+            document.getElementById('anticipo-cita').textContent = 'S/ —';
+            if (disponibilidadAbortController) disponibilidadAbortController.abort();
+            if (calendario) calendario.clear();
+            document.getElementById('calendario-contenedor').style.display = 'none';
+            document.getElementById('disponibilidad-aviso').style.display = 'none';
+            document.getElementById('btn-reintentar-disponibilidad').style.display = 'none';
+            irPaso(1);
         }
 
         dniInput.addEventListener('input', function () {
-            if (dniVerificado) reiniciarVerificacionDni();
-            dniStatus.style.display = 'none';
-        });
-
-        document.getElementById('btnCambiarDni').addEventListener('click', function () {
-            reiniciarVerificacionDni();
-            dniInput.value = '';
-            dniInput.focus();
+            if (dniVerificado && dniInput.value.trim() !== dniValidado) {
+                limpiarDatosPosterioresDni();
+            }
         });
 
         btnVerificarDni.addEventListener('click', async function () {
             var dni = dniInput.value.trim();
-            if (!/^\d{8}$/.test(dni)) {
+            if (!/^\\d{8}$/.test(dni)) {
                 mostrarPopup('Ingresa un DNI válido de 8 dígitos.', 'error');
                 dniInput.focus();
                 return;
             }
+            if (!nombreInput.value.trim() || !apellidoInput.value.trim()) {
+                mostrarPopup('Completa tus nombres y apellidos antes de verificar.', 'error');
+                return;
+            }
             btnVerificarDni.disabled = true;
-            dniStatus.style.display = 'block';
             dniStatus.className = 'text-muted d-block mt-2';
-            dniStatus.textContent = 'Consultando DNI…';
+            dniStatus.textContent = 'Comparando tus datos con APIPerú…';
             try {
                 var response = await fetch('/api/verificar_dni', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
-                    body: JSON.stringify({ dni: dni }),
+                    body: JSON.stringify({
+                        dni: dni,
+                        nombre: nombreInput.value,
+                        apellido: apellidoInput.value
+                    }),
                     credentials: 'same-origin'
                 });
                 var data = await response.json();
-                // Un DNI no encontrado en la API externa no debe bloquear la
-                // reserva: permite completar los datos manualmente. Los errores
-                // de límite o de servidor sí se muestran al usuario.
-                if (!response.ok && response.status !== 404 && !data.data) {
-                    throw new Error(data.error || 'No se pudo verificar el DNI.');
+                if (!response.ok || !data.success || !data.verificado) {
+                    nombreInput.value = '';
+                    apellidoInput.value = '';
+                    telefonoInput.value = '';
+                    telefonoInput.disabled = true;
+                    document.getElementById('telefono-container').style.display = 'none';
+                    dniVerificado = false;
+                    dniValidado = '';
+                    nombreInput.readOnly = false;
+                    apellidoInput.readOnly = false;
+                    nombreInput.classList.remove('campo-verificado');
+                    apellidoInput.classList.remove('campo-verificado');
+                    document.getElementById('identidad-confirmada').style.display = 'none';
+                    document.getElementById('btnNext1').style.display = 'none';
+                    throw new Error(data.error || 'Los datos no coinciden con APIPerú. Revisa los nombres y apellidos.');
                 }
-                if (response.status === 404 && !data.data) {
-                    data = { success: false, existe: false, data: {} };
-                }
-                var paciente = data.paciente || data.data || {};
-                var nombre = paciente.nombre || paciente.nombres || '';
-                var apellido = paciente.apellido || (
-                    ((paciente.apellido_paterno || paciente.apellidoPaterno || '') + ' ' +
-                    (paciente.apellido_materno || paciente.apellidoMaterno || '')).trim()
-                );
-                document.getElementById('nombre').value = nombre;
-                document.getElementById('apellido').value = apellido;
-                document.getElementById('telefono').value = paciente.telefono || '';
-                var existe = data.existe === true;
-                ['nombre', 'apellido', 'telefono'].forEach(function (id) {
-                    document.getElementById(id).readOnly = existe;
-                });
                 dniVerificado = true;
-                dniInput.readOnly = existe;
-                datosPersonales.style.display = '';
+                dniValidado = dni;
+                nombreInput.readOnly = true;
+                apellidoInput.readOnly = true;
+                nombreInput.classList.add('campo-verificado');
+                apellidoInput.classList.add('campo-verificado');
+                document.getElementById('telefono-container').style.display = '';
+                telefonoInput.disabled = false;
+                document.getElementById('identidad-confirmada').style.display = '';
                 document.getElementById('btnNext1').style.display = '';
-                btnVerificarDni.style.display = existe ? 'none' : '';
-                document.getElementById('btnCambiarDni').style.display = existe ? '' : 'none';
-                dniStatus.className = existe ? 'text-success d-block mt-2' : 'text-muted d-block mt-2';
-                if (existe) {
-                    dniStatus.textContent = 'Paciente encontrado en MOOVA Clinic. Sus datos registrados no se pueden editar.';
-                } else if (nombre || apellido) {
-                    dniStatus.textContent = 'DNI consultado. Revisa los datos y completa tu teléfono.';
-                } else {
-                    dniStatus.textContent = 'No se encontraron datos automáticos. Completa tus datos manualmente.';
-                }
+                btnVerificarDni.style.display = 'none';
+                dniStatus.className = 'text-success d-block mt-2';
+                dniStatus.textContent = 'Los nombres y apellidos coinciden con los datos de APIPerú.';
             } catch (error) {
                 dniStatus.className = 'text-danger d-block mt-2';
-                dniStatus.textContent = error.message || 'No se pudo consultar el DNI.';
+                dniStatus.textContent = error.message || 'No se pudo verificar la identidad.';
             } finally {
                 btnVerificarDni.disabled = false;
             }
         });
 
         document.getElementById('btnNext1').addEventListener('click', function () {
-            var campos = ['nombre', 'apellido', 'telefono'].map(function (id) {
-                return document.getElementById(id);
-            });
-            if (!dniVerificado || campos.some(function (campo) {
-                return !campo.value.trim() || !campo.checkValidity();
-            })) {
-                mostrarPopup('Primero verifica el DNI y completa los datos requeridos.', 'error');
+            if (!dniVerificado || dniInput.value.trim() !== dniValidado ||
+                !nombreInput.value.trim() || !apellidoInput.value.trim() ||
+                !telefonoInput.value.trim() || !telefonoInput.checkValidity()) {
+                mostrarPopup('Verifica tu identidad y completa un teléfono válido para continuar.', 'error');
                 return;
             }
             irPaso(2);
@@ -659,6 +696,11 @@
             event.preventDefault();
             var obligatorios = ['nombre', 'apellido', 'dni', 'telefono', 'servicio_id',
                 'medico_id', 'fecha_cita', 'metodo_pago'];
+            if (!dniVerificado || dniInput.value.trim() !== dniValidado) {
+                mostrarPopup('La identidad debe verificarse nuevamente antes de confirmar la cita.', 'error');
+                irPaso(1);
+                return;
+            }
             if (obligatorios.some(function (id) {
                 return !document.getElementById(id).value.trim();
             })) {
