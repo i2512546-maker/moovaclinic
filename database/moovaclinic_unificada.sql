@@ -1,11 +1,11 @@
 -- =============================================================
 -- MOOVA CLINIC - PROCEDIMIENTOS ALMACENADOS UNIFICADOS
--- Ejecutar después de crear las tablas en moovacloud_db.
+-- Ejecutar después de crear las tablas en moovacloud_database.
 -- Este archivo solo crea procedimientos; no crea tablas ni
 -- inserta datos iniciales.
 -- =============================================================
 
-USE `moovacloud_db`;
+USE `moovacloud_database`;
 
 -- Procedimientos de db_split/auth_db.sql
 DELIMITER $$
