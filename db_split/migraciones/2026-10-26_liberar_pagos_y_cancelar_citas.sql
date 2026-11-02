@@ -78,7 +78,7 @@ BEGIN
         descripcion = CONCAT_WS(
             ' | ', NULLIF(TRIM(descripcion), ''), 'pago vencido'
         ),
-        actualizado_en = UTC_TIMESTAMP()
+        actualizado_en = NOW()
     WHERE id = p_cita_id AND estado = 'programada';
     SELECT ROW_COUNT() AS actualizadas;
 END$$
