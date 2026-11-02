@@ -76,10 +76,14 @@ def get_connection(db_name=None):
         port=DB_PORT,
         connection_timeout=8,
     )
+    # Toda conexion trabaja en hora de Peru, sin depender de la zona
+    # horaria configurada en Railway/MySQL. Afecta NOW(), CURRENT_TIMESTAMP
+    # y la lectura/escritura de columnas TIMESTAMP en esta sesion.
+    cursor = conn.cursor()
+    cursor.execute("SET SESSION time_zone = '-05:00'")
     # Evita esperas eternas si una operacion queda esperando un lock de
     # InnoDB (default 50s): cualquier lock wait falla en 5s.
     try:
-        cursor = conn.cursor()
         cursor.execute("SET SESSION innodb_lock_wait_timeout = 5")
         cursor.close()
     except Exception:
