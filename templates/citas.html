@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agendar Cita - MOOVA Clinic</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Nunito:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap-style.css') }}">
+    <meta name="csrf-token" content="{{ csrf_raw }}">
+    <style>
+        .wizard-step { border: 0; padding: 0; background: transparent; }
+        .wizard-step:disabled { cursor: default; }
+        .wizard-step.completed { cursor: pointer; }
+        .wizard-step:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 8px; }
+        #step-1 .form-control.campo-verificado,
+        #step-1 .form-control.campo-verificado:focus {
+            background-color: #e9ecef !important;
+            color: #495057;
+            border-color: #ced4da;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+        .servicio-card, .terapeuta-card { cursor: pointer; transition: border-color .2s, box-shadow .2s; }
+        .servicio-card:hover, .terapeuta-card:hover { border-color: var(--green) !important; }
+        .servicio-card.selected, .terapeuta-card.selected { border: 2px solid var(--green) !important; box-shadow: 0 0 0 .2rem rgba(34, 197, 94, .12); }
+        #calendarioCita { display: flex; justify-content: center; }
+        #calendarioCita .flatpickr-calendar.inline { box-shadow: none; }
+        @media (max-width: 480px) {
+            .wizard-steps { padding: 0; }
+            .wizard-step { min-width: 0; flex: 1 1 0; }
+            .wizard-label { white-space: normal; max-width: 54px; font-size: .58rem; line-height: 1.1; }
+            .wizard-connector { min-width: 7px; max-width: 18px; }
+            .wizard-dot { width: 30px; height: 30px; }
+        }
+    </style>
+    <script>
+        function csrfToken() {
+            var meta = document.querySelector('meta[name="csrf-token"]');
+            return meta ? meta.content : '';
+        }
+    </script>
+    <script src="https://t.contentsquare.com/uxa/6897c7b83eb5.js"></script>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light navbar-bubble shadow-sm">
+        <div class="container">
+            <a class="navbar-brand logo fw-bold" href="{{ url_for('index') }}">MOOVA <span>Clinic</span></a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCitas" aria-controls="navbarCitas" aria-expanded="false" aria-label="Abrir menú">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarCitas">
+                <ul class="navbar-nav ms-auto align-items-lg-center">
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('index') }}"><i class="fas fa-home"></i> Inicio</a></li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="citasDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fas fa-calendar-check"></i> Citas</a>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="citasDropdown">
+                            <li><a class="dropdown-item" href="{{ url_for('citas_page') }}"><i class="fas fa-calendar-plus"></i> Agendar cita</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('tratamiento_page') }}"><i class="fas fa-calendar-check"></i> Continuar tratamiento</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('modificar_cita_page') }}"><i class="fas fa-edit"></i> Modificar cita</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('cancelar_cita_page') }}"><i class="fas fa-times-circle"></i> Cancelar cita</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="contenedor-estrecho py-4">
+        <header class="text-center mb-4">
+            <span class="text-uppercase text-muted small fw-semibold">Reserva tu espacio</span>
+            <h1 class="fw-bold mb-1">Agendar Cita</h1>
+            <p class="text-muted mb-0">Completa tus datos y elige un tratamiento, especialista y fecha disponible</p>
+        </header>
+
+        {% if cita_pendiente %}
+        <div class="alert alert-warning d-flex flex-wrap align-items-center justify-content-between gap-2 border-0 shadow-sm" role="alert">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-clock fs-5"></i>
+                <span>Tienes una cita reservada pendiente de pago. Puedes continuarla o llenar el formulario para agendar otra.</span>
+            </div>
+            <a href="{{ url_for('pago_page', cita_id=cita_pendiente) }}" class="btn btn-moova btn-sm rounded-pill px-3">
+                <i class="fas fa-arrow-right me-1"></i> Continuar con el pago
+            </a>
+        </div>
+        {% endif %}
+
+        <div class="alert alert-success d-flex flex-wrap align-items-center justify-content-between gap-2 border-0 shadow-sm" role="alert">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-calendar-check fs-5"></i>
+                <span>¿Ya tienes un tratamiento? Continúa tu pago aquí.</span>
+            </div>
+            <a href="{{ url_for('tratamiento_page') }}" class="btn btn-moova btn-sm rounded-pill px-3">
+                <i class="fas fa-arrow-right me-1"></i> Continuar tratamiento
+            </a>
+        </div>
+
+        <div class="wizard-steps" id="wizardIndicator" aria-label="Progreso de tu cita">
+            <button type="button" class="wizard-step active" data-step="1" disabled><span class="wizard-dot">1</span><span class="wizard-label">Datos</span></button>
+            <div class="wizard-connector" id="connector-1"></div>
+            <button type="button" class="wizard-step" data-step="2" disabled><span class="wizard-dot">2</span><span class="wizard-label">Tratamiento</span></button>
+            <div class="wizard-connector" id="connector-2"></div>
+            <button type="button" class="wizard-step" data-step="3" disabled><span class="wizard-dot">3</span><span class="wizard-label">Fecha</span></button>
+            <div class="wizard-connector" id="connector-3"></div>
+            <button type="button" class="wizard-step" data-step="4" disabled><span class="wizard-dot">4</span><span class="wizard-label">Resumen</span></button>
+            <div class="wizard-connector" id="connector-4"></div>
+            <button type="button" class="wizard-step" data-step="5" disabled><span class="wizard-dot">5</span><span class="wizard-label">Pago</span></button>
+            <div class="wizard-connector" id="connector-5"></div>
+            <button type="button" class="wizard-step" data-step="6" disabled><span class="wizard-dot">6</span><span class="wizard-label">Confirmación</span></button>
+        </div>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for msg in messages %}
+                    {% if msg == 'campos_vacios' %}
+                    <div class="alert alert-danger d-flex align-items-center gap-2" id="alerta-top" role="alert"><i class="fas fa-exclamation-circle"></i> Por favor completa todos los campos, selecciona un especialista y elige una fecha.</div>
+                    {% elif msg == 'dni_existente' %}
+                    <div class="alert alert-warning d-flex align-items-center gap-2" id="alerta-top" role="alert"><i class="fas fa-info-circle"></i> Ya existe un registro con ese DNI.</div>
+                    {% elif msg == 'fecha_pasada' %}
+                    <div class="alert alert-danger d-flex align-items-center gap-2" id="alerta-top" role="alert"><i class="fas fa-calendar-times"></i> La fecha no puede estar en el pasado.</div>
+                    {% else %}
+                    <div class="alert alert-danger d-flex align-items-center gap-2" id="alerta-top" role="alert"><i class="fas fa-times-circle"></i> {{ msg }}</div>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form id="formCita" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
+
+            <section class="wizard-panel" id="step-1">
+                <div class="card card-moova border-0 shadow">
+                    <div class="card-header bg-white border-0 pt-4 pb-0">
+                        <h2 class="h5 mb-1"><i class="fas fa-id-card me-2 text-success"></i>Paso 1 — Verifica tu DNI</h2>
+                        <p class="text-muted small mb-0">Ingresa tu DNI para consultar tus datos y confirma que te pertenecen.</p>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="dni" class="form-label"><i class="fas fa-id-card"></i> DNI</label>
+                            <input type="text" name="dni" id="dni" class="form-control" placeholder="12345678" maxlength="8" minlength="8" inputmode="numeric" pattern="[0-9]{8}" autocomplete="off" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="nombre" class="form-label"><i class="fas fa-user"></i> Nombres</label>
+                            <input type="text" name="nombre" id="nombre" class="form-control campo-verificado" placeholder="Se completará al consultar el DNI" autocomplete="given-name" readonly required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="apellido" class="form-label"><i class="fas fa-user"></i> Apellidos</label>
+                            <input type="text" name="apellido" id="apellido" class="form-control campo-verificado" placeholder="Se completará al consultar el DNI" autocomplete="family-name" readonly required>
+                        </div>
+                        <div class="mb-3" id="verificar-identidad-container">
+                            <button type="button" class="btn btn-moova w-100" id="btnVerificarDni">
+                                <i class="fas fa-shield-alt me-1"></i> Verificar identidad
+                            </button>
+                            <button type="button" class="btn btn-outline-success w-100 mt-2" id="btnConfirmarIdentidad" style="display:none;">Sí, estos datos son míos</button>
+                            <small id="dni-status" class="text-muted d-block mt-2" role="status" aria-live="polite"></small>
+                        </div>
+                        <div class="mb-3" id="telefono-container" style="display:none;">
+                            <label for="telefono" class="form-label"><i class="fas fa-phone"></i> Teléfono</label>
+                            <input type="tel" name="telefono" id="telefono" class="form-control" placeholder="987654321" maxlength="9" minlength="9" inputmode="numeric" pattern="9[0-9]{8}" title="Ingresa un celular peruano de 9 dígitos que empiece por 9" autocomplete="tel" disabled required>
+                        </div>
+                        <div class="alert alert-success py-2 mb-0" id="identidad-confirmada" style="display:none;" role="status">
+                            <i class="fas fa-check-circle me-1"></i> Identidad verificada correctamente.
+                        </div>
+                        <div class="d-flex justify-content-end mt-4">
+                            <a href="{{ url_for('index') }}" class="btn btn-moova-outline me-auto">Atrás</a>
+                            <button type="button" class="btn btn-moova btn-lg" id="btnNext1" style="display:none;">Siguiente <i class="fas fa-arrow-right ms-2"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="wizard-panel" id="step-2" style="display:none;">
+                <div class="card card-moova border-0 shadow">
+                    <div class="card-header bg-white border-0 pt-4 pb-0">
+                        <h2 class="h5 mb-1"><i class="fas fa-puzzle-piece me-2 text-success"></i>Paso 2 — Elige tu tratamiento</h2>
+                        <p class="text-muted small mb-0">Selecciona el servicio que necesitas.</p>
+                    </div>
+                    <div class="card-body">
+                        <input type="hidden" name="servicio_id" id="servicio_id" value="">
+                        <div class="row g-3" id="servicios-lista">
+                            {% for s in servicios %}
+                            <div class="col-12 col-md-6">
+                                <button type="button" class="servicio-card card h-100 w-100 text-start border rounded-3 bg-white p-3" data-servicio-id="{{ s.id }}">
+                                    <span class="h6 text-success mb-2">{{ s.nombre }}</span>
+                                    <span class="small text-muted">{{ s.descripcion or 'Atención personalizada según tus necesidades.' }}</span>
+                                    <span class="small mt-3"><i class="fas fa-clock me-1"></i>{{ s.duracion_min }} min</span>
+                                </button>
+                            </div>
+                            {% else %}
+                            <div class="col-12"><p class="text-muted mb-0">No hay tratamientos disponibles.</p></div>
+                            {% endfor %}
+                        </div>
+                        <div class="d-flex justify-content-between mt-4">
+                            <button type="button" class="btn btn-moova-outline" id="btnBack2"><i class="fas fa-arrow-left me-2"></i>Atrás</button>
+                            <button type="button" class="btn btn-moova" id="btnNext2">Siguiente <i class="fas fa-arrow-right ms-2"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="wizard-panel" id="step-3" style="display:none;">
+                <div class="card card-moova border-0 shadow">
+                    <div class="card-header bg-white border-0 pt-4 pb-0">
+                        <h2 class="h5 mb-1"><i class="fas fa-user-md me-2 text-success"></i>Paso 3 — Especialista y fecha</h2>
+                        <p class="text-muted small mb-0">Elige un especialista para consultar sus fechas disponibles.</p>
+                    </div>
+                    <div class="card-body">
+                        <input type="hidden" name="medico_id" id="medico_id" value="">
+                        <input type="hidden" name="fecha_cita" id="fecha_cita" value="">
+                        <div class="row g-3" id="terapeutas-lista">
+                            {% for m in terapeutas %}
+                            <div class="col-12 col-md-6">
+                                <button type="button" class="terapeuta-card card h-100 w-100 text-start border rounded-3 bg-white p-3"
+                                        data-medico-id="{{ m.ID }}" data-nombre="{{ m.Nombre or 'Especialista' }}" data-precio="{{ m.precio or 0 }}">
+                                    <span class="d-flex align-items-center gap-2">
+                                        <span class="rounded-circle bg-success text-white d-inline-flex align-items-center justify-content-center fw-bold flex-shrink-0" style="width:38px;height:38px;">{{ (m.Nombre or '?')[0]|upper }}</span>
+                                        <span>
+                                            <span class="d-block fw-semibold">{{ m.Nombre or 'Especialista' }}</span>
+                                            {% if m.Especialidad and m.Especialidad|string|lower != 'none' %}
+                                            <span class="badge bg-success-subtle text-success-emphasis">{{ m.Especialidad }}</span>
+                                            {% endif %}
+                                        </span>
+                                    </span>
+                                </button>
+                            </div>
+                            {% else %}
+                            <div class="col-12"><p class="text-muted mb-0">No hay especialistas disponibles.</p></div>
+                            {% endfor %}
+                        </div>
+                        <div id="disponibilidad-aviso" class="alert alert-warning mt-4 mb-3" role="alert" style="display:none;"></div>
+                        <button type="button" id="btn-reintentar-disponibilidad" class="btn btn-outline-warning mt-3" style="display:none;">Reintentar</button>
+                        <div id="calendario-contenedor" class="mt-4" style="display:none;">
+                            <h3 class="h6 text-center mb-3">Selecciona un día disponible</h3>
+                            <input type="text" id="fecha-calendario" class="visually-hidden" aria-label="Calendario de disponibilidad">
+                            <div id="calendarioCita"></div>
+                        </div>
+                        <div class="d-flex justify-content-between mt-4">
+                            <button type="button" class="btn btn-moova-outline" id="btnBack3"><i class="fas fa-arrow-left me-2"></i>Atrás</button>
+                            <button type="button" class="btn btn-moova" id="btnNext3">Siguiente <i class="fas fa-arrow-right ms-2"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="wizard-panel" id="step-4" style="display:none;">
+                <div class="card card-moova border-0 shadow">
+                    <div class="card-header bg-white border-0 pt-4 pb-0">
+                        <h2 class="h5 mb-1"><i class="fas fa-clipboard-check me-2 text-success"></i>Paso 4 — Revisa y confirma</h2>
+                    </div>
+                    <div class="card-body">
+                        <dl class="row mb-4">
+                            <dt class="col-5">Tratamiento</dt><dd class="col-7" id="resumen-servicio">—</dd>
+                            <dt class="col-5">Especialista</dt><dd class="col-7" id="resumen-medico">—</dd>
+                            <dt class="col-5">Fecha</dt><dd class="col-7" id="resumen-fecha">—</dd>
+                            <dt class="col-5">Costo</dt><dd class="col-7 fw-semibold text-success" id="costo-cita">S/ —</dd>
+                            <dt class="col-5">Anticipo (50%)</dt><dd class="col-7 fw-semibold text-success" id="anticipo-cita">S/ —</dd>
+                        </dl>
+                        <div class="mb-3">
+                            <label for="metodo_pago" class="form-label"><i class="fas fa-money-check-alt me-1"></i>Método de pago</label>
+                            <select name="metodo_pago" id="metodo_pago" class="form-select" required>
+                                <option value="" disabled selected>Selecciona un método</option>
+                                <option value="yape">Yape</option>
+                                <option value="plin">Plin</option>
+                                <option value="tarjeta">Tarjeta</option>
+                                <option value="transferencia">Transferencia bancaria</option>
+                            </select>
+                        </div>
+                        <p class="small text-muted"><i class="fas fa-info-circle me-1"></i>Para reservar tu cita se requiere un anticipo del 50% del costo de la atención.</p>
+                        <div class="d-flex justify-content-between mt-4">
+                            <button type="button" class="btn btn-moova-outline" id="btnBack4"><i class="fas fa-arrow-left me-2"></i>Atrás</button>
+                            <button type="submit" class="btn btn-moova btn-lg" id="btn-submit">Confirmar y pagar <i class="fas fa-arrow-right ms-2"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </form>
+    </main>
+
+    <div class="modal fade" id="popupModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-body text-center p-4">
+                    <div id="popupIcono" class="mb-3"></div>
+                    <h5 id="popupTitulo" class="fw-bold mb-2"></h5>
+                    <p id="popupMensaje" class="text-muted mb-4"></p>
+                    <button type="button" class="btn w-100" id="popupOk" data-bs-dismiss="modal">Aceptar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/es.js"></script>
+    <script>
+        var pasoActual = 1;
+        var calendario = null;
+        var disponibilidadAbortController = null;
+        var formCita = document.getElementById('formCita');
+
+        function irPaso(paso) {
+            pasoActual = paso;
+            document.querySelectorAll('.wizard-panel').forEach(function (panel) {
+                panel.style.display = 'none';
+            });
+            document.getElementById('step-' + paso).style.display = '';
+            document.querySelectorAll('.wizard-step').forEach(function (step) {
+                var numero = Number(step.dataset.step);
+                step.classList.toggle('active', numero === paso);
+                step.classList.toggle('completed', numero < paso);
+                step.disabled = numero >= paso;
+                step.setAttribute('aria-current', numero === paso ? 'step' : 'false');
+            });
+            document.querySelectorAll('.wizard-connector').forEach(function (connector, index) {
+                connector.classList.toggle('completed', index + 1 < paso);
+            });
+        }
+
+        document.querySelectorAll('.wizard-step').forEach(function (step) {
+            step.addEventListener('click', function () {
+                var destino = Number(step.dataset.step);
+                if (destino < pasoActual) {
+                    irPaso(destino);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            });
+        });
+
+        function mostrarPopup(mensaje, tipo, onCerrar) {
+            var modalEl = document.getElementById('popupModal');
+            var icono = document.getElementById('popupIcono');
+            var titulo = document.getElementById('popupTitulo');
+            var okBtn = document.getElementById('popupOk');
+            if (tipo === 'success') {
+                titulo.textContent = '¡Listo!';
+                icono.innerHTML = '<i class="bi bi-check-circle-fill text-success" style="font-size:2.6rem;"></i>';
+                okBtn.className = 'btn btn-success w-100';
+            } else {
+                titulo.textContent = 'Atención';
+                icono.innerHTML = '<i class="bi bi-exclamation-circle-fill text-danger" style="font-size:2.6rem;"></i>';
+                okBtn.className = 'btn btn-danger w-100';
+            }
+            document.getElementById('popupMensaje').textContent = mensaje;
+            var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            if (onCerrar) {
+                modalEl.addEventListener('hidden.bs.modal', function handler() {
+                    modalEl.removeEventListener('hidden.bs.modal', handler);
+                    onCerrar();
+                });
+            }
+            modal.show();
+            return modal;
+        }
+
+        function fechaLocal(fecha) {
+            return [fecha.getFullYear(), String(fecha.getMonth() + 1).padStart(2, '0'),
+                String(fecha.getDate()).padStart(2, '0')].join('-');
+        }
+
+        function limpiarFecha() {
+            document.getElementById('fecha_cita').value = '';
+            document.getElementById('resumen-fecha').textContent = '—';
+            if (calendario) calendario.clear();
+        }
+
+        function mostrarAvisoDisponibilidad(texto, permiteReintento) {
+            var aviso = document.getElementById('disponibilidad-aviso');
+            aviso.textContent = texto;
+            aviso.style.display = 'block';
+            document.getElementById('btn-reintentar-disponibilidad').style.display =
+                permiteReintento ? '' : 'none';
+        }
+
+        async function cargarDisponibilidad(limpiarSeleccion, mensajePrevio) {
+            var medicoId = document.getElementById('medico_id').value;
+            if (!medicoId) return;
+            if (disponibilidadAbortController) disponibilidadAbortController.abort();
+            disponibilidadAbortController = new AbortController();
+            if (limpiarSeleccion) limpiarFecha();
+
+            var aviso = document.getElementById('disponibilidad-aviso');
+            var retry = document.getElementById('btn-reintentar-disponibilidad');
+            var calendarioContenedor = document.getElementById('calendario-contenedor');
+            aviso.style.display = 'none';
+            retry.style.display = 'none';
+            calendarioContenedor.style.display = 'none';
+
+            if (typeof flatpickr !== 'function' || !flatpickr.l10ns || !flatpickr.l10ns.es) {
+                mostrarAvisoDisponibilidad('No se pudo cargar el calendario. Recarga la página e inténtalo de nuevo.', true);
+                return;
+            }
+
+            var hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+            var hasta = new Date(hoy);
+            hasta.setDate(hasta.getDate() + 60);
+            var desdeTexto = fechaLocal(hoy);
+            var hastaTexto = fechaLocal(hasta);
+            mostrarAvisoDisponibilidad(
+                mensajePrevio || 'Consultando fechas disponibles...', false
+            );
+
+            try {
+                var url = '/api/disponibilidad/' + encodeURIComponent(medicoId) +
+                    '?desde=' + encodeURIComponent(desdeTexto) +
+                    '&hasta=' + encodeURIComponent(hastaTexto);
+                var response = await fetch(url, { signal: disponibilidadAbortController.signal });
+                if (response.status === 429) {
+                    throw new Error('Se alcanzó el límite de consultas. Espera un momento y vuelve a intentarlo.');
+                }
+                if (!response.ok) {
+                    throw new Error('No se pudieron cargar las fechas disponibles. Inténtalo de nuevo.');
+                }
+                var data = await response.json();
+                if (!Array.isArray(data.fechas)) {
+                    throw new Error('La respuesta de disponibilidad no es válida. Inténtalo de nuevo.');
+                }
+                if (Number(document.getElementById('medico_id').value) !== Number(medicoId)) return;
+
+                if (!calendario) {
+                    calendario = flatpickr('#fecha-calendario', {
+                        inline: true,
+                        locale: flatpickr.l10ns.es,
+                        dateFormat: 'Y-m-d',
+                        minDate: desdeTexto,
+                        maxDate: hastaTexto,
+                        disable: data.fechas,
+                        onChange: function (_seleccionadas, fecha) {
+                            document.getElementById('fecha_cita').value = fecha;
+                            document.getElementById('resumen-fecha').textContent = fecha;
+                        }
+                    });
+                } else {
+                    calendario.set('minDate', desdeTexto);
+                    calendario.set('maxDate', hastaTexto);
+                    calendario.set('disable', data.fechas);
+                }
+                if (mensajePrevio) {
+                    mostrarAvisoDisponibilidad(mensajePrevio, false);
+                } else {
+                    aviso.style.display = 'none';
+                    retry.style.display = 'none';
+                }
+                calendarioContenedor.style.display = '';
+            } catch (error) {
+                if (error.name === 'AbortError') return;
+                mostrarAvisoDisponibilidad(error.message || 'No se pudieron cargar las fechas disponibles. Inténtalo de nuevo.', true);
+            }
+        }
+
+        document.getElementById('btn-reintentar-disponibilidad').addEventListener('click', function () {
+            cargarDisponibilidad(false);
+        });
+
+        var dniVerificado = false;
+        var dniValidado = '';
+        var btnVerificarDni = document.getElementById('btnVerificarDni');
+        var btnConfirmarIdentidad = document.getElementById('btnConfirmarIdentidad');
+        var dniInput = document.getElementById('dni');
+        var dniStatus = document.getElementById('dni-status');
+        var nombreInput = document.getElementById('nombre');
+        var apellidoInput = document.getElementById('apellido');
+        var telefonoInput = document.getElementById('telefono');
+
+        function limpiarDatosPosterioresDni() {
+            dniVerificado = false;
+            dniValidado = '';
+            nombreInput.value = '';
+            apellidoInput.value = '';
+            telefonoInput.value = '';
+            telefonoInput.disabled = true;
+            document.getElementById('telefono-container').style.display = 'none';
+            document.getElementById('identidad-confirmada').style.display = 'none';
+            document.getElementById('btnNext1').style.display = 'none';
+            btnVerificarDni.disabled = false;
+            btnVerificarDni.style.display = '';
+            btnConfirmarIdentidad.style.display = 'none';
+            dniStatus.className = 'text-muted d-block mt-2';
+            dniStatus.textContent = 'Ingresa tu DNI para consultar tus datos.';
+            document.getElementById('servicio_id').value = '';
+            document.querySelectorAll('.servicio-card.selected, .terapeuta-card.selected').forEach(function (card) {
+                card.classList.remove('selected');
+                card.setAttribute('aria-pressed', 'false');
+            });
+            document.getElementById('medico_id').value = '';
+            document.getElementById('fecha_cita').value = '';
+            document.getElementById('metodo_pago').value = '';
+            document.getElementById('resumen-servicio').textContent = '—';
+            document.getElementById('resumen-medico').textContent = '—';
+            document.getElementById('resumen-fecha').textContent = '—';
+            document.getElementById('costo-cita').textContent = 'S/ —';
+            document.getElementById('anticipo-cita').textContent = 'S/ —';
+            if (disponibilidadAbortController) disponibilidadAbortController.abort();
+            if (calendario) calendario.clear();
+            document.getElementById('calendario-contenedor').style.display = 'none';
+            document.getElementById('disponibilidad-aviso').style.display = 'none';
+            document.getElementById('btn-reintentar-disponibilidad').style.display = 'none';
+            irPaso(1);
+        }
+
+        dniInput.addEventListener('input', function () {
+            if (dniValidado && dniInput.value.trim() !== dniValidado) limpiarDatosPosterioresDni();
+        });
+
+        btnVerificarDni.addEventListener('click', async function () {
+            var dni = dniInput.value.trim();
+            if (!/^\\d{8}$/.test(dni)) {
+                mostrarPopup('Ingresa un DNI válido de 8 dígitos.', 'error');
+                dniInput.focus();
+                return;
+            }
+            btnVerificarDni.disabled = true;
+            dniStatus.className = 'text-muted d-block mt-2';
+            dniStatus.textContent = 'Consultando datos en APIPerú…';
+            try {
+                var response = await fetch('/api/verificar_dni', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+                    body: JSON.stringify({ dni: dni }),
+                    credentials: 'same-origin'
+                });
+                var data = await response.json();
+                if (dniInput.value.trim() !== dni) throw new Error('El DNI cambió durante la consulta. Inténtalo nuevamente.');
+                if (!response.ok || !data.success) throw new Error(data.error || 'No se encontraron datos para ese DNI.');
+                nombreInput.value = data.nombres || '';
+                apellidoInput.value = data.apellidos || '';
+                if (!nombreInput.value || !apellidoInput.value) throw new Error('APIPerú no devolvió los nombres completos.');
+                dniValidado = dni;
+                btnVerificarDni.style.display = 'none';
+                btnConfirmarIdentidad.style.display = '';
+                dniStatus.className = 'text-success d-block mt-2';
+                dniStatus.textContent = 'Datos encontrados. Revisa tus nombres y apellidos y confirma que este DNI te pertenece.';
+            } catch (error) {
+                dniStatus.className = 'text-danger d-block mt-2';
+                dniStatus.textContent = error.message || 'No se pudo consultar el DNI.';
+                btnVerificarDni.disabled = false;
+            }
+        });
+
+        btnConfirmarIdentidad.addEventListener('click', async function () {
+            var dni = dniInput.value.trim();
+            if (!/^\\d{8}$/.test(dni) || dni !== dniValidado) {
+                mostrarPopup('Vuelve a consultar tu DNI antes de confirmar.', 'error');
+                limpiarDatosPosterioresDni();
+                return;
+            }
+            btnConfirmarIdentidad.disabled = true;
+            try {
+                var response = await fetch('/api/confirmar_identidad', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+                    body: JSON.stringify({ dni: dni }),
+                    credentials: 'same-origin'
+                });
+                var data = await response.json();
+                if (!response.ok || !data.success) throw new Error(data.error || 'No se pudo confirmar la identidad.');
+                dniVerificado = true;
+                document.getElementById('telefono-container').style.display = '';
+                telefonoInput.disabled = false;
+                document.getElementById('identidad-confirmada').style.display = '';
+                document.getElementById('btnNext1').style.display = '';
+                btnConfirmarIdentidad.style.display = 'none';
+                dniStatus.className = 'text-success d-block mt-2';
+                dniStatus.textContent = 'Identidad confirmada. Continúa con tu número de teléfono.';
+            } catch (error) {
+                dniStatus.className = 'text-danger d-block mt-2';
+                dniStatus.textContent = error.message || 'No se pudo confirmar la identidad.';
+            } finally {
+                btnConfirmarIdentidad.disabled = false;
+            }
+        });
+
+
+        document.getElementById('btnNext1').addEventListener('click', function () {
+            if (!dniVerificado || dniInput.value.trim() !== dniValidado ||
+                !nombreInput.value.trim() || !apellidoInput.value.trim() ||
+                !telefonoInput.value.trim() || !telefonoInput.checkValidity()) {
+                mostrarPopup('Verifica tu identidad y completa un teléfono válido para continuar.', 'error');
+                return;
+            }
+            irPaso(2);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        document.querySelectorAll('.servicio-card').forEach(function (card) {
+            card.addEventListener('click', function () {
+                document.querySelectorAll('.servicio-card').forEach(function (otra) {
+                    otra.classList.remove('selected');
+                    otra.setAttribute('aria-pressed', 'false');
+                });
+                card.classList.add('selected');
+                card.setAttribute('aria-pressed', 'true');
+                document.getElementById('servicio_id').value = card.dataset.servicioId;
+                limpiarFecha();
+            });
+        });
+
+        document.getElementById('btnNext2').addEventListener('click', function () {
+            if (!document.getElementById('servicio_id').value) {
+                mostrarPopup('Selecciona un tratamiento antes de continuar.', 'error');
+                return;
+            }
+            irPaso(3);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        document.querySelectorAll('.terapeuta-card').forEach(function (card) {
+            card.addEventListener('click', function () {
+                document.querySelectorAll('.terapeuta-card').forEach(function (otra) {
+                    otra.classList.remove('selected');
+                    otra.setAttribute('aria-pressed', 'false');
+                });
+                card.classList.add('selected');
+                card.setAttribute('aria-pressed', 'true');
+                document.getElementById('medico_id').value = card.dataset.medicoId;
+                document.getElementById('resumen-medico').textContent = card.dataset.nombre;
+                var precio = Number(card.dataset.precio) || 0;
+                document.getElementById('costo-cita').textContent = 'S/ ' + precio.toFixed(2);
+                document.getElementById('anticipo-cita').textContent = 'S/ ' + (precio / 2).toFixed(2);
+                limpiarFecha();
+                cargarDisponibilidad(false);
+            });
+        });
+
+        document.getElementById('btnNext3').addEventListener('click', function () {
+            if (!document.getElementById('medico_id').value) {
+                mostrarPopup('Selecciona un especialista antes de continuar.', 'error');
+                return;
+            }
+            if (!document.getElementById('fecha_cita').value) {
+                mostrarPopup('Selecciona una fecha disponible antes de continuar.', 'error');
+                return;
+            }
+            document.getElementById('resumen-servicio').textContent =
+                document.querySelector('.servicio-card.selected .h6').textContent.trim();
+            irPaso(4);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        document.getElementById('btnBack2').addEventListener('click', function () { irPaso(1); });
+        document.getElementById('btnBack3').addEventListener('click', function () { irPaso(2); });
+        document.getElementById('btnBack4').addEventListener('click', function () { irPaso(3); });
+
+        function esErrorDisponibilidad(mensaje) {
+            var texto = (mensaje || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+            return texto.includes('medico') && texto.includes('cita') &&
+                (texto.includes('dia') || texto.includes('disponible'));
+        }
+
+        function enviarFormAjax(form, boton) {
+            var originalHTML = boton.innerHTML;
+            boton.disabled = true;
+            boton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Procesando...';
+            fetch(form.action || window.location.href, {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                body: new FormData(form),
+                credentials: 'same-origin'
+            }).then(async function (response) {
+                var data = {};
+                try { data = await response.json(); } catch (error) {}
+                if (data.success && data.redirect) {
+                    mostrarPopup(data.mensaje || 'Cita reservada correctamente.', 'success', function () {
+                        window.location.href = data.redirect;
+                    });
+                    setTimeout(function () {
+                        var modal = bootstrap.Modal.getInstance(document.getElementById('popupModal'));
+                        if (modal) modal.hide();
+                    }, 1400);
+                    return;
+                }
+                if (esErrorDisponibilidad(data.error)) {
+                    irPaso(3);
+                    cargarDisponibilidad(true, data.error);
+                } else {
+                    mostrarPopup(data.error || 'Ocurrió un error, intenta de nuevo.', 'error');
+                }
+                boton.disabled = false;
+                boton.innerHTML = originalHTML;
+            }).catch(function () {
+                mostrarPopup('No se pudo conectar con el servidor, intenta de nuevo.', 'error');
+                boton.disabled = false;
+                boton.innerHTML = originalHTML;
+            });
+        }
+
+        formCita.addEventListener('submit', function (event) {
+            event.preventDefault();
+            var obligatorios = ['nombre', 'apellido', 'dni', 'telefono', 'servicio_id',
+                'medico_id', 'fecha_cita', 'metodo_pago'];
+            if (!dniVerificado || dniInput.value.trim() !== dniValidado) {
+                mostrarPopup('La identidad debe verificarse nuevamente antes de confirmar la cita.', 'error');
+                irPaso(1);
+                return;
+            }
+            if (obligatorios.some(function (id) {
+                return !document.getElementById(id).value.trim();
+            })) {
+                mostrarPopup('Completa todos los pasos antes de confirmar tu cita.', 'error');
+                return;
+            }
+            if (!formCita.checkValidity()) {
+                formCita.reportValidity();
+                return;
+            }
+            enviarFormAjax(formCita, document.getElementById('btn-submit'));
+        });
+
+        var alertaTop = document.getElementById('alerta-top');
+        if (alertaTop) {
+            setTimeout(function () {
+                alertaTop.style.transition = 'opacity 0.5s';
+                alertaTop.style.opacity = '0';
+                setTimeout(function () { alertaTop.remove(); }, 500);
+            }, 4000);
+        }
+
+        var btnSubmit = document.getElementById('btn-submit');
+        var btnSubmitOriginalHTML = btnSubmit.innerHTML;
+        window.addEventListener('pageshow', function (event) {
+            var volviendoAtras = false;
+            try {
+                var navegacion = performance.getEntriesByType('navigation');
+                volviendoAtras = navegacion.length && navegacion[0].type === 'back_forward';
+            } catch (error) {}
+            if (!event.persisted && !volviendoAtras) return;
+            btnSubmit.innerHTML = btnSubmitOriginalHTML;
+            btnSubmit.disabled = false;
+        });
+    </script>
+</body>
+</html>
