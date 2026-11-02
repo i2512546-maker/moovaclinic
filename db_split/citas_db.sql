@@ -55,7 +55,7 @@ CREATE TABLE `historial_citas` (
 
 -- Politica de zona horaria (historial_citas):
 --   - creado_en / actualizado_en se guardan en UTC explicito con
---     UTC_TIMESTAMP(), NUNCA NOW()/CURRENT_TIMESTAMP(): el servidor MySQL
+--     NOW(), NUNCA NOW()/CURRENT_TIMESTAMP(): el servidor MySQL
 --     corre en SYSTEM/CEST (UTC+2), asi que el reloj de la maquina no debe
 --     decidir los timestamps. Las columnas no usan DEFAULT with a timestamp
 --     precisamente para que el valor lo fije el procedimiento.
@@ -193,7 +193,7 @@ BEGIN
     )
     VALUES (
         p_paciente_id, p_terapeuta_id, p_servicio_id, p_fecha, p_hora, 'programada',
-        UTC_TIMESTAMP(), UTC_TIMESTAMP()
+        NOW(), NOW()
     );
     SELECT LAST_INSERT_ID() AS id;
 END$$
@@ -210,7 +210,7 @@ BEGIN
     )
     VALUES (
         p_paciente_id, p_terapeuta_id, p_servicio_id, p_fecha, p_hora,
-        'pendiente_pago', UTC_TIMESTAMP(), UTC_TIMESTAMP()
+        'pendiente_pago', NOW(), NOW()
     );
     SELECT LAST_INSERT_ID() AS id;
 END$$
@@ -219,7 +219,7 @@ DROP PROCEDURE IF EXISTS `sp_confirmar_cita_pago`$$
 CREATE PROCEDURE `sp_confirmar_cita_pago`(IN p_cita_id INT)
 BEGIN
     UPDATE historial_citas
-    SET estado = 'programada', actualizado_en = UTC_TIMESTAMP()
+    SET estado = 'programada', actualizado_en = NOW()
     WHERE id = p_cita_id AND estado = 'pendiente_pago';
     SELECT ROW_COUNT() AS actualizadas;
 END$$
@@ -231,7 +231,7 @@ BEGIN
     SET fecha_cita = p_fecha,
         hora_cita = p_hora,
         terapeuta_id = p_medico_id,
-        actualizado_en = UTC_TIMESTAMP()
+        actualizado_en = NOW()
     WHERE id = p_cita_id AND estado = 'programada';
     SELECT ROW_COUNT() AS actualizadas;
 END$$
@@ -240,7 +240,7 @@ DROP PROCEDURE IF EXISTS `sp_completar_cita`$$
 CREATE PROCEDURE `sp_completar_cita`(IN p_historial_id INT, IN p_descripcion TEXT)
 BEGIN
     UPDATE historial_citas SET descripcion = p_descripcion, estado = 'completada',
-        actualizado_en = UTC_TIMESTAMP()
+        actualizado_en = NOW()
     WHERE id = p_historial_id;
 END$$
 
@@ -341,7 +341,7 @@ DROP PROCEDURE IF EXISTS `sp_cancelar_cita`$$
 CREATE PROCEDURE `sp_cancelar_cita`(IN p_cita_id INT)
 BEGIN
     DECLARE v_afectadas INT DEFAULT 0;
-    UPDATE historial_citas SET estado = 'cancelada', actualizado_en = UTC_TIMESTAMP()
+    UPDATE historial_citas SET estado = 'cancelada', actualizado_en = NOW()
     WHERE id = p_cita_id AND estado = 'programada';
     SET v_afectadas = ROW_COUNT();
     SELECT v_afectadas AS actualizadas;
@@ -357,7 +357,7 @@ BEGIN
         descripcion = CONCAT_WS(
             ' | ', NULLIF(TRIM(descripcion), ''), 'pago vencido'
         ),
-        actualizado_en = UTC_TIMESTAMP()
+        actualizado_en = NOW()
     WHERE id = p_cita_id AND estado IN ('pendiente_pago', 'programada');
     SELECT ROW_COUNT() AS actualizadas;
 END$
@@ -442,7 +442,7 @@ DROP PROCEDURE IF EXISTS `sp_marcar_recordatorio_enviado`$$
 CREATE PROCEDURE `sp_marcar_recordatorio_enviado`(IN p_cita_id INT)
 BEGIN
     UPDATE historial_citas
-    SET recordatorio_enviado = 1, actualizado_en = UTC_TIMESTAMP()
+    SET recordatorio_enviado = 1, actualizado_en = NOW()
     WHERE id = p_cita_id AND COALESCE(recordatorio_enviado, 0) = 0;
     SELECT ROW_COUNT() AS marcadas;
 END$$
@@ -456,7 +456,7 @@ DROP PROCEDURE IF EXISTS `sp_desmarcar_recordatorio`$$
 CREATE PROCEDURE `sp_desmarcar_recordatorio`(IN p_cita_id INT)
 BEGIN
     UPDATE historial_citas
-    SET recordatorio_enviado = 0, actualizado_en = UTC_TIMESTAMP()
+    SET recordatorio_enviado = 0, actualizado_en = NOW()
     WHERE id = p_cita_id;
     SELECT ROW_COUNT() AS desmarcadas;
 END$$
