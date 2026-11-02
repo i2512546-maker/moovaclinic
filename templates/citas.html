@@ -507,7 +507,7 @@
 
         btnVerificarDni.addEventListener('click', async function () {
             var dni = dniInput.value.trim();
-            if (!/^\\d{8}$/.test(dni)) {
+            if (!/^\d{8}$/.test(dni)) {
                 mostrarPopup('Ingresa un DNI válido de 8 dígitos.', 'error');
                 dniInput.focus();
                 return;
@@ -542,7 +542,7 @@
 
         btnConfirmarIdentidad.addEventListener('click', async function () {
             var dni = dniInput.value.trim();
-            if (!/^\\d{8}$/.test(dni) || dni !== dniValidado) {
+            if (!/^\d{8}$/.test(dni) || dni !== dniValidado) {
                 mostrarPopup('Vuelve a consultar tu DNI antes de confirmar.', 'error');
                 limpiarDatosPosterioresDni();
                 return;
