@@ -53,12 +53,10 @@ CREATE TABLE `historial_citas` (
   `actualizado_en` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Politica de zona horaria (historial_citas):
---   - creado_en / actualizado_en se guardan en UTC explicito con
---     NOW(), NUNCA NOW()/CURRENT_TIMESTAMP(): el servidor MySQL
---     corre en SYSTEM/CEST (UTC+2), asi que el reloj de la maquina no debe
---     decidir los timestamps. Las columnas no usan DEFAULT with a timestamp
---     precisamente para que el valor lo fije el procedimiento.
+-- Politica de zona horaria:
+--   - Las conexiones de la aplicacion fijan SESSION time_zone = '-05:00'.
+--   - Los procedimientos usan NOW() y los DEFAULT CURRENT_TIMESTAMP quedan
+--     asi anclados a America/Lima, sin depender de la zona del servidor.
 --   - fecha_cita / hora_cita son literales (DATE/TIME sin zona): guardan
 --     exactamente lo que el paciente eligio, interpretado como hora de Lima
 --     (America/Lima, UTC-5). La capa de presentacion convierte a Lima.
