@@ -1743,23 +1743,16 @@ def create_app():
         cuerpo = request.get_json(silent=True)
         cuerpo = cuerpo if isinstance(cuerpo, dict) else {}
         dni = str(cuerpo.get("dni") or "").strip()
-        nombre_ingresado = str(cuerpo.get("nombre") or "").strip()
-        apellido_ingresado = str(cuerpo.get("apellido") or "").strip()
         session.pop("cita_identidad_verificada", None)
+        session.pop("cita_identidad_pendiente", None)
         if not _dni_ok(dni):
             return jsonify({"success": False, "error": "DNI inválido"}), 400
-        if not nombre_ingresado or not apellido_ingresado:
-            return jsonify({"success": False, "error": "Ingresa tus nombres y apellidos."}), 400
 
-        # Rate limit simple: máximo 5 consultas DNI por sesión para evitar force brute
         historial = session.get("_dn_consultas", [])
         ahora = time.time()
-        historial = [t for t in historial if ahora - t < 60]  # último minuto
+        historial = [t for t in historial if ahora - t < 60]
         if len(historial) >= 5:
-            return jsonify({
-                "success": False,
-                "error": "Demasiadas consultas DNI. Intenta más tarde.",
-            }), 429
+            return jsonify({"success": False, "error": "Demasiadas consultas DNI. Intenta más tarde."}), 429
 
         ip = ip_del_request(request, TRUST_PROXY)
         consultas_por_ip = app.extensions["consultas_dni_por_ip"]
@@ -1772,30 +1765,26 @@ def create_app():
                     del consultas_por_ip[ip_registrada]
             historial_ip = consultas_por_ip.get(ip, [])
             if len(historial_ip) >= 15:
-                return jsonify({
-                    "success": False,
-                    "error": "Demasiadas consultas DNI. Intenta más tarde.",
-                }), 429
+                return jsonify({"success": False, "error": "Demasiadas consultas DNI. Intenta más tarde."}), 429
             consultas_por_ip[ip] = historial_ip + [ahora]
         session["_dn_consultas"] = historial + [ahora]
 
-        # La identidad se contrasta siempre con APIPerú, no con datos locales
-        # que podrían estar desactualizados. Solo se guarda una verificación
-        # en sesión cuando DNI, nombres y apellidos coinciden.
         try:
             data, status = pacientes_client.post("/api/pacientes/buscar_dni", {"dni": dni})
             if status != 200 or not isinstance(data, dict) or not data.get("success"):
                 return jsonify({
                     "success": False,
-                    "error": (data or {}).get("error") or "No se pudo validar el DNI en APIPerú."
+                    "error": (data or {}).get("error") or "No se pudo consultar APIPerú."
                 }), status if status in (400, 404, 429) else 502
 
             datos_api = data.get("data") or {}
-            nombre_api = str(datos_api.get("nombres") or datos_api.get("nombre") or "").strip()
-            apellidos_api = " ".join(filter(None, [
+            nombres = str(datos_api.get("nombres") or datos_api.get("nombre") or "").strip()
+            apellidos = " ".join(filter(None, [
                 str(datos_api.get("apellido_paterno") or datos_api.get("apellidoPaterno") or "").strip(),
                 str(datos_api.get("apellido_materno") or datos_api.get("apellidoMaterno") or "").strip()
             ])).strip()
+            if not nombres or not apellidos:
+                return jsonify({"success": False, "error": "APIPerú no devolvió nombres y apellidos completos."}), 502
 
             def normalizar_identidad(valor):
                 import unicodedata
@@ -1803,30 +1792,33 @@ def create_app():
                 texto = "".join(ch for ch in texto if unicodedata.category(ch) != "Mn")
                 return " ".join(texto.casefold().split())
 
-            coincide = (
-                normalizar_identidad(nombre_ingresado) == normalizar_identidad(nombre_api)
-                and normalizar_identidad(apellido_ingresado) == normalizar_identidad(apellidos_api)
-            )
-            if not nombre_api or not apellidos_api or not coincide:
-                return jsonify({
-                    "success": False,
-                    "verificado": False,
-                    "error": "Los nombres o apellidos no coinciden con los datos de APIPerú. Corrígelos e inténtalo nuevamente."
-                }), 422
-
-            session["cita_identidad_verificada"] = {
+            session["cita_identidad_pendiente"] = {
                 "dni": dni,
-                "nombre": normalizar_identidad(nombre_ingresado),
-                "apellido": normalizar_identidad(apellido_ingresado),
+                "nombre": normalizar_identidad(nombres),
+                "apellido": normalizar_identidad(apellidos),
             }
-            return jsonify({"success": True, "verificado": True}), 200
+            return jsonify({"success": True, "nombres": nombres, "apellidos": apellidos}), 200
         except Exception as exc:
             app.logger.error("[verificar_dni] Error consultando APIPerú: %s", exc)
+            return jsonify({"success": False, "error": "No se pudo consultar APIPerú. Inténtalo nuevamente."}), 502
+
+    @app.route("/api/confirmar_identidad", methods=["POST"])
+    def confirmar_identidad():
+        cuerpo = request.get_json(silent=True)
+        cuerpo = cuerpo if isinstance(cuerpo, dict) else {}
+        dni = str(cuerpo.get("dni") or "").strip()
+        pendiente = session.get("cita_identidad_pendiente") or {}
+        if not _dni_ok(dni) or pendiente.get("dni") != dni:
             session.pop("cita_identidad_verificada", None)
-            return jsonify({
-                "success": False,
-                "error": "No se pudo consultar APIPerú. Inténtalo nuevamente."
-            }), 502
+            return jsonify({"success": False, "error": "Primero consulta tu DNI y revisa los datos."}), 400
+
+        session["cita_identidad_verificada"] = {
+            "dni": dni,
+            "nombre": pendiente["nombre"],
+            "apellido": pendiente["apellido"],
+        }
+        session.pop("cita_identidad_pendiente", None)
+        return jsonify({"success": True, "verificado": True}), 200
 
     @app.route("/api/estadisticas")
     def api_estadisticas():
