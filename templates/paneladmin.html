@@ -290,7 +290,7 @@
                                 <span class="badge badge-inactivo">Inactivo</span>
                                 {% endif %}
                             </td>
-                            <td>{{ u.ultimo_acceso or 'Nunca' }}</td>
+                            <td>{{ u.ultimo_acceso|fechahora if u.ultimo_acceso else 'Nunca' }}</td>
                         </tr>
                         {% endfor %}
                     {% else %}
