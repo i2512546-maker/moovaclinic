@@ -42,7 +42,7 @@ DROP PROCEDURE IF EXISTS `sp_marcar_recordatorio_enviado`$$
 CREATE PROCEDURE `sp_marcar_recordatorio_enviado`(IN p_cita_id INT)
 BEGIN
     UPDATE historial_citas
-    SET recordatorio_enviado = 1, actualizado_en = UTC_TIMESTAMP()
+    SET recordatorio_enviado = 1, actualizado_en = NOW()
     WHERE id = p_cita_id AND COALESCE(recordatorio_enviado, 0) = 0;
     SELECT ROW_COUNT() AS marcadas;
 END$$
@@ -56,7 +56,7 @@ DROP PROCEDURE IF EXISTS `sp_desmarcar_recordatorio`$$
 CREATE PROCEDURE `sp_desmarcar_recordatorio`(IN p_cita_id INT)
 BEGIN
     UPDATE historial_citas
-    SET recordatorio_enviado = 0, actualizado_en = UTC_TIMESTAMP()
+    SET recordatorio_enviado = 0, actualizado_en = NOW()
     WHERE id = p_cita_id;
     SELECT ROW_COUNT() AS desmarcadas;
 END$$
