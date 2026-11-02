@@ -5,6 +5,7 @@ from flask import jsonify, request
 from services.auth_service import auth_bp
 from services.auth_service.app import bcrypt
 from shared.audit import log_accion
+from shared.fechas import fmt_fecha
 from shared.proc import call_proc, call_proc_execute, call_proc_one
 
 # Movil peruano: 9 digitos que empiezan por 9. El SMS agrega el prefijo
@@ -42,6 +43,13 @@ def login():
 @auth_bp.route("/api/auth/usuarios", methods=["GET"])
 def listar_usuarios():
     usuarios = call_proc("sp_listar_usuarios")
+    # El datetime llega desde MySQL como hora local (sesion -05:00).
+    # Serializarlo aqui evita que Flask lo convierta a una cadena GMT.
+    for usuario in usuarios:
+        if usuario.get("ultimo_acceso"):
+            usuario["ultimo_acceso"] = fmt_fecha(
+                usuario["ultimo_acceso"], con_hora=True
+            )
     return jsonify({"success": True, "usuarios": usuarios})
 
 
