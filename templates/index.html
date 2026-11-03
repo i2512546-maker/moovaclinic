@@ -40,60 +40,33 @@
     </style>
     <!-- Contentsquare - UX & Usability Testing -->
     <script src="https://t.contentsquare.com/uxa/6897c7b83eb5.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body>
 
     <!-- NAVBAR CENTRADO EN BURBUJA FLOTANTE ESTRECHA Y ANCHA VERTICALMENTE -->
-            <nav class="navbar navbar-expand-lg fixed-top py-3">
-        <div class="container justify-content-center">
-            <div class="navbar-bubble bg-white shadow-lg rounded-pill px-5 py-3 d-flex align-items-center justify-content-between w-100" style="max-width: 650px; border: 1.5px solid #38bdf8 !important; backdrop-filter: blur(16px);">
-                <a class="navbar-brand d-flex align-items-center gap-2 mb-0" href="{{ url_for('index') }}">
-                    <img src="{{ url_for('static', filename='img/logo-moova-recortado.png') }}" alt="MOOVA CLINIC" width="120" height="60" style="height:36px; width:auto;">
-                </a>
-                <button class="navbar-toggler border-0 shadow-none py-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMoova" aria-controls="navbarMoova" aria-expanded="false" aria-label="Alternar navegacion">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="collapse navbar-collapse justify-content-center flex-grow-0" id="navbarMoova">
-                    <ul class="navbar-nav mb-0 align-items-lg-center gap-lg-4">
-                        <li class="nav-item"><a class="nav-link px-2 fw-semibold" href="#">Inicio</a></li>
-                        <li class="nav-item"><a class="nav-link px-2 fw-semibold" href="#especialidades">Especialidades</a></li>
-                        <li class="nav-item"><a class="nav-link px-2 fw-semibold" href="#galeria">Galeria</a></li>
-                        <li class="nav-item"><a class="nav-link px-2 fw-semibold" href="#nosotros">Nosotros</a></li>
-                        <li class="nav-item"><a class="nav-link px-2 fw-semibold" href="#contacto">Contacto</a></li>
-                    </ul>
-                </div>
-                <div class="d-none d-lg-block">
-                    <div class="dropdown dropdown-center">
-                        <button class="btn btn-moova rounded-pill dropdown-toggle px-3 py-2" style="font-size:0.9rem;" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="bi bi-calendar-check me-1"></i> Citas
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end shadow border mt-2 rounded-3 p-2">
-                            <li>
-                                <a href="{{ url_for('citas_page') }}" class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2">
-                                    <i class="bi bi-calendar-plus text-primary"></i> <span>Agendar cita</span>
-                                </a>
-                            </li>
-                            <li>
-                                <a href="{{ url_for('modificar_cita_page') }}" class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2">
-                                    <i class="bi bi-pencil-square text-primary"></i> <span>Modificar cita</span>
-                                </a>
-                            </li>
-                            <li>
-                                <a href="{{ url_for('cancelar_cita_page') }}" class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2">
-                                    <i class="bi bi-x-circle text-danger"></i> <span>Cancelar cita</span>
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-
+                <nav class="navbar navbar-expand-lg fixed-top moova-nav">
+        <div class="container d-flex align-items-center justify-content-between py-2 px-4">
+            <a class="navbar-brand d-flex align-items-center gap-2 mb-0" href="{{ url_for('index') }}">
+                <img src="{{ url_for('static', filename='img/logo-moova-recortado.png') }}" alt="MOOVA CLINIC" width="120" height="60" style="height:38px; width:auto;">
+            </a>
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMoova" aria-controls="navbarMoova" aria-expanded="false" aria-label="Alternar navegacion">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse justify-content-end" id="navbarMoova">
+                <ul class="navbar-nav align-items-lg-center gap-lg-3">
+                    <li class="nav-item"><a class="nav-link fw-semibold" href="#inicio">Inicio</a></li>
+                    {% if promo_activa %}
+                    <li class="nav-item"><a class="nav-link fw-semibold" href="#promos">Promos y consejos</a></li>
+                    {% endif %}
+                    <li class="nav-item"><a class="nav-link fw-semibold" href="#contacto">Contacto</a></li>
+                    <li class="nav-item ms-lg-2"><a href="{{ url_for('citas_page') }}" class="btn btn-moova rounded-pill px-3 py-2"><i class="bi bi-calendar-plus me-1"></i> Agendar cita</a></li>
+                </ul>
             </div>
         </div>
     </nav>
 
     <!-- HERO -->
-    <section class="hero d-flex align-items-center justify-content-center text-center position-relative overflow-hidden min-h-screen px-4 sm:px-6 lg:px-8" style="padding:110px 24px 70px; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 45%, #bae6fd 100%);">
+    <section id="inicio" class="hero d-flex align-items-center justify-content-center text-center position-relative overflow-hidden" style="min-height:100vh; padding:120px 24px 70px; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 45%, #bae6fd 100%);">
         <div class="hero-content mx-auto" style="max-width:42rem; position:relative; z-index:1;">
             <h1 class="display-3 fw-semibold mb-4" style="font-family:'Fredoka',sans-serif; color:#0f172a;">Centro de Rehabilitación</h1>
             <p class="fs-5 mx-auto mb-5" style="max-width:580px; color:#334155;">Recupera tu calidad de vida con nuestros programas especializados de rehabilitación física, neurológica y deportiva</p>
@@ -490,11 +463,9 @@
                 <div class="col-6 col-lg-2">
                     <h3 class="text-white fw-semibold mb-3" style="font-family:'Fredoka',sans-serif; font-size:1rem;">Enlaces Rápidos</h3>
                     <ul class="list-unstyled">
-                        <li class="mb-2"><a href="#" class="text-decoration-none" style="color:#8fb3cc; font-size:0.88rem;">Sobre Nosotros</a></li>
-                        <li class="mb-2"><a href="#" class="text-decoration-none" style="color:#8fb3cc; font-size:0.88rem;">Nuestro Equipo</a></li>
-                        <li class="mb-2"><a href="#" class="text-decoration-none" style="color:#8fb3cc; font-size:0.88rem;">Instalaciones</a></li>
-                        <li class="mb-2"><a href="#" class="text-decoration-none" style="color:#8fb3cc; font-size:0.88rem;">Blog de Salud</a></li>
-                        <li class="mb-2"><a href="#" class="text-decoration-none" style="color:#8fb3cc; font-size:0.88rem;">Trabaja con Nosotros</a></li>
+                        <li class="mb-2"><a href="{{ url_for('citas_page') }}" class="text-decoration-none" style="color:#8fb3cc; font-size:0.88rem;">Agendar cita</a></li>
+                        <li class="mb-2"><a href="{{ url_for('modificar_cita_page') }}" class="text-decoration-none" style="color:#8fb3cc; font-size:0.88rem;">Modificar cita</a></li>
+                        <li class="mb-2"><a href="{{ url_for('cancelar_cita_page') }}" class="text-decoration-none" style="color:#8fb3cc; font-size:0.88rem;">Cancelar cita</a></li>
                     </ul>
                 </div>
                 <div class="col-lg-4">
