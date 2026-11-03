@@ -174,32 +174,41 @@ class RiesgoPanelTest(unittest.TestCase):
         r = self.client.get(PANEL)
         self.assertEqual(r.status_code, 302)
 
-    def test_renderiza_el_listado(self):
+    def test_renderiza_canceladas_y_ausencias_de_la_semana(self):
         self._admin()
-        resumen = {
-            "success": True,
-            "fecha": "2026-10-18",
-            "dias_umbral": 30,
-            "total": 1,
-            "alto": 1,
-            "medio": 0,
-            "pacientes": [{
-                "nombre": "Ana", "apellido": "Torres", "dni": "47896066",
-                "telefono": "999888777", "ultima_cita": "2026-08-30",
-                "dias_desde_ultima": 48, "citas_programadas": 0,
-                "completadas": 5, "canceladas": 1, "faltas": 2,
-                "nivel": "alto", "motivo": "Sin cita programada hace 48 dias",
-            }],
-        }
-        with patch(
-            "gateway.app.citas_client.get", return_value=(resumen, 200)
-        ):
-            r = self.client.get(PANEL)
+        def responder(ruta):
+            if "estado=cancelada" in ruta:
+                return ({"citas": [{
+                    "fecha_cita": "2026-11-03", "hora_cita": "10:00",
+                    "nombre": "Ana", "apellido": "Torres", "telefono": "999888777",
+                    "terapeuta": "Dra. Vega", "estado": "cancelada", "dni": "47896066",
+                }]}, 200)
+            return ({"citas": [{
+                "fecha_cita": "2026-11-04", "hora_cita": "11:00",
+                "nombre": "Luis", "apellido": "Paz", "telefono": "988777666",
+                "terapeuta": "Dr. Rojas", "estado": "no_asistio", "dni": "12345678",
+            }]}, 200)
+        with patch("gateway.app.citas_client.get", side_effect=responder):
+            r = self.client.get(PANEL + "?mes=2026-11&semana=2")
         self.assertEqual(r.status_code, 200)
         cuerpo = r.get_data(as_text=True)
         self.assertIn("Ana", cuerpo)
-        self.assertIn("999888777", cuerpo)
-        self.assertIn("48", cuerpo)
+        self.assertIn("Luis", cuerpo)
+        self.assertIn("Cancelada", cuerpo)
+        self.assertIn("No asistió", cuerpo)
+        self.assertIn("Semana del mes", cuerpo)
+
+    def test_consulta_el_rango_de_la_semana_seleccionada(self):
+        self._admin()
+        with patch(
+            "gateway.app.citas_client.get",
+            return_value=({"citas": []}, 200),
+        ) as get:
+            r = self.client.get(PANEL + "?mes=2026-11&semana=2")
+        self.assertEqual(r.status_code, 200)
+        rutas = [llamada.args[0] for llamada in get.call_args_list]
+        self.assertTrue(any("estado=cancelada&fecha=2026-11-02" in ruta for ruta in rutas))
+        self.assertTrue(any("estado=no_asistio&fecha=2026-11-02" in ruta for ruta in rutas))
 
     def test_muestra_error_si_el_servicio_no_responde(self):
         self._admin()
@@ -209,28 +218,6 @@ class RiesgoPanelTest(unittest.TestCase):
             r = self.client.get(PANEL)
         self.assertEqual(r.status_code, 200)
         self.assertIn("Servicio de citas no disponible", r.get_data(as_text=True))
-
-    def test_muestra_el_error_del_servicio(self):
-        self._admin()
-        with patch(
-            "gateway.app.citas_client.get",
-            return_value=({"error": "Formato de fecha invalido"}, 400),
-        ):
-            r = self.client.get(PANEL + "?fecha=ayer")
-        self.assertIn("Formato de fecha invalido", r.get_data(as_text=True))
-
-    def test_reenvia_los_filtros_al_servicio(self):
-        self._admin()
-        resumen = {"success": True, "fecha": "2026-11-02", "dias_umbral": 14,
-                   "total": 0, "alto": 0, "medio": 0, "pacientes": []}
-        with patch(
-            "gateway.app.citas_client.get", return_value=(resumen, 200)
-        ) as get:
-            self.client.get(PANEL + "?fecha=2026-11-02&dias_umbral=14")
-        rutas = [c[0][0] for c in get.call_args_list]
-        ruta = next((r for r in rutas if "riesgo" in r), rutas[0])
-        self.assertIn("fecha=2026-11-02", ruta)
-        self.assertIn("dias_umbral=14", ruta)
 
 
 if __name__ == "__main__":
