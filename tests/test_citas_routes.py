@@ -67,7 +67,7 @@ class ListarCitasTest(unittest.TestCase):
         def fake_call_proc(nombre, params=(), **kwargs):
             if nombre == "sp_listar_citas_dia":
                 return [dict(cita)]
-            if nombre == "sp_resumen_pacientes":
+            if nombre == "sp_resumen_pacientes_agenda":
                 return [{"paciente_id": 10, "total": 3}]
             return []
 
@@ -89,7 +89,10 @@ class ListarCitasTest(unittest.TestCase):
         self.assertEqual(body["citas"][0]["total_visitas"], 3)
         mapa_p.assert_called_once()
         mapa_t.assert_called_once()
-        resumen_calls = [call for call in proc.call_args_list if call.args[0] == "sp_resumen_pacientes"]
+        resumen_calls = [
+            call for call in proc.call_args_list
+            if call.args[0] == "sp_resumen_pacientes_agenda"
+        ]
         self.assertEqual(len(resumen_calls), 1)
 
     def test_agenda_diaria_exige_fecha_valida(self):
