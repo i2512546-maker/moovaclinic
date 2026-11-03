@@ -68,7 +68,15 @@
                     <li class="nav-item"><a class="nav-link fw-semibold" href="#galeria">Galeria</a></li>
                     <li class="nav-item"><a class="nav-link fw-semibold" href="#nosotros">Nosotros</a></li>
                     <li class="nav-item"><a class="nav-link fw-semibold" href="#contacto">Contacto</a></li>
-                    <li class="nav-item ms-lg-2"><a href="{{ url_for('citas_page') }}" class="btn btn-moova rounded-pill px-3 py-2"><i class="bi bi-calendar-plus me-1"></i> Agendar cita</a></li>
+                    <li class="nav-item dropdown ms-lg-2">
+                        <a href="#" class="btn btn-moova rounded-pill px-3 py-2 dropdown-toggle" id="menuCita" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-calendar-check me-1"></i> Cita</a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="menuCita">
+                            <li><a class="dropdown-item" href="{{ url_for('citas_page') }}"><i class="bi bi-calendar-plus me-2"></i>Agendar cita</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('tratamiento_page') }}"><i class="bi bi-calendar-check me-2"></i>Continuar tratamiento</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('modificar_cita_page') }}"><i class="bi bi-pencil-square me-2"></i>Modificar cita</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('cancelar_cita_page') }}"><i class="bi bi-trash me-2"></i>Eliminar cita</a></li>
+                        </ul>
+                    </li>
                 </ul>
             </div>
         </div>
