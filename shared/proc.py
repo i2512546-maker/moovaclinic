@@ -13,11 +13,15 @@
 #    compatible con mysql-connector-python 8.0.33.
 # ============================================================
 
+import logging
+import time
+
 from shared.db import db_connection
 
 
 def _run(proc_name, params, dictionary, fetch, commit, drain=False, db_name=None):
     params = list(params or ())
+    started = time.perf_counter()
     with db_connection(db_name=db_name) as conn:
         cursor = conn.cursor(dictionary=dictionary)
         cursor.callproc(proc_name, params)
@@ -42,6 +46,11 @@ def _run(proc_name, params, dictionary, fetch, commit, drain=False, db_name=None
                 pass
         if commit:
             conn.commit()
+    elapsed = time.perf_counter() - started
+    if elapsed >= 1.0:
+        logging.getLogger("moova.db").warning(
+            "Procedimiento %s tardó %.3f s", proc_name, elapsed
+        )
     return rows
 
 
