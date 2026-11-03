@@ -377,6 +377,21 @@ BEGIN
     ORDER BY h.hora_cita ASC, h.id ASC;
 END$$
 
+DROP PROCEDURE IF EXISTS `sp_resumen_pacientes_agenda`$
+CREATE PROCEDURE `sp_resumen_pacientes_agenda`(IN p_fecha DATE)
+BEGIN
+    SELECT h.paciente_id, COUNT(*) AS total, MAX(h.fecha_cita) AS ultima
+    FROM historial_citas h
+    WHERE h.estado <> 'pendiente_pago'
+      AND h.paciente_id IN (
+          SELECT DISTINCT dia.paciente_id
+          FROM historial_citas dia
+          WHERE dia.fecha_cita = p_fecha
+            AND dia.estado IN ('programada', 'confirmada', 'cancelada', 'completada', 'no_asistio')
+      )
+    GROUP BY h.paciente_id;
+END$
+
 -- Conteos de seguimiento en una sola consulta indexada.
 DROP PROCEDURE IF EXISTS `sp_resumen_citas_estados`$$
 CREATE PROCEDURE `sp_resumen_citas_estados`(IN p_desde DATE)
