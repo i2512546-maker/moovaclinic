@@ -408,6 +408,8 @@
         var calendario = null;
         var disponibilidadAbortController = null;
         var horasOcupadasPorFecha = {};
+        var horariosBase = Array.from(document.querySelectorAll('.hora-opcion[data-hora]'))
+            .map(function (boton) { return boton.dataset.hora; });
         var formCita = document.getElementById('formCita');
 
         function irPaso(paso) {
@@ -486,9 +488,7 @@
             selector.value = '';
             document.getElementById('hora-elegida-panel').style.display = 'none';
             document.getElementById('hora-elegida-texto').textContent = '';
-            var libres = Array.from(document.querySelectorAll('.hora-opcion[data-hora]'))
-                .map(function (boton) { return boton.dataset.hora; })
-                .filter(function (hora) { return !ocupadas.includes(hora); });
+            var libres = horariosBase.filter(function (hora) { return !ocupadas.includes(hora); });
             dibujarHorarios(libres);
             document.getElementById('resumen-hora').textContent =
                 libres.length ? 'Selecciona una hora' : 'No quedan horas disponibles para este día';
@@ -529,10 +529,7 @@
             var fecha = document.getElementById('fecha_cita').value;
             if (!fecha) return;
             var ocupadas = horasOcupadasPorFecha[fecha] || [];
-            var todas = Array.from(document.querySelectorAll('.hora-opcion[data-hora]'))
-                .map(function (boton) { return boton.dataset.hora; });
-            var seleccionada = document.getElementById('hora_cita').value;
-            if (seleccionada) todas.push(seleccionada);
+            var todas = horariosBase.slice();
             document.getElementById('hora_cita').value = '';
             document.getElementById('hora-elegida-panel').style.display = 'none';
             document.getElementById('hora-elegida-texto').textContent = '';
