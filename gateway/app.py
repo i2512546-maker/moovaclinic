@@ -25,6 +25,7 @@ from flask import (
     session,
     url_for,
 )
+from flask_compress import Compress
 from flask_wtf.csrf import CSRFError, CSRFProtect, generate_csrf
 
 from gateway.ficha_pdf import build_ficha_clinica_pdf
@@ -281,10 +282,12 @@ def create_app():
     app.secret_key = secret_key
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 31536000
     # Solo si se usa HTTPS en producción; en localhost http queda desactivado automaticamente
     if os.getenv("FLASK_ENV") == "production":
         app.config["SESSION_COOKIE_SECURE"] = True
     csrf.init_app(app)
+    Compress(app)
 
     from services.audit_service import audit_bp
     from services.auth_service import auth_bp

@@ -16,3 +16,4 @@ APScheduler==3.10.4
 # Desarrollo / CI
 pytest==9.1.1
 ruff==0.16.9
+flask-compress==1.15
