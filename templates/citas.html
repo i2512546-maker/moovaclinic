@@ -996,7 +996,27 @@
             });
         }
 
-        formCita.addEventListener('submit', function (event) {
+        async function verificarDisponibilidadAntesDeConfirmar() {
+            var medicoId = document.getElementById('medico_id').value;
+            var fecha = document.getElementById('fecha_cita').value;
+            var hora = document.getElementById('hora_cita').value;
+            var parametros = new URLSearchParams({ desde: fecha, hasta: fecha });
+            var response = await fetch(
+                '/api/disponibilidad/' + encodeURIComponent(medicoId) + '?' + parametros.toString(),
+                { credentials: 'same-origin' }
+            );
+            if (!response.ok) {
+                throw new Error('No se pudo comprobar el horario. Inténtalo nuevamente.');
+            }
+            var data = await response.json();
+            if (!data || !Array.isArray(data.fechas) || !data.horas_ocupadas) {
+                throw new Error('La respuesta de disponibilidad no es válida.');
+            }
+            horasOcupadasPorFecha[fecha] = data.horas_ocupadas[fecha] || [];
+            return !horaEstaOcupada(fecha, hora);
+        }
+
+        formCita.addEventListener('submit', async function (event) {
             event.preventDefault();
             if (pasoActual !== 6) {
                 mostrarPopup('Debes llegar al paso 6 para confirmar tu reserva.', 'error');
@@ -1019,7 +1039,29 @@
                 formCita.reportValidity();
                 return;
             }
-            enviarFormAjax(formCita, document.getElementById('btn-submit'));
+            var botonConfirmar = document.getElementById('btn-submit');
+            var htmlOriginal = botonConfirmar.innerHTML;
+            botonConfirmar.disabled = true;
+            botonConfirmar.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Verificando horario...';
+            try {
+                var disponible = await verificarDisponibilidadAntesDeConfirmar();
+                if (!disponible) {
+                    actualizarHorasDisponibles(document.getElementById('fecha_cita').value);
+                    irPaso(3);
+                    mostrarPopup('Ese horario ya está ocupado o ya pasó. Elige uno de los horarios habilitados.', 'error');
+                    botonConfirmar.disabled = false;
+                    botonConfirmar.innerHTML = htmlOriginal;
+                    return;
+                }
+            } catch (error) {
+                botonConfirmar.disabled = false;
+                botonConfirmar.innerHTML = htmlOriginal;
+                mostrarPopup(error.message || 'No se pudo verificar la disponibilidad. No se registró ningún dato.', 'error');
+                return;
+            }
+            botonConfirmar.disabled = false;
+            botonConfirmar.innerHTML = htmlOriginal;
+            enviarFormAjax(formCita, botonConfirmar);
         });
 
         var alertaTop = document.getElementById('alerta-top');
