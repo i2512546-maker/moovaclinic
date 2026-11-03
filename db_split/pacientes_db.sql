@@ -215,6 +215,7 @@ ALTER TABLE `consentimientos`
 --
 ALTER TABLE `evaluaciones_iniciales`
   ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_evaluacion_paciente` (`paciente_id`),
   ADD KEY `idx_ei_paciente` (`paciente_id`),
   ADD KEY `idx_ei_terapeuta` (`terapeuta_id`);
 
@@ -390,7 +391,16 @@ BEGIN
     SELECT * FROM servicios WHERE activo = 1 ORDER BY nombre;
 END$$
 
-DROP PROCEDURE IF EXISTS `sp_listar_evaluaciones`$$
+DROP PROCEDURE IF EXISTS `sp_existe_evaluacion_paciente`$
+CREATE PROCEDURE `sp_existe_evaluacion_paciente`(IN p_paciente_id INT)
+BEGIN
+    SELECT 1 AS existe
+    FROM evaluaciones_iniciales
+    WHERE paciente_id = p_paciente_id
+    LIMIT 1;
+END$
+
+DROP PROCEDURE IF EXISTS `sp_listar_evaluaciones`$
 CREATE PROCEDURE `sp_listar_evaluaciones`(IN p_paciente_id INT)
 BEGIN
     -- FASE 2: local. El nombre del terapeuta (usuarios vive en
