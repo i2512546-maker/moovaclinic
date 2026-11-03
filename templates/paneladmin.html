@@ -27,7 +27,7 @@
                 <i class="bi bi-calendar3"></i> Ver Horarios
             </a>
             <a href="{{ url_for('pacientes_page') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
-                <i class="bi bi-people"></i> Pacientes
+                <i class="bi bi-people"></i> Historial de pacientes
             </a>
             {% if current_user.es_admin %}
             <a href="{{ url_for('panel_admin_kpis') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
