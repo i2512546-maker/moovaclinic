@@ -90,7 +90,7 @@ def _mapa_terapeutas(timeout=None):
     except Exception:
         return {}
 
-    
+
 
 def _mapas_enriquecimiento():
     """Descarga en paralelo los dos catálogos usados para enriquecer citas."""
@@ -310,8 +310,7 @@ def agenda_dia():
         current_app.logger.warning("Falta sp_resumen_pacientes_agenda; usando resumen general")
         filas_resumen = call_proc("sp_resumen_pacientes") or []
     resumen = {fila["paciente_id"]: fila["total"] for fila in filas_resumen}
-    pacientes = _mapa_pacientes()
-    terapeutas = _mapa_terapeutas()
+    pacientes, terapeutas = _mapas_enriquecimiento()
 
     resultado = []
     vistos = set()
@@ -1387,8 +1386,7 @@ def enviar_recordatorios(fecha=None):
         fecha = hoy_lima() + timedelta(days=1)
 
     pendientes = call_proc("sp_citas_pendientes_recordatorio", (fecha,)) or []
-    pacientes = _mapa_pacientes()
-    terapeutas = _mapa_terapeutas()
+    pacientes, terapeutas = _mapas_enriquecimiento()
 
     total = len(pendientes)
     enviados = fallidos = sin_telefono = 0
