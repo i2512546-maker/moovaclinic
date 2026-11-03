@@ -53,6 +53,69 @@ class ListarCitasTest(unittest.TestCase):
         self.assertEqual(response.get_json()["citas"][0]["hora_cita"], "09:30:00")
 
 
+    def test_seguimiento_citas_filtra_semana_completa_y_enriquece(self):
+        app = create_app()
+        client = internal_test_client(app)
+        cabeceras = {"X-Api-Key": API_KEY} if API_KEY else {}
+        filas = [
+            {
+                "id": 21, "historial_id": 21, "paciente_id": 10, "terapeuta_id": 20,
+                "fecha_cita": date(2026, 11, 3), "hora_cita": timedelta(hours=10),
+                "estado": "cancelada",
+            },
+            {
+                "id": 22, "historial_id": 22, "paciente_id": 11, "terapeuta_id": 20,
+                "fecha_cita": date(2026, 11, 8), "hora_cita": timedelta(hours=11),
+                "estado": "no_asistio",
+            },
+            {
+                "id": 23, "historial_id": 23, "paciente_id": 12, "terapeuta_id": 20,
+                "fecha_cita": date(2026, 11, 9), "hora_cita": timedelta(hours=12),
+                "estado": "cancelada",
+            },
+        ]
+
+        def fake_call_proc(nombre, params=(), **kwargs):
+            if nombre == "sp_listar_citas":
+                estado, _, desde, _ = params
+                return [dict(f) for f in filas if f["estado"] == estado and f["fecha_cita"] >= date.fromisoformat(str(desde))]
+            return []
+
+        with (
+            patch("services.citas_service.routes.call_proc", side_effect=fake_call_proc),
+            patch("services.citas_service.routes._mapa_pacientes", return_value={
+                10: {"id": 10, "nombre": "Ana", "apellido": "Luz", "telefono": "999111222"},
+                11: {"id": 11, "nombre": "Luis", "apellido": "Paz", "telefono": "999333444"},
+            }),
+            patch("services.citas_service.routes._mapa_terapeutas", return_value={
+                20: {"ID": 20, "Nombre": "Dra. Vega"},
+            }),
+        ):
+            response = client.get(
+                "/_internal/api/citas/seguimiento?desde=2026-11-02&hasta=2026-11-08",
+                headers=cabeceras,
+            )
+
+        self.assertEqual(response.status_code, 200)
+        body = response.get_json()
+        self.assertEqual(body["total"], 2)
+        self.assertEqual(body["canceladas"], 1)
+        self.assertEqual(body["no_asistidos"], 1)
+        self.assertEqual([c["fecha_cita"] for c in body["citas"]], ["2026-11-03", "2026-11-08"])
+        self.assertEqual(body["citas"][0]["nombre"], "Ana")
+        self.assertEqual(body["citas"][0]["terapeuta"], "Dra. Vega")
+
+    def test_seguimiento_citas_rechaza_rango_invalido(self):
+        app = create_app()
+        client = internal_test_client(app)
+        cabeceras = {"X-Api-Key": API_KEY} if API_KEY else {}
+        response = client.get(
+            "/_internal/api/citas/seguimiento?desde=2026-11-09&hasta=2026-11-02",
+            headers=cabeceras,
+        )
+        self.assertEqual(response.status_code, 400)
+
+
     def test_agenda_diaria_reutiliza_resumen_y_mapas_una_sola_vez(self):
         app = create_app()
         app.config.update(TESTING=False)
