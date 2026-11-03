@@ -62,13 +62,6 @@ EVALUACIONES = [{
     "objetivos_terapeuticos": "Recuperar movilidad",
 }]
 
-CONSENTIMIENTOS = [{
-    "tipo": "Kinesiologico",
-    "texto_version": "v1.0",
-    "aceptado_en": "Fri, 02 Jan 2026 10:05:00 GMT",
-    "ip_origen": "::1",
-}]
-
 
 class FichaClinicaTest(unittest.TestCase):
     def setUp(self):
@@ -86,8 +79,6 @@ class FichaClinicaTest(unittest.TestCase):
                 return {"paquetes": PAQUETES}, 200
             if url.endswith("/evaluaciones"):
                 return {"evaluaciones": EVALUACIONES}, 200
-            if url.endswith("/consentimientos"):
-                return {"consentimientos": CONSENTIMIENTOS}, 200
             return {"paciente": PACIENTE, "historial": HISTORIAL}, 200
 
         with patch("gateway.app.pacientes_client.get", side_effect=fake_get), \
@@ -105,7 +96,6 @@ class FichaClinicaTest(unittest.TestCase):
         # dd/mm/YYYY, no el texto HTTP crudo de Flask.
         self.assertIn("04/05/1990", cuerpo)
         self.assertIn("01/08/2026", cuerpo)
-        self.assertIn("02/01/2026 10:05", cuerpo)
         self.assertNotIn("Sat, 01 Aug 2026", cuerpo)
 
     def test_pdf_se_genera(self):
@@ -117,7 +107,7 @@ class FichaClinicaTest(unittest.TestCase):
 
     def test_descarga_pdf_no_falla_con_log_accion_real(self):
         def fake_get(url, *args, **kwargs):
-            if url.endswith(("/paquetes", "/evaluaciones", "/consentimientos")):
+            if url.endswith(("/paquetes", "/evaluaciones")):
                 return {}, 200
             return {"paciente": PACIENTE, "historial": HISTORIAL}, 200
 
@@ -135,8 +125,6 @@ class FichaClinicaTest(unittest.TestCase):
                 return {"paquetes": []}, 200
             if url.endswith("/evaluaciones"):
                 return {"evaluaciones": []}, 200
-            if url.endswith("/consentimientos"):
-                return {"consentimientos": []}, 200
             return {"paciente": {"id": 1, "nombre": "Solo", "apellido": "Nombre",
                                  "dni": "11111111", "estado": "activo"},
                     "historial": []}, 200
