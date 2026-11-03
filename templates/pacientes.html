@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pacientes - MOOVA Clinic</title>
+    <title>Historial de pacientes - MOOVA Clinic</title>
     <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&family=Nunito:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
@@ -13,7 +13,7 @@
 <body>
     <div class="contenedor-estrecho py-4">
         <div class="panel-header d-flex align-items-center justify-content-between rounded mb-4">
-            <h1 class="h4 mb-0">Pacientes Registrados</h1>
+            <h1 class="h4 mb-0">Historial de pacientes</h1>
             <div class="d-flex align-items-center gap-2">
                 {% if es_admin %}
                 <a href="{{ url_for('panel_admin') }}" class="btn btn-outline-secondary btn-sm">Panel Admin</a>
@@ -21,6 +21,7 @@
                 <a href="{{ url_for('moovatrack_page') }}" class="btn btn-outline-secondary btn-sm">MoovaTrack</a>
                 {% endif %}
                 <a href="{{ url_for('interfaz') }}" class="btn btn-outline-secondary btn-sm">Horarios</a>
+                {% if es_admin %}<a href="{{ url_for('panel_admin_seguimiento') }}" class="btn btn-outline-secondary btn-sm">Canceladas y no asistidas</a>{% endif %}
                 <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-sm">Inicio</a>
                 <a href="{{ url_for('logout') }}" class="btn btn-danger-moova btn-sm">Cerrar sesion</a>
             </div>
