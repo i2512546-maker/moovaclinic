@@ -1513,30 +1513,6 @@ def create_app():
         if rl is not None:
             bloqueos = rl.bloqueos_activos()
 
-        # Tarjeta: canceladas y no asistidas (ultimos 30 dias)
-        desde = (hoy_lima() - timedelta(days=30)).strftime("%Y-%m-%d")
-        total_canceladas = 0
-        total_no_asistidos = 0
-        try:
-            resultados_estados = _llamadas_paralelas(
-                lambda: citas_client.get("/api/citas?estado=cancelada"),
-                lambda: citas_client.get("/api/citas?estado=no_asistio"),
-                max_workers=2,
-            )
-            for indice, (cdata, cstatus) in enumerate(resultados_estados):
-                if cstatus != 200:
-                    continue
-                cantidad = sum(
-                    1 for cita in (cdata or {}).get("citas", [])
-                    if str(cita.get("fecha_cita", ""))[:10] >= desde
-                )
-                if indice == 0:
-                    total_canceladas = cantidad
-                else:
-                    total_no_asistidos = cantidad
-        except Exception:
-            pass
-
         return render_template("paneladmin.html", medicos=medicos, proximas_citas=proximas_citas,
                                especialidades=especialidades, usuarios=usuarios,
                                bloqueos=bloqueos,
