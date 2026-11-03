@@ -1340,6 +1340,23 @@ paths:
             type: object
             properties:
               success: { type: boolean, example: true }
+  /api/citas/paciente/{paciente_id}/evaluacion-inicial:
+    get:
+      tags: [citas]
+      summary: Comprobar si un paciente ya reservo su evaluacion inicial
+      parameters:
+        - name: paciente_id
+          in: path
+          required: true
+          type: integer
+      responses:
+        "200":
+          description: Estado de la evaluacion inicial
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: true }
+              existe: { type: boolean, example: false }
 
   # ---------------- AUTH (usuarios) ----------------
   /api/auth/usuarios/{usuario_id}:
