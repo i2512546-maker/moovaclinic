@@ -472,7 +472,25 @@ BEGIN
     INSERT INTO pacientes (nombre, apellido, dni, telefono)
     VALUES (p_nombre, p_apellido, p_dni, p_telefono);
     SELECT LAST_INSERT_ID() AS id;
-END$$
+END$
+
+-- Solo elimina altas mínimas de una reserva fallida. Si existe una cita o
+-- evaluación asociada, conserva el expediente.
+DROP PROCEDURE IF EXISTS \`sp_eliminar_paciente_si_huerfano\`\$\$
+CREATE PROCEDURE \`sp_eliminar_paciente_si_huerfano\`(IN p_paciente_id INT)
+BEGIN
+    DELETE FROM pacientes
+    WHERE id = p_paciente_id
+      AND NOT EXISTS (
+          SELECT 1 FROM historial_citas h
+          WHERE h.paciente_id = p_paciente_id
+      )
+      AND NOT EXISTS (
+          SELECT 1 FROM evaluaciones_iniciales e
+          WHERE e.paciente_id = p_paciente_id
+      );
+    SELECT ROW_COUNT() AS eliminados;
+END$
 
 --
 -- sp_listar_terapeutas  |  LOCAL (FASE 2)
