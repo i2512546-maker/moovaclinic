@@ -175,7 +175,9 @@ class ListarCitasTest(unittest.TestCase):
         body = response.get_json()
         self.assertEqual(body["horas_ocupadas"], {"2026-11-10": ["10:00"]})
         self.assertEqual(body["fechas"], [])
-        estados_consultados = [llamada.args[1][0] for llamada in proc.call_args_list]
+        estados_consultados = [
+            llamada.args[1][0] for llamada in proc.call_args_list
+        ]
         self.assertEqual(set(estados_consultados), {"programada", "confirmada", "pendiente_pago"})
 
 
