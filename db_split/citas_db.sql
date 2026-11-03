@@ -233,7 +233,7 @@ BEGIN
         'programada', 1, NOW(), NOW()
     );
     SELECT LAST_INSERT_ID() AS id;
-END$
+END$$
 
 DROP PROCEDURE IF EXISTS `sp_crear_cita_evaluacion_pendiente_pago`$
 CREATE PROCEDURE `sp_crear_cita_evaluacion_pendiente_pago`(
@@ -250,7 +250,7 @@ BEGIN
         'pendiente_pago', 1, NOW(), NOW()
     );
     SELECT LAST_INSERT_ID() AS id;
-END$
+END$$
 
 DROP PROCEDURE IF EXISTS `sp_existe_evaluacion_inicial`$
 CREATE PROCEDURE `sp_existe_evaluacion_inicial`(IN p_paciente_id INT)
@@ -259,7 +259,7 @@ BEGIN
     FROM historial_citas
     WHERE paciente_id = p_paciente_id AND es_evaluacion_inicial = 1
     LIMIT 1;
-END$
+END$$
 
 DROP PROCEDURE IF EXISTS `sp_confirmar_cita_pago`$
 CREATE PROCEDURE `sp_confirmar_cita_pago`(IN p_cita_id INT)
@@ -362,11 +362,11 @@ BEGIN
       AND (p_fecha IS NULL OR h.fecha_cita >= p_fecha)
       AND (p_medico_id IS NULL OR h.terapeuta_id = p_medico_id)
     ORDER BY h.fecha_cita ASC;
-END$
+END$$
 
 -- Consulta optimizada para una fecha exacta: evita traer todas las citas
 -- futuras y filtrarlas luego en Python.
-DROP PROCEDURE IF EXISTS `sp_listar_citas_dia`$
+DROP PROCEDURE IF EXISTS `sp_listar_citas_dia`$$
 CREATE PROCEDURE `sp_listar_citas_dia`(IN p_fecha DATE)
 BEGIN
     SELECT h.id, h.id AS historial_id, h.fecha_cita, h.hora_cita, h.estado,
@@ -375,10 +375,10 @@ BEGIN
     WHERE h.fecha_cita = p_fecha
       AND h.estado IN ('programada', 'confirmada', 'cancelada', 'completada', 'no_asistio')
     ORDER BY h.hora_cita ASC, h.id ASC;
-END$
+END$$
 
 -- Conteos de seguimiento en una sola consulta indexada.
-DROP PROCEDURE IF EXISTS `sp_resumen_citas_estados`$
+DROP PROCEDURE IF EXISTS `sp_resumen_citas_estados`$$
 CREATE PROCEDURE `sp_resumen_citas_estados`(IN p_desde DATE)
 BEGIN
     SELECT h.estado, COUNT(*) AS total
@@ -386,7 +386,7 @@ BEGIN
     WHERE h.estado IN ('cancelada', 'no_asistio')
       AND h.fecha_cita >= p_desde
     GROUP BY h.estado;
-END$
+END$$
 
 --
 -- sp_detalle_cita  |  LOCAL (FASE 2)
@@ -452,7 +452,7 @@ BEGIN
         actualizado_en = NOW()
     WHERE id = p_cita_id AND estado IN ('pendiente_pago', 'programada');
     SELECT ROW_COUNT() AS actualizadas;
-END$
+END$$
 
 --
 -- sp_existe_cita_programada_paciente  |  LOCAL (FASE 2)
