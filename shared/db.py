@@ -1,7 +1,11 @@
+import hashlib
+import os
+import threading
 from contextlib import contextmanager
 from contextvars import ContextVar
 
 import mysql.connector
+from mysql.connector.pooling import MySQLConnectionPool
 from flask import request
 
 from shared.config import (
@@ -27,6 +31,43 @@ _DB_DOMINIOS = {
     "audit": AUDIT_DB_NAME,
 }
 _DB_ACTUAL = ContextVar("moova_db_actual", default=None)
+
+# Un pool por base de datos. Las conexiones se reutilizan entre peticiones
+# y close() las devuelve al pool en lugar de abrir/cerrar TCP en cada query.
+_POOLS = {}
+_POOLS_LOCK = threading.Lock()
+
+
+def _pool_para(db_name):
+    clave = (DB_HOST, DB_PORT, DB_USER, db_name)
+    pool = _POOLS.get(clave)
+    if pool is not None:
+        return pool
+
+    with _POOLS_LOCK:
+        pool = _POOLS.get(clave)
+        if pool is None:
+            try:
+                pool_size = int(os.getenv("DB_POOL_SIZE", "5"))
+            except (TypeError, ValueError):
+                pool_size = 5
+            pool_size = max(2, min(pool_size, 10))
+            nombre = "moova_" + hashlib.sha1(
+                "|".join(map(str, clave)).encode("utf-8")
+            ).hexdigest()[:12]
+            pool = MySQLConnectionPool(
+                pool_name=nombre,
+                pool_size=pool_size,
+                pool_reset_session=True,
+                host=DB_HOST,
+                user=DB_USER,
+                password=DB_PASSWORD,
+                database=db_name,
+                port=DB_PORT,
+                connection_timeout=8,
+            )
+            _POOLS[clave] = pool
+    return pool
 
 
 @contextmanager
@@ -68,31 +109,27 @@ def get_connection(db_name=None):
     if db_name is None:
         dominio_actual = _DB_ACTUAL.get()
         db_name = dominio_actual if dominio_actual is not None else DB_NAME
-    conn = mysql.connector.connect(
-        host=DB_HOST,
-        user=DB_USER,
-        password=DB_PASSWORD,
-        database=db_name,
-        port=DB_PORT,
-        connection_timeout=8,
-    )
-    # Toda conexion trabaja en hora de Peru, sin depender de la zona
-    # horaria configurada en Railway/MySQL. Afecta NOW(), CURRENT_TIMESTAMP
-    # y la lectura/escritura de columnas TIMESTAMP en esta sesion.
-    cursor = conn.cursor()
-    cursor.execute("SET SESSION time_zone = '-05:00'")
-    # Evita esperas eternas si una operacion queda esperando un lock de
-    # InnoDB (default 50s): cualquier lock wait falla en 5s.
+
+    conn = _pool_para(db_name).get_connection()
+    cursor = None
     try:
-        cursor.execute("SET SESSION innodb_lock_wait_timeout = 5")
-        cursor.close()
+        # La zona horaria y el límite de espera se aplican al sacar cada
+        # conexión, porque MySQL conserva variables SESSION al reutilizarla.
+        cursor = conn.cursor()
+        cursor.execute("SET SESSION time_zone = '-05:00'")
+        try:
+            cursor.execute("SET SESSION innodb_lock_wait_timeout = 5")
+        except Exception:
+            # Compatibilidad con servidores que no permitan cambiar esta
+            # variable por sesión. La conexión sigue siendo utilizable.
+            pass
+        return conn
     except Exception:
-        # Se deja en pass a proposito: si no se pudo aplicar (permisos,
-        # version), la conexion sigue sirviendo y queda con el timeout
-        # por defecto de InnoDB. Un aviso aqui se repetiria en cada
-        # conexion de cada request.
-        pass
-    return conn
+        conn.close()
+        raise
+    finally:
+        if cursor is not None:
+            cursor.close()
 
 
 @contextmanager
