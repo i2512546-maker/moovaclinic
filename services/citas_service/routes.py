@@ -278,13 +278,9 @@ def agenda_dia():
     except ValueError:
         return jsonify({"error": "Se requiere fecha con formato YYYY-MM-DD"}), 400
 
-    estados = ("programada", "confirmada", "cancelada", "completada", "no_asistio")
-    citas = []
-    for estado in estados:
-        filas = call_proc("sp_listar_citas", (estado, None, fecha, None)) or []
-        citas.extend(filas)
-
-    # No se consultan tablas auxiliares si el día no tiene citas.
+    # Este procedimiento filtra por igualdad de fecha en MySQL y usa
+    # el índice de fecha; no descarga las citas de todos los días futuros.
+    citas = call_proc("sp_listar_citas_dia", (fecha,)) or []
     if not citas:
         return jsonify({"success": True, "total": 0, "citas": []})
 
@@ -323,14 +319,12 @@ def resumen_panel_admin():
     except ValueError:
         return jsonify({"error": "Fechas requeridas con formato YYYY-MM-DD"}), 400
 
-    programadas = call_proc("sp_listar_citas", ("programada", None, fecha, None)) or []
-    canceladas = call_proc("sp_listar_citas", ("cancelada", None, desde, None)) or []
-    no_asistidos = call_proc("sp_listar_citas", ("no_asistio", None, desde, None)) or []
-
-    proximas = [
-        cita for cita in programadas
-        if str(cita.get("fecha_cita", ""))[:10] == fecha
-    ][:20]
+    citas_dia = call_proc("sp_listar_citas_dia", (fecha,)) or []
+    proximas = [cita for cita in citas_dia if cita.get("estado") == "programada"][:20]
+    conteos = {
+        fila["estado"]: int(fila["total"])
+        for fila in (call_proc("sp_resumen_citas_estados", (desde,)) or [])
+    }
     if proximas:
         pacientes = _mapa_pacientes()
         terapeutas = _mapa_terapeutas()
@@ -341,8 +335,8 @@ def resumen_panel_admin():
     return jsonify({
         "success": True,
         "proximas_citas": proximas,
-        "total_canceladas": sum(1 for c in canceladas if str(c.get("fecha_cita", ""))[:10] >= desde),
-        "total_no_asistidos": sum(1 for c in no_asistidos if str(c.get("fecha_cita", ""))[:10] >= desde),
+        "total_canceladas": conteos.get("cancelada", 0),
+        "total_no_asistidos": conteos.get("no_asistio", 0),
     })
 
 @citas_bp.route("/api/citas/paciente/<int:paciente_id>", methods=["GET"])
