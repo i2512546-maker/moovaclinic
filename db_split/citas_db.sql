@@ -377,7 +377,7 @@ BEGIN
     ORDER BY h.hora_cita ASC, h.id ASC;
 END$$
 
-DROP PROCEDURE IF EXISTS `sp_resumen_pacientes_agenda`$
+DROP PROCEDURE IF EXISTS `sp_resumen_pacientes_agenda`$$
 CREATE PROCEDURE `sp_resumen_pacientes_agenda`(IN p_fecha DATE)
 BEGIN
     SELECT h.paciente_id, COUNT(*) AS total, MAX(h.fecha_cita) AS ultima
@@ -390,7 +390,7 @@ BEGIN
             AND dia.estado IN ('programada', 'confirmada', 'cancelada', 'completada', 'no_asistio')
       )
     GROUP BY h.paciente_id;
-END$
+END$$
 
 -- Conteos de seguimiento en una sola consulta indexada.
 DROP PROCEDURE IF EXISTS `sp_resumen_citas_estados`$$
