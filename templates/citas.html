@@ -322,6 +322,7 @@
         var pasoActual = 1;
         var calendario = null;
         var disponibilidadAbortController = null;
+        var horasOcupadasPorFecha = {};
         var formCita = document.getElementById('formCita');
 
         function irPaso(paso) {
@@ -392,6 +393,23 @@
                 String(fecha.getDate()).padStart(2, '0')].join('-');
         }
 
+        function actualizarHorasDisponibles(fecha) {
+            var selector = document.getElementById('hora_cita');
+            var ocupadas = horasOcupadasPorFecha[fecha] || [];
+            var libres = 0;
+            Array.from(selector.options).forEach(function (opcion) {
+                if (!opcion.value) return;
+                var ocupada = ocupadas.includes(opcion.value);
+                opcion.disabled = ocupada;
+                opcion.hidden = ocupada;
+                if (!ocupada) libres++;
+            });
+            selector.value = '';
+            selector.disabled = libres === 0;
+            document.getElementById('resumen-hora').textContent =
+                libres ? 'Selecciona una hora' : 'No quedan horas disponibles para este día';
+        }
+
         function limpiarFecha() {
             document.getElementById('fecha_cita').value = '';
             document.getElementById('resumen-fecha').textContent = '—';
@@ -456,6 +474,7 @@
                     throw new Error('La respuesta de disponibilidad no es válida. Inténtalo de nuevo.');
                 }
                 if (Number(document.getElementById('medico_id').value) !== Number(medicoId)) return;
+                horasOcupadasPorFecha = data.horas_ocupadas || {};
 
                 if (!calendario) {
                     calendario = flatpickr('#fecha-calendario', {
@@ -469,10 +488,8 @@
                             document.getElementById('fecha_cita').value = fecha;
                             document.getElementById('resumen-fecha').textContent = fecha;
                             var selectorHora = document.getElementById('hora_cita');
-                            selectorHora.value = '';
-                            selectorHora.disabled = false;
                             document.getElementById('horario-contenedor').style.display = '';
-                            document.getElementById('resumen-hora').textContent = 'Selecciona una hora';
+                            actualizarHorasDisponibles(fecha);
                         }
                     });
                 } else {
@@ -723,6 +740,9 @@
                     return;
                 }
                 if (esErrorDisponibilidad(data.error)) {
+                    irPaso(3);
+                    cargarDisponibilidad(true, data.error);
+                } else if (response.status === 409 && (data.error || '').toLowerCase().includes('horario')) {
                     irPaso(3);
                     cargarDisponibilidad(true, data.error);
                 } else {
