@@ -1869,6 +1869,36 @@ def create_app():
         ndata, _ = notas_client.get(f"/api/notas/{cita_id}")
         return render_template("notas_cita.html", cita=cita, notas=ndata.get("notas", []))
 
+    @app.route("/api/evaluacion-inicial/estado", methods=["GET"])
+    def estado_evaluacion_inicial():
+        dni = str(request.args.get("dni") or "").strip()
+        if not _dni_ok(dni):
+            return jsonify({"success": False, "error": "DNI inválido"}), 400
+
+        paciente_data, paciente_status = pacientes_client.get(f"/api/pacientes/dni/{dni}")
+        if paciente_status == 404:
+            return jsonify({"success": True, "disponible": True}), 200
+        if paciente_status != 200 or not (paciente_data or {}).get("id"):
+            return jsonify({"success": False, "error": "No se pudo consultar el historial del paciente."}), 502
+
+        paciente_id = paciente_data["id"]
+        evaluaciones_data, evaluaciones_status = pacientes_client.get(
+            f"/api/pacientes/{paciente_id}/evaluaciones"
+        )
+        citas_data, citas_status = citas_client.get(
+            f"/api/citas/paciente/{paciente_id}/evaluacion-inicial"
+        )
+        if evaluaciones_status != 200 or citas_status != 200:
+            return jsonify({"success": False, "error": "No se pudo verificar si ya tienes una evaluación inicial."}), 502
+
+        ya_tiene_evaluacion = bool((evaluaciones_data or {}).get("evaluaciones")) or bool(
+            (citas_data or {}).get("existe")
+        )
+        return jsonify({
+            "success": True,
+            "disponible": not ya_tiene_evaluacion,
+        }), 200
+
     @app.route("/api/verificar_dni", methods=["POST"])
     def verificar_dni():
         cuerpo = request.get_json(silent=True)
