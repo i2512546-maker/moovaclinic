@@ -140,15 +140,18 @@
                     <div class="pago-method-head">
                         <div class="pago-method-icon"><i class="fas fa-flask"></i></div>
                         <div>
-                            <h2>Pago de demostración</h2>
+                            <h2>Confirmar pago</h2>
                             <p>Este flujo es para la sustentación. No se realizará ningún cobro real.</p>
                         </div>
                     </div>
                     <div class="pago-monto">S/ {{ monto_txt }}</div>
                     <button type="button" class="btn btn-moova w-100" id="btnPagoDemo">
-                        <i class="fas fa-check-circle me-1"></i> Confirmar pago de demostración
+                        <i class="fas fa-check-circle me-1"></i> Confirmar pago
                     </button>
                     <p class="pago-error" id="msgPagoDemo"></p>
+                    {% if pagos_modo_demo %}
+                    <p class="small text-muted mt-2 mb-0">Entorno de demostración: no se realizan cargos reales.</p>
+                    {% endif %}
                 </div>
                 {% elif cita.metodo_pago == 'yape' %}
                 <div class="pago-panel">
@@ -339,7 +342,7 @@ function mostrarPlaceholderQR(boxId) {
     document.getElementById(boxId).innerHTML =
         '<div class="qr-placeholder">' +
             '<i class="fas fa-image"></i>' +
-            '<span>QR pendiente de configurar</span>' +
+            '<span>El pago con Yape no está disponible por ahora. Elige otro método.</span>' +
         '</div>';
 }
 

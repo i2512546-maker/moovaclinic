@@ -104,12 +104,7 @@ function MoovaTrack({ urlDatos }) {
 
   return (
     <div>
-      <div className="alert alert-warning d-flex align-items-center gap-2 position-sticky top-0"
-           role="status" style={{ zIndex: 5 }}>
-        <i className="bi bi-cpu"></i>
-        <strong>PROTOTIPO: datos simulados.</strong>
-        <span>En producción llegan por Bluetooth HC-05 desde el Arduino (MPU-6050, FSR 402, Flex Sensor).</span>
-      </div>
+      <span className="badge bg-secondary-subtle text-secondary small">Prototipo - datos simulados</span>
 
       {error && (
         <div className="alert alert-danger d-flex align-items-center gap-2" role="alert">
