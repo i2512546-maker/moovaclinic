@@ -2,6 +2,8 @@ import os
 import unittest
 from unittest.mock import patch
 
+from mysql.connector.errors import IntegrityError
+
 os.environ.setdefault("SECRET_KEY", "clave-de-pruebas")
 os.environ.setdefault("API_KEY", "clave-interna-de-pruebas")
 
@@ -75,6 +77,17 @@ class CrearCitaPagoRequeridoTest(unittest.TestCase):
             respuesta = self._post()
         self.assertEqual(respuesta.status_code, 201)
         pagos_post.assert_not_called()
+
+    def test_slot_duplicado_responde_conflicto_409(self):
+        self._with_prerequisites()
+        with patch(
+            "services.citas_service.routes.call_proc_one",
+            side_effect=IntegrityError(msg="Duplicate entry", errno=1062),
+        ):
+            respuesta = self._post()
+        self.assertEqual(respuesta.status_code, 409)
+        self.assertIn("horario", respuesta.get_json()["error"].lower())
+        self.assertIn("otra hora", respuesta.get_json()["error"].lower())
 
     def test_metodo_pago_invalido_es_rechazado(self):
         self.datos["metodo_pago"] = "bitcoin"
