@@ -46,7 +46,7 @@
     <script src="https://t.contentsquare.com/uxa/6897c7b83eb5.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='moova-theme.css') }}">
 </head>
-<body data-bs-spy="scroll" data-bs-target="#navbarMoova" data-bs-offset="90" data-bs-smooth-scroll="true">
+<body data-bs-spy="scroll" data-bs-target="#navbarMoovaNav" data-bs-offset="90" data-bs-smooth-scroll="true">
 
     <!-- NAVBAR CENTRADO EN BURBUJA FLOTANTE ESTRECHA Y ANCHA VERTICALMENTE -->
                     <nav class="navbar navbar-expand-xl fixed-top moova-nav" id="navbarMoovaNav">
@@ -69,7 +69,7 @@
                     <li class="nav-item"><a class="nav-link fw-semibold" href="#nosotros">Nosotros</a></li>
                     <li class="nav-item"><a class="nav-link fw-semibold" href="#contacto">Contacto</a></li>
                     <li class="nav-item dropdown ms-lg-2">
-                        <a href="#" class="btn btn-moova rounded-pill px-3 py-2 dropdown-toggle" id="menuCita" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-calendar-check me-1"></i> Cita</a>
+                        <button type="button" class="btn btn-moova rounded-pill px-3 py-2 dropdown-toggle" id="menuCita" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-calendar-check me-1"></i> Cita</button>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="menuCita">
                             <li><a class="dropdown-item" href="{{ url_for('citas_page') }}"><i class="bi bi-calendar-plus me-2"></i>Agendar cita</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('tratamiento_page') }}"><i class="bi bi-calendar-check me-2"></i>Continuar tratamiento</a></li>
@@ -350,47 +350,50 @@
     <!-- GALERIA -->
     <section id="galeria" class="galeria py-5 bg-white border-top border-bottom">
         <div class="container" style="max-width:1200px;">
-            <div class="section-title text-center mb-5">
+            <div class="section-title text-center mb-4">
                 <span class="subtitle badge rounded-pill text-uppercase mb-3" style="background:var(--moova-sky); color:var(--sky); border:1px solid var(--sky-light); letter-spacing:1.5px; font-weight:600; font-size:0.85rem; padding:0.5rem 1rem;">Instalaciones</span>
                 <h2 class="display-6 fw-semibold" style="font-family:'Quicksand',sans-serif; color:var(--moova-navy);">Conoce Nuestro Centro</h2>
                 <p class="text-muted mx-auto" style="max-width:540px;">Espacios modernos y equipados para tu recuperación</p>
             </div>
 
-            <div class="row g-4">
-                <!-- VIDEO -->
-                <div class="col-12 col-lg-6 galeria-item">
-                    <video controls preload="none" poster="{{ url_for('static', filename='cccc.png') }}" class="w-100 rounded-3" style="aspect-ratio:4/5; object-fit:cover;">
-                        <source src="{{ url_for('static', filename='video.mp4') }}" type="video/mp4">
-                        Tu navegador no soporta video.
-                    </video>
-                    <span>Video principal</span>
+            <div id="galeriaInstalaciones" class="carousel slide carousel-fade galeria-carousel mx-auto"
+                 data-bs-ride="carousel" data-bs-interval="4500" data-bs-pause="hover" aria-label="Galería de instalaciones de MOOVA">
+                <div class="carousel-indicators">
+                    <button type="button" data-bs-target="#galeriaInstalaciones" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Ver video principal"></button>
+                    <button type="button" data-bs-target="#galeriaInstalaciones" data-bs-slide-to="1" aria-label="Ver sala de fisioterapia"></button>
+                    <button type="button" data-bs-target="#galeriaInstalaciones" data-bs-slide-to="2" aria-label="Ver área de hidroterapia"></button>
                 </div>
-
-                <!-- IMAGEN -->
-                <div class="col-12 col-md-6 col-lg-3 galeria-item">
-                    <img src="{{ url_for('static', filename='cccc.png') }}"
-                         alt="Sala de fisioterapia"
-                         class="img-fluid rounded-3" style="aspect-ratio:4/5; object-fit:cover; width:100%; height:100%;">
-                    <span>Sala de fisioterapia</span>
+                <div class="carousel-inner rounded-4 shadow-sm">
+                    <div class="carousel-item active">
+                        <div class="galeria-media">
+                            <video controls preload="metadata" poster="{{ url_for('static', filename='cccc.png') }}" aria-label="Video principal de las instalaciones de MOOVA">
+                                <source src="{{ url_for('static', filename='video.mp4') }}" type="video/mp4">
+                                Tu navegador no soporta video.
+                            </video>
+                        </div>
+                        <div class="carousel-caption"><span>Conoce nuestras instalaciones</span></div>
+                    </div>
+                    <div class="carousel-item">
+                        <div class="galeria-media">
+                            <img src="{{ url_for('static', filename='cccc.png') }}" alt="Sala de fisioterapia de MOOVA" loading="lazy">
+                        </div>
+                        <div class="carousel-caption"><span>Sala de fisioterapia</span></div>
+                    </div>
+                    <div class="carousel-item">
+                        <div class="galeria-media">
+                            <img src="{{ url_for('static', filename='pp.png') }}" alt="Área de hidroterapia de MOOVA" loading="lazy">
+                        </div>
+                        <div class="carousel-caption"><span>Área de hidroterapia</span></div>
+                    </div>
                 </div>
-
-                <div class="col-12 col-md-6 col-lg-3 galeria-item">
-                    <img src="{{ url_for('static', filename='pp.png') }}"
-                         alt="Área de hidroterapia"
-                         class="img-fluid rounded-3" style="aspect-ratio:4/5; object-fit:cover; width:100%; height:100%;">
-                    <span>Área de hidroterapia</span>
-                </div>
-
-                <div class="col-12 col-md-6 col-lg-3 galeria-item">
-                    <i class="fas fa-image"></i>
-                    <span>Equipos especializados</span>
-                </div>
-
-                <div class="col-12 col-md-6 col-lg-3 galeria-item">
-                    <i class="fas fa-play"></i>
-                    <span>Testimonios de pacientes</span>
-                </div>
+                <button class="carousel-control-prev" type="button" data-bs-target="#galeriaInstalaciones" data-bs-slide="prev" aria-label="Imagen anterior">
+                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                </button>
+                <button class="carousel-control-next" type="button" data-bs-target="#galeriaInstalaciones" data-bs-slide="next" aria-label="Imagen siguiente">
+                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                </button>
             </div>
+            <p class="text-center text-muted small mt-3 mb-0">La galería avanza automáticamente. También puedes usar las flechas para cambiar de imagen.</p>
         </div>
     </section>
 
@@ -896,5 +899,44 @@ document.addEventListener('keydown', function(e) {
 });
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+/* Navegación explícita con desplazamiento compensado por la navbar fija. */
+document.addEventListener('DOMContentLoaded', function () {
+    var nav = document.getElementById('navbarMoovaNav');
+    if (!nav) return;
+
+    nav.querySelectorAll('a.nav-link[href^="#"]').forEach(function (link) {
+        link.addEventListener('click', function (event) {
+            var targetId = link.getAttribute('href').slice(1);
+            var target = document.getElementById(targetId);
+            if (!target) return;
+
+            event.preventDefault();
+            var collapse = document.getElementById('navbarMoova');
+            if (collapse && collapse.classList.contains('show') && window.bootstrap) {
+                window.bootstrap.Collapse.getOrCreateInstance(collapse).hide();
+            }
+
+            var navHeight = nav.getBoundingClientRect().height;
+            var top = target.getBoundingClientRect().top + window.pageYOffset - navHeight - 14;
+            window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+            if (window.history && window.history.replaceState) {
+                window.history.replaceState(null, '', '#' + targetId);
+            }
+        });
+    });
+
+    var gallery = document.getElementById('galeriaInstalaciones');
+    if (gallery && window.bootstrap) {
+        window.bootstrap.Carousel.getOrCreateInstance(gallery, {
+            interval: 4500,
+            ride: 'carousel',
+            pause: 'hover',
+            wrap: true
+        });
+    }
+});
+</script>
+
 </body>
 </html>
