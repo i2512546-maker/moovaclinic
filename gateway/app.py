@@ -1874,6 +1874,12 @@ def create_app():
         dni = str(request.args.get("dni") or "").strip()
         if not _dni_ok(dni):
             return jsonify({"success": False, "error": "DNI inválido"}), 400
+        identidad = session.get("cita_identidad_verificada") or {}
+        if identidad.get("dni") != dni:
+            return jsonify({
+                "success": False,
+                "error": "Verifica tu identidad antes de consultar la evaluación inicial."
+            }), 403
 
         paciente_data, paciente_status = pacientes_client.get(f"/api/pacientes/dni/{dni}")
         if paciente_status == 404:
