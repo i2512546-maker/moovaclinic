@@ -41,8 +41,8 @@ from shared.config import (
     TRUST_PROXY,
 )
 from shared.fechas import fmt_fecha, hoy_lima
-from shared.rate_limit import LimitadorIntentos, ip_del_request
 from shared.horarios import generar_slots
+from shared.rate_limit import LimitadorIntentos, ip_del_request
 from shared.service_client import (
     audit_client,
     auth_client,
