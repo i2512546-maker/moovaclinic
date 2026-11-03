@@ -496,6 +496,43 @@ BEGIN
     ORDER BY h.fecha_cita ASC;
 END//
 
+-- Consultas optimizadas de agenda y resumen de estados.
+DROP PROCEDURE IF EXISTS `sp_listar_citas_dia`//
+CREATE PROCEDURE `sp_listar_citas_dia`(IN p_fecha DATE)
+BEGIN
+    SELECT h.id, h.id AS historial_id, h.fecha_cita, h.hora_cita, h.estado,
+           h.descripcion, h.paciente_id, h.terapeuta_id, h.servicio_id
+    FROM historial_citas h
+    WHERE h.fecha_cita = p_fecha
+      AND h.estado IN ('programada', 'confirmada', 'cancelada', 'completada', 'no_asistio')
+    ORDER BY h.hora_cita ASC, h.id ASC;
+END//
+
+DROP PROCEDURE IF EXISTS `sp_resumen_citas_estados`//
+CREATE PROCEDURE `sp_resumen_citas_estados`(IN p_desde DATE)
+BEGIN
+    SELECT h.estado, COUNT(*) AS total
+    FROM historial_citas h
+    WHERE h.estado IN ('cancelada', 'no_asistio')
+      AND h.fecha_cita >= p_desde
+    GROUP BY h.estado;
+END//
+
+DROP PROCEDURE IF EXISTS `sp_resumen_pacientes_agenda`//
+CREATE PROCEDURE `sp_resumen_pacientes_agenda`(IN p_fecha DATE)
+BEGIN
+    SELECT h.paciente_id, COUNT(*) AS total, MAX(h.fecha_cita) AS ultima
+    FROM historial_citas h
+    WHERE h.estado <> 'pendiente_pago'
+      AND h.paciente_id IN (
+          SELECT DISTINCT dia.paciente_id
+          FROM historial_citas dia
+          WHERE dia.fecha_cita = p_fecha
+            AND dia.estado IN ('programada', 'confirmada', 'cancelada', 'completada', 'no_asistio')
+      )
+    GROUP BY h.paciente_id;
+END//
+
 --
 -- sp_detalle_cita  |  LOCAL (FASE 2)
 --   Nombre/telefono del paciente y terapeuta se agregan en
