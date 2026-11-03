@@ -6,7 +6,6 @@
 --
 -- Tablas propias:
 --   pacientes             (INSERTs con IDs actuales: 1,2,3,4,6,11)
---   consentimientos
 --   evaluaciones_iniciales
 --   opiniones
 --   especialidades        (INSERTs con IDs actuales: 1..6)
@@ -14,7 +13,6 @@
 --   terapeutas            (INSERTs con IDs actuales: 1,2,3)
 --
 -- FK internas (FK real):
---   consentimientos.paciente_id      -> pacientes.id
 --   evaluaciones_iniciales.paciente_id  -> pacientes.id
 --   evaluaciones_iniciales.terapeuta_id -> terapeutas.id
 --   opiniones.paciente_id            -> pacientes.id
@@ -72,19 +70,6 @@ INSERT INTO `pacientes` (`id`, `nombre`, `apellido`, `dni`, `telefono`, `estado`
 
 -- --------------------------------------------------------
 --
--- Table structure for table `consentimientos`
---
-
-CREATE TABLE `consentimientos` (
-  `id` int(11) NOT NULL,
-  `paciente_id` int(11) NOT NULL,
-  `tipo` varchar(50) NOT NULL COMMENT 'general, tratamiento, cirugia',
-  `texto_version` varchar(50) NOT NULL COMMENT 'v1.0, v2.1',
-  `aceptado_en` datetime NOT NULL DEFAULT current_timestamp(),
-  `ip_origen` varchar(45) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- --------------------------------------------------------
 --
 -- Table structure for table `evaluaciones_iniciales`
 --
@@ -203,14 +188,6 @@ ALTER TABLE `pacientes`
   ADD UNIQUE KEY `dni` (`dni`);
 
 --
--- Indexes for table `consentimientos`
---
-ALTER TABLE `consentimientos`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_consent_paciente` (`paciente_id`),
-  ADD KEY `idx_consent_tipo` (`tipo`);
-
---
 -- Indexes for table `evaluaciones_iniciales`
 --
 ALTER TABLE `evaluaciones_iniciales`
@@ -261,12 +238,6 @@ ALTER TABLE `pacientes`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
--- AUTO_INCREMENT for table `consentimientos`
---
-ALTER TABLE `consentimientos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
-
---
 -- AUTO_INCREMENT for table `evaluaciones_iniciales`
 --
 ALTER TABLE `evaluaciones_iniciales`
@@ -300,12 +271,6 @@ ALTER TABLE `terapeutas`
 -- Constraints for dumped tables (Solo FK internas; las referencias a
 -- otras bases van como comentario)
 --
-
---
--- Constraints for table `consentimientos`
---
-ALTER TABLE `consentimientos`
-  ADD CONSTRAINT `fk_consent_paciente` FOREIGN KEY (`paciente_id`) REFERENCES `pacientes` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
 -- Constraints for table `evaluaciones_iniciales`
@@ -420,22 +385,6 @@ BEGIN
     INSERT INTO evaluaciones_iniciales
         (paciente_id, terapeuta_id, motivo_consulta, escala_dolor_eva, rango_movimiento, objetivos_terapeuticos)
     VALUES (p_paciente_id, p_terapeuta_id, p_motivo_consulta, p_escala_dolor_eva, p_rango_movimiento, p_objetivos_terapeuticos);
-    SELECT LAST_INSERT_ID() AS id;
-END$$
-
-DROP PROCEDURE IF EXISTS `sp_listar_consentimientos`$$
-CREATE PROCEDURE `sp_listar_consentimientos`(IN p_paciente_id INT)
-BEGIN
-    SELECT * FROM consentimientos WHERE paciente_id = p_paciente_id ORDER BY aceptado_en DESC;
-END$$
-
-DROP PROCEDURE IF EXISTS `sp_crear_consentimiento`$$
-CREATE PROCEDURE `sp_crear_consentimiento`(
-    IN p_paciente_id INT, IN p_tipo VARCHAR(50), IN p_texto_version VARCHAR(50), IN p_ip_origen VARCHAR(45)
-)
-BEGIN
-    INSERT INTO consentimientos (paciente_id, tipo, texto_version, ip_origen)
-    VALUES (p_paciente_id, p_tipo, p_texto_version, p_ip_origen);
     SELECT LAST_INSERT_ID() AS id;
 END$$
 
