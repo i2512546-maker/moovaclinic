@@ -269,6 +269,49 @@ def listar_citas():
     return jsonify({"success": True, "total": len(resultado), "citas": resultado})
 
 
+@citas_bp.route("/api/citas/agenda", methods=["GET"])
+def agenda_dia():
+    """Devuelve la agenda diaria con una sola carga de datos auxiliares."""
+    fecha = (request.args.get("fecha") or "").strip()
+    try:
+        datetime.strptime(fecha, "%Y-%m-%d")
+    except ValueError:
+        return jsonify({"error": "Se requiere fecha con formato YYYY-MM-DD"}), 400
+
+    estados = ("programada", "confirmada", "cancelada", "completada", "no_asistio")
+    citas = []
+    for estado in estados:
+        filas = call_proc("sp_listar_citas", (estado, None, fecha, None)) or []
+        citas.extend(filas)
+
+    # No se consultan tablas auxiliares si el día no tiene citas.
+    if not citas:
+        return jsonify({"success": True, "total": 0, "citas": []})
+
+    resumen = {
+        fila["paciente_id"]: fila["total"]
+        for fila in (call_proc("sp_resumen_pacientes") or [])
+    }
+    pacientes = _mapa_pacientes()
+    terapeutas = _mapa_terapeutas()
+
+    resultado = []
+    vistos = set()
+    for cita in citas:
+        if str(cita.get("fecha_cita", ""))[:10] != fecha:
+            continue
+        _enriquecer_cita(cita, pacientes, terapeutas)
+        cita["total_visitas"] = resumen.get(cita.get("paciente_id"), 0)
+        _fmt_fecha(cita)
+        cita_id = cita.get("id") or cita.get("historial_id") or cita.get("cita_id")
+        clave = str(cita_id) if cita_id is not None else None
+        if clave is None or clave not in vistos:
+            resultado.append(cita)
+            if clave is not None:
+                vistos.add(clave)
+
+    return jsonify({"success": True, "total": len(resultado), "citas": resultado})
+
 @citas_bp.route("/api/citas/paciente/<int:paciente_id>", methods=["GET"])
 def listar_citas_paciente(paciente_id):
     """Historial de un paciente (para detalle servido por
