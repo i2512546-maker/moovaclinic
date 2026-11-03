@@ -212,29 +212,30 @@ def listar_fechas_ocupadas():
     if (hasta - desde).days > 90:
         return jsonify({"error": "El rango máximo es de 90 días"}), 400
 
-    # Una sola consulta acotada al rango. Solo bloquean las reservas
-    # pendientes de pago, programadas o confirmadas; canceladas y
-    # no_asistio liberan el horario y siguen en el historial.
-    filas = call_proc(
-        "sp_disponibilidad_citas_rango",
-        (int(medico_id), desde_txt, hasta_txt),
-    ) or []
+    # La consulta por estado conserva compatibilidad con bases ya desplegadas.
+    # El filtro de rango se aplica también en Python para no traer citas lejanas.
     horas_por_fecha = {}
-    for cita in filas:
-        fecha = cita.get("fecha_cita")
-        if isinstance(fecha, (date, datetime)):
-            fecha = fecha.strftime("%Y-%m-%d")
-        elif fecha:
-            fecha = str(fecha)[:10]
-        hora = cita.get("hora_cita")
-        if isinstance(hora, datetime):
-            hora = hora.strftime("%H:%M")
-        elif hasattr(hora, "strftime"):
-            hora = hora.strftime("%H:%M")
-        elif hora:
-            hora = str(hora)[:5]
-        if fecha and hora:
-            horas_por_fecha.setdefault(fecha, set()).add(hora)
+    for estado in ("programada", "confirmada", "pendiente_pago"):
+        citas = call_proc("sp_listar_citas", (
+            estado, None, desde_txt, medico_id,
+        ))
+        for cita in citas or []:
+            fecha = cita.get("fecha_cita")
+            if isinstance(fecha, (date, datetime)):
+                fecha = fecha.strftime("%Y-%m-%d")
+            elif fecha:
+                fecha = str(fecha)[:10]
+            if not fecha or not desde_txt <= fecha <= hasta_txt:
+                continue
+            hora = cita.get("hora_cita")
+            if isinstance(hora, datetime):
+                hora = hora.strftime("%H:%M")
+            elif hasattr(hora, "strftime"):
+                hora = hora.strftime("%H:%M")
+            elif hora:
+                hora = str(hora)[:5]
+            if hora:
+                horas_por_fecha.setdefault(fecha, set()).add(hora)
 
     slots = set(generar_slots())
     fechas_completas = sorted(
