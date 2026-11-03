@@ -20,6 +20,7 @@ from flask import (
     Response,
     abort,
     flash,
+    g,
     jsonify,
     redirect,
     render_template,
@@ -417,6 +418,14 @@ def create_app():
         respuesta.headers.setdefault("X-Content-Type-Options", "nosniff")
         respuesta.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
         respuesta.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        inicio = getattr(g, "_moova_request_started", None)
+        if inicio is not None:
+            duracion = time.perf_counter() - inicio
+            if duracion >= 1.0:
+                app.logger.warning(
+                    "Petición lenta: %s %s -> %s en %.3f s",
+                    request.method, request.path, respuesta.status_code, duracion,
+                )
         # HSTS solo en produccion: en localhost por http, avisarle al
         # navegador que use https siempre dejaria la app inaccesible
         # en desarrollo, sin forma facil de deshacerlo.
@@ -435,6 +444,7 @@ def create_app():
         casa. Sin sesión de admin se manda a /login, igual que hace
         _admin_required con las rutas de gestion.
         """
+        g._moova_request_started = time.perf_counter()
         ruta = request.path
         es_docs = (
             ruta.rstrip("/") == "/apidocs"
