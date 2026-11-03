@@ -42,6 +42,7 @@ from shared.config import (
 )
 from shared.fechas import fmt_fecha, hoy_lima
 from shared.rate_limit import LimitadorIntentos, ip_del_request
+from shared.horarios import generar_slots
 from shared.service_client import (
     audit_client,
     auth_client,
@@ -742,7 +743,7 @@ def create_app():
 
         if request.method == "POST":
             form_data = {k: request.form.get(k, "").strip() for k in
-                         ["nombre", "apellido", "dni", "telefono", "medico_id", "fecha_cita", "metodo_pago", "servicio_id"]}
+                         ["nombre", "apellido", "dni", "telefono", "medico_id", "fecha_cita", "hora_cita", "metodo_pago", "servicio_id"]}
             identidad = session.get("cita_identidad_verificada") or {}
             def normalizar_identidad_post(valor):
                 import unicodedata
@@ -804,6 +805,7 @@ def create_app():
             flash(result.get("error", "Error al crear cita"))
 
         return render_template("citas.html", terapeutas=terapeutas, servicios=servicios,
+                               horarios_disponibles=generar_slots(),
                                cita_pendiente=cita_pendiente)
 
     @app.route("/citas/modificar", methods=["GET", "POST"])
