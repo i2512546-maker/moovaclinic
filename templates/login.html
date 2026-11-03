@@ -34,6 +34,7 @@
 
         <form method="POST" class="d-flex flex-column gap-4">
             <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
+            <input type="hidden" name="nonce_pestana" value="{{ session.get('login_tab_nonce', '') }}">
             <div>
                 <label class="form-label fw-semibold d-flex align-items-center gap-2 mb-2"><i class="fas fa-envelope text-sky"></i> Correo</label>
                 <input type="email" name="correo" class="form-control form-control-lg" placeholder="tu@correo.com" required>
@@ -62,6 +63,12 @@
 </div>
 
 <script>
+    // sessionStorage pertenece a esta pestaña y sobrevive a la navegación interna.
+    document.querySelector("form").addEventListener("submit", function () {
+        const nonce = document.querySelector('input[name="nonce_pestana"]').value;
+        if (nonce) sessionStorage.setItem("moova_tab_session", nonce);
+    });
+
     function togglePassword() {
         const input = document.getElementById('clave');
         const icon  = document.getElementById('eye-icon');
