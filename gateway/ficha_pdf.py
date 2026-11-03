@@ -110,7 +110,7 @@ def _bloque_identificacion(st, campos):
 
 
 def build_ficha_clinica_pdf(paciente, historial, paquetes, evaluaciones,
-                            consentimientos, generado_por=None):
+                            generado_por=None):
     """Devuelve los bytes de la ficha clinica en PDF (A4 apaisado)."""
     st = _styles()
     buf = io.BytesIO()
@@ -205,21 +205,6 @@ def build_ficha_clinica_pdf(paciente, historial, paquetes, evaluaciones,
             filas,
             [24 * mm, 40 * mm, 55 * mm, 20 * mm, 35 * mm, 55 * mm],
             st, alineaciones={0: "CENTER", 3: "CENTER"}))
-
-    # --- Consentimientos ---
-    if consentimientos:
-        e.append(Spacer(1, 5 * mm))
-        e.append(_p("5. Consentimientos informados", st["h2"]))
-        filas = [
-            (c.get("tipo"), c.get("texto_version"),
-             fmt_fecha(c.get("aceptado_en"), con_hora=True),
-             c.get("ip_origen") or "-")
-            for c in consentimientos
-        ]
-        e.append(_tabla(
-            ["Tipo", "Version del texto", "Fecha de aceptacion", "IP de origen"],
-            filas, [70 * mm, 40 * mm, 45 * mm, 50 * mm],
-            st, alineaciones={2: "CENTER"}))
 
     # --- Firma ---
     e.append(Spacer(1, 12 * mm))
