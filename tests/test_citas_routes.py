@@ -65,7 +65,7 @@ class ListarCitasTest(unittest.TestCase):
         }
 
         def fake_call_proc(nombre, params=(), **kwargs):
-            if nombre == "sp_listar_citas" and params[0] == "programada":
+            if nombre == "sp_listar_citas_dia":
                 return [dict(cita)]
             if nombre == "sp_resumen_pacientes":
                 return [{"paciente_id": 10, "total": 3}]
@@ -97,6 +97,54 @@ class ListarCitasTest(unittest.TestCase):
         client = internal_test_client(app)
         cabeceras = {"X-Api-Key": API_KEY} if API_KEY else {}
         response = client.get("/_internal/api/citas/agenda?fecha=ayer", headers=cabeceras)
+        self.assertEqual(response.status_code, 400)
+
+    def test_resumen_panel_usa_conteos_agrupados(self):
+        app = create_app()
+        client = internal_test_client(app)
+        cabeceras = {"X-Api-Key": API_KEY} if API_KEY else {}
+        cita = {
+            "id": 3, "fecha_cita": date(2026, 11, 3), "estado": "programada",
+            "paciente_id": 10, "terapeuta_id": 20,
+        }
+
+        def fake_call_proc(nombre, params=(), **kwargs):
+            if nombre == "sp_listar_citas_dia":
+                return [dict(cita)]
+            if nombre == "sp_resumen_citas_estados":
+                return [
+                    {"estado": "cancelada", "total": 4},
+                    {"estado": "no_asistio", "total": 2},
+                ]
+            return []
+
+        with (
+            patch("services.citas_service.routes.call_proc", side_effect=fake_call_proc) as proc,
+            patch("services.citas_service.routes._mapa_pacientes", return_value={}),
+            patch("services.citas_service.routes._mapa_terapeutas", return_value={}),
+        ):
+            response = client.get(
+                "/_internal/api/citas/resumen-panel?fecha=2026-11-03&desde=2026-10-04",
+                headers=cabeceras,
+            )
+
+        self.assertEqual(response.status_code, 200)
+        body = response.get_json()
+        self.assertEqual(len(body["proximas_citas"]), 1)
+        self.assertEqual(body["total_canceladas"], 4)
+        self.assertEqual(body["total_no_asistidos"], 2)
+        nombres = [call.args[0] for call in proc.call_args_list]
+        self.assertEqual(nombres.count("sp_listar_citas_dia"), 1)
+        self.assertEqual(nombres.count("sp_resumen_citas_estados"), 1)
+
+    def test_resumen_panel_rechaza_fechas_invalidas(self):
+        app = create_app()
+        client = internal_test_client(app)
+        cabeceras = {"X-Api-Key": API_KEY} if API_KEY else {}
+        response = client.get(
+            "/_internal/api/citas/resumen-panel?fecha=hoy&desde=ayer",
+            headers=cabeceras,
+        )
         self.assertEqual(response.status_code, 400)
 
 if __name__ == "__main__":
