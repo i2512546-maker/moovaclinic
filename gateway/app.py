@@ -240,6 +240,25 @@ def _paquetes_activos_dni(dni):
     ]
     return paciente, activos
 
+def _datos_seguimiento_dni(dni):
+    """Recupera el historial real del paciente para la vista de continuidad."""
+    paciente, paquetes = _paquetes_activos_dni(dni)
+    if not paciente:
+        return paciente, paquetes, [], []
+    try:
+        data, status = citas_client.get(f"/api/citas/paciente/{paciente['id']}")
+        citas = (data or {}).get("citas") or [] if status == 200 else []
+    except Exception:
+        citas = []
+    try:
+        data, status = pacientes_client.get(
+            f"/api/pacientes/{paciente['id']}/evaluaciones"
+        )
+        evaluaciones = (data or {}).get("evaluaciones") or [] if status == 200 else []
+    except Exception:
+        evaluaciones = []
+    return paciente, paquetes, citas, evaluaciones
+
 
 def _load_swagger():
     path = os.path.join(os.path.dirname(__file__), "..", "swagger.yaml")
@@ -1022,6 +1041,8 @@ def create_app():
         error_msg = None
         paquetes = []
         paciente = None
+        historial_citas = []
+        evaluaciones = []
 
         # Reproducir pasos de la cadena AJAX cuando llegan por query.
         if request.method == "GET":
@@ -1037,7 +1058,7 @@ def create_app():
                 if proteccion is not None:
                     return proteccion
                 paso, dni_val = q_paso, q_dni
-                paciente, paquetes = _paquetes_activos_dni(q_dni)
+                paciente, paquetes, historial_citas, evaluaciones = _datos_seguimiento_dni(q_dni)
                 if paso == "menu" and not paquetes:
                     paso = "sin_paquetes"
 
@@ -1076,7 +1097,7 @@ def create_app():
                     # paciente para que valga igual en el camino AJAX
                     # y en el normal.
                     _marcar_otp_verificado(dni, "tratamiento")
-                    paciente, paquetes = _paquetes_activos_dni(dni)
+                    paciente, paquetes, historial_citas, evaluaciones = _datos_seguimiento_dni(dni)
                     if not paciente:
                         msg = "No se encontró el paciente asociado a ese DNI."
                         if _is_ajax():
@@ -1161,11 +1182,13 @@ def create_app():
                 error_msg = msg
                 if paciente:
                     dni_val = paciente["dni"]
-                    paciente, paquetes = _paquetes_activos_dni(dni_val)
+                    paciente, paquetes, historial_citas, evaluaciones = _datos_seguimiento_dni(dni_val)
                     paso = "menu" if paquetes else "sin_paquetes"
 
         return render_template("tratamiento.html", terapeutas=terapeutas, paquetes=paquetes,
                                paciente=paciente, paso=paso, dni=dni_val,
+                               historial_citas=historial_citas,
+                               evaluaciones=evaluaciones,
                                tel_mask=tel_mask, error=error_msg)
 
     @app.route("/pago")
