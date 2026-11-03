@@ -514,7 +514,6 @@
 
         function seleccionarHora(hora) {
             var selector = document.getElementById('hora_cita');
-            var seleccionAnterior = selector.value;
             selector.value = hora;
             document.getElementById('hora-elegida-texto').textContent = hora;
             document.getElementById('hora-elegida-panel').style.display = '';
@@ -522,7 +521,7 @@
             var fecha = document.getElementById('fecha_cita').value;
             var ocupadas = horasOcupadasPorFecha[fecha] || [];
             var restantes = horariosBase.filter(function (otraHora) {
-                return otraHora !== hora && otraHora !== seleccionAnterior && !ocupadas.includes(otraHora);
+                return otraHora !== hora && !ocupadas.includes(otraHora);
             });
             dibujarHorarios(restantes);
         }
