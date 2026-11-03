@@ -255,6 +255,66 @@ class PanelTelefonoTest(unittest.TestCase):
         self.assertEqual(resp.status_code, 302)
         put.assert_called_once()
 
+    def test_volver_a_inicio_conserva_sesion_y_muestra_volver_al_panel(self):
+        with patch(
+            "gateway.app.pacientes_client.get",
+            return_value=({"terapeutas": [], "especialidades": []}, 200),
+        ), patch(
+            "gateway.app.auth_client.get", return_value=({"usuarios": []}, 200)
+        ), patch(
+            "gateway.app.citas_client.get", return_value=({"citas": []}, 200)
+        ):
+            resp = self.client.get("/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("Volver a mi panel", resp.get_data(as_text=True))
+        with self.client.session_transaction() as sesion:
+            self.assertEqual(sesion.get("usuario_id"), 1)
+            self.assertEqual(sesion.get("rol"), "admin")
+
+    def test_login_no_muestra_formulario_si_ya_hay_sesion(self):
+        resp = self.client.get("/login")
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("/panel_admin", resp.headers["Location"])
+        with self.client.session_transaction() as sesion:
+            self.assertEqual(sesion.get("usuario_id"), 1)
+
+    def test_error_al_actualizar_precio_no_cierra_sesion(self):
+        with patch(
+            "gateway.app.pacientes_client.put",
+            side_effect=RuntimeError("servicio temporalmente no disponible"),
+        ) as put:
+            resp = self.client.post("/panel_admin", data={
+                "accion": "actualizar_precio",
+                "medico_id": "12",
+                "precio": "120",
+            })
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("/panel_admin", resp.headers["Location"])
+        put.assert_called_once_with(
+            "/api/terapeutas/12/precio", {"precio": 120.0}
+        )
+        with self.client.session_transaction() as sesion:
+            self.assertEqual(sesion.get("usuario_id"), 1)
+            self.assertEqual(sesion.get("rol"), "admin")
+
+    def test_actualizar_precio_correcto_conserva_sesion(self):
+        with patch(
+            "gateway.app.pacientes_client.put",
+            return_value=({"success": True}, 200),
+        ) as put:
+            resp = self.client.post("/panel_admin", data={
+                "accion": "actualizar_precio",
+                "medico_id": "12",
+                "precio": "135.50",
+            })
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("/panel_admin", resp.headers["Location"])
+        put.assert_called_once_with(
+            "/api/terapeutas/12/precio", {"precio": 135.5}
+        )
+        with self.client.session_transaction() as sesion:
+            self.assertEqual(sesion.get("usuario_id"), 1)
+
     def test_el_panel_muestra_la_columna_con_su_formulario(self):
         usuarios = {"success": True, "usuarios": [
             {"id": 7, "nombre": "Dra. Becky", "correo": "b@moova.com",
