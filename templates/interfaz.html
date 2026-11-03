@@ -69,6 +69,12 @@
         </div>
         <div class="card-body p-0">
             {% if pacientes %}
+            <div class="px-3 pt-3">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="toggleCanceladas" checked>
+                    <label class="form-check-label" for="toggleCanceladas">Mostrar canceladas y no asistidas</label>
+                </div>
+            </div>
             <div class="table-responsive">
                 <table class="table table-hover table-striped align-middle mb-0">
                     <thead>
@@ -82,15 +88,20 @@
                     </thead>
                     <tbody>
                         {% for p in pacientes %}
-                        <tr>
+                        <tr class="cita-row" data-estado="{{ p.estado }}">
                             <td>
                                 <div class="d-flex align-items-center gap-2">
                                     <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold {{ 'bg-danger' if p.total_visitas == 1 else 'bg-success' }}" style="width:38px;height:38px;">
                                         {{ (p.nombre or '?')[0]|upper }}
                                     </div>
                                     <div>
-                                        <div class="fw-semibold">{{ p.nombre }} {{ p.apellido }}</div>
+                                        <div class="fw-semibold {{ 'text-decoration-line-through text-muted' if p.estado == 'cancelada' else '' }}">{{ p.nombre }} {{ p.apellido }}</div>
                                         <div class="text-muted small">{{ p.total_visitas }} visita(s)</div>
+                                        {% if p.estado == 'cancelada' %}<span class="badge text-bg-danger">Cancelada</span>
+                                        {% elif p.estado == 'no_asistio' %}<span class="badge text-bg-secondary">No asistió</span>
+                                        {% elif p.estado == 'completada' %}<span class="badge text-bg-success">Completada</span>
+                                        {% elif p.estado == 'confirmada' %}<span class="badge text-bg-info">Confirmada</span>
+                                        {% else %}<span class="badge text-bg-primary">Programada</span>{% endif %}
                                     </div>
                                 </div>
                             </td>
@@ -108,6 +119,7 @@
                                 {% endif %}
                             </td>
                             <td>
+                                {% if p.estado not in ('cancelada', 'no_asistio') %}
                                 <form method="POST" action="{{ url_for('guardar_descripcion') }}" class="d-flex align-items-start gap-2">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
                                     <input type="hidden" name="historial_id" value="{{ p.historial_id }}">
@@ -117,6 +129,18 @@
                                         <i class="bi bi-save"></i> Guardar
                                     </button>
                                 </form>
+                                {% if es_hoy or es_pasado %}
+                                <form method="POST" action="{{ url_for('marcar_no_asistio_gateway', cita_id=p.historial_id) }}" class="mt-2">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
+                                    <input type="hidden" name="fecha" value="{{ fecha_actual }}">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm d-inline-flex align-items-center gap-1">
+                                        <i class="bi bi-person-x"></i> No asistió
+                                    </button>
+                                </form>
+                                {% endif %}
+                                {% else %}
+                                <span class="text-muted small">Sin acciones</span>
+                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}
@@ -135,6 +159,22 @@
 
 </div>
 
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var toggle = document.getElementById('toggleCanceladas');
+    if (!toggle) return;
+    function aplicar() {
+        document.querySelectorAll('tr.cita-row').forEach(function (tr) {
+            var est = tr.getAttribute('data-estado');
+            if (est === 'cancelada' || est === 'no_asistio') {
+                tr.style.display = toggle.checked ? '' : 'none';
+            }
+        });
+    }
+    toggle.addEventListener('change', aplicar);
+    aplicar();
+});
+</script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

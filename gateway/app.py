@@ -588,12 +588,13 @@ def create_app():
         dia_semana = dias[fecha_obj.weekday() + 1 if fecha_obj.weekday() < 6 else 0]
         fecha_display = fecha_obj.strftime("%d/%m/%Y")
         es_hoy = fecha_str == hoy_lima().strftime("%Y-%m-%d")
+        es_pasado = fecha_str < hoy_lima().strftime("%Y-%m-%d")
         es_admin = session.get("rol") == "admin"
 
         # Mostrar tanto programadas como confirmadas; ambas ocupan agenda.
         # El endpoint filtra desde la fecha, así que aquí se limita al día exacto.
         citas_por_id = {}
-        for estado_cita in ("programada", "confirmada"):
+        for estado_cita in ("programada", "confirmada", "cancelada", "completada", "no_asistio"):
             params = f"?fecha={fecha_str}&estado={estado_cita}"
             data, status = citas_client.get(f"/api/citas{params}")
             if status == 200:
@@ -615,7 +616,7 @@ def create_app():
             "interfaz.html", pacientes=pacientes,
             fecha_actual=fecha_str, fecha_display=fecha_display,
             dia_semana=dia_semana, ayer=ayer, manana=manana,
-            es_hoy=es_hoy, nombre_usuario=session.get("usuario_nombre"), es_admin=es_admin,
+            es_hoy=es_hoy, es_pasado=es_pasado, nombre_usuario=session.get("usuario_nombre"), es_admin=es_admin,
         )
 
     @app.route("/guardar_descripcion", methods=["POST"])
@@ -651,6 +652,45 @@ def create_app():
             tabla_afectada="historial_citas",
             registro_id=historial_id,
             detalle="Cita marcada como completada",
+        )
+        return redirect(url_for("interfaz", fecha=fecha))
+
+    @app.route("/citas/<int:cita_id>/no_asistio", methods=["POST"])
+    def marcar_no_asistio_gateway(cita_id):
+        if "usuario_id" not in session:
+            return redirect(url_for("login"))
+        fecha = request.form.get("fecha", hoy_lima().strftime("%Y-%m-%d"))
+        data, status = citas_client.get(f"/api/citas/{cita_id}")
+        if status == 404:
+            abort(404)
+        if status != 200:
+            abort(502, description="No se pudo verificar la cita.")
+        cita = (data or {}).get("cita")
+        if not cita:
+            abort(404)
+        if session.get("rol") != "admin":
+            terapeuta_id = _terapeuta_id_de_sesion()
+            if (
+                terapeuta_id is None
+                or str(cita.get("terapeuta_id")) != str(terapeuta_id)
+            ):
+                return redirect(url_for("interfaz", fecha=fecha))
+        # solo fechas de hoy o pasadas
+        try:
+            fecha_cita = datetime.strptime(str(cita.get("fecha_cita"))[:10], "%Y-%m-%d").date()
+        except Exception:
+            fecha_cita = None
+        if fecha_cita is None or fecha_cita > hoy_lima():
+            return redirect(url_for("interfaz", fecha=fecha))
+        if str(cita.get("estado")) not in ("programada", "confirmada"):
+            return redirect(url_for("interfaz", fecha=fecha))
+        citas_client.post(f"/api/citas/{cita_id}/no-asistio", {})
+        log_accion(
+            usuario_id=session.get("usuario_id"),
+            accion="marcar_inasistencia",
+            tabla_afectada="historial_citas",
+            registro_id=cita_id,
+            detalle="Cita marcada como no asistida",
         )
         return redirect(url_for("interfaz", fecha=fecha))
 
@@ -1538,6 +1578,11 @@ def create_app():
     @app.route("/panel_admin/riesgo")
     @_admin_required
     def panel_admin_riesgo():
+        return redirect(url_for("panel_admin_seguimiento"))
+
+    @app.route("/panel_admin/seguimiento")
+    @_admin_required
+    def panel_admin_seguimiento():
         """Reporte de pacientes en riesgo de fuga.
 
         Pide el listado al modulo interno de citas (/api/citas/riesgo). Si

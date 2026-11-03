@@ -345,6 +345,17 @@ BEGIN
     SELECT v_afectadas AS actualizadas;
 END$$
 
+-- Marca una cita como no asistida (inasistencia del paciente).
+DROP PROCEDURE IF EXISTS `sp_marcar_no_asistio`$$
+CREATE PROCEDURE `sp_marcar_no_asistio`(IN p_cita_id INT)
+BEGIN
+    DECLARE v_afectadas INT DEFAULT 0;
+    UPDATE historial_citas SET estado = 'no_asistio', actualizado_en = NOW()
+    WHERE id = p_cita_id AND estado IN ('programada', 'confirmada');
+    SET v_afectadas = ROW_COUNT();
+    SELECT v_afectadas AS actualizadas;
+END$$
+
 -- Cancela solo citas programadas cuando el pago anticipado vencio.
 -- Las citas completadas o ya canceladas permanecen intactas.
 DROP PROCEDURE IF EXISTS `sp_cancelar_cita_pago_vencido`$$

@@ -35,6 +35,7 @@ ACCIONES_VALIDAS = [
     "reprogramar_cita",
     "cancelar_cita",
     "completar_cita",
+    "marcar_inasistencia",
     "marcar_pago",
     "liberar_pagos_vencidos",
     "enviar_recordatorios",

@@ -857,6 +857,28 @@ def completar_cita(cita_id):
     return jsonify({"success": True})
 
 
+@citas_bp.route("/api/citas/<int:cita_id>/no-asistio", methods=["POST"])
+def marcar_no_asistio(cita_id):
+    result = call_proc_one("sp_marcar_no_asistio", (cita_id,))
+    actualizadas = int((result or {}).get("actualizadas") or 0)
+    if actualizadas > 0:
+        ent_paciente_id, ent_paciente_nombre = _datos_paciente_cita(cita_id)
+        log_accion(
+            accion="marcar_inasistencia",
+            tabla_afectada="historial_citas",
+            registro_id=cita_id,
+            detalle="Cita marcada como no asistida",
+            ip_origen=request.remote_addr,
+            entidad_tipo="paciente",
+            entidad_id=ent_paciente_id,
+            entidad_nombre=ent_paciente_nombre,
+        )
+    if actualizadas == 0:
+        return jsonify({"success": False, "error": "No se pudo marcar la inasistencia."}), 409
+    return jsonify({"success": True})
+
+
+
 @citas_bp.route("/api/citas/otp/solicitar", methods=["POST"])
 def solicitar_otp():
     data = request.get_json() or {}
