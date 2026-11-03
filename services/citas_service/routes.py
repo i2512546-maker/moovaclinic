@@ -212,30 +212,40 @@ def listar_fechas_ocupadas():
     if (hasta - desde).days > 90:
         return jsonify({"error": "El rango máximo es de 90 días"}), 400
 
-    # La consulta por estado conserva compatibilidad con bases ya desplegadas.
-    # El filtro de rango se aplica también en Python para no traer citas lejanas.
+    # Consulta indexada por rango; la alternativa mantiene compatibilidad
+    # mientras se aplica la migración en bases que aún no tienen el SP.
+    try:
+        filas = call_proc(
+            "sp_disponibilidad_citas_rango",
+            (int(medico_id), desde_txt, hasta_txt),
+        ) or []
+    except mysql.connector.Error as exc:
+        if getattr(exc, "errno", None) != 1305:
+            raise
+        filas = []
+        for estado in ("programada", "confirmada", "pendiente_pago"):
+            filas.extend(call_proc("sp_listar_citas", (
+                estado, None, desde_txt, medico_id,
+            )) or [])
+
     horas_por_fecha = {}
-    for estado in ("programada", "confirmada", "pendiente_pago"):
-        citas = call_proc("sp_listar_citas", (
-            estado, None, desde_txt, medico_id,
-        ))
-        for cita in citas or []:
-            fecha = cita.get("fecha_cita")
-            if isinstance(fecha, (date, datetime)):
-                fecha = fecha.strftime("%Y-%m-%d")
-            elif fecha:
-                fecha = str(fecha)[:10]
-            if not fecha or not desde_txt <= fecha <= hasta_txt:
-                continue
-            hora = cita.get("hora_cita")
-            if isinstance(hora, datetime):
-                hora = hora.strftime("%H:%M")
-            elif hasattr(hora, "strftime"):
-                hora = hora.strftime("%H:%M")
-            elif hora:
-                hora = str(hora)[:5]
-            if hora:
-                horas_por_fecha.setdefault(fecha, set()).add(hora)
+    for cita in filas:
+        fecha = cita.get("fecha_cita")
+        if isinstance(fecha, (date, datetime)):
+            fecha = fecha.strftime("%Y-%m-%d")
+        elif fecha:
+            fecha = str(fecha)[:10]
+        if not fecha or not desde_txt <= fecha <= hasta_txt:
+            continue
+        hora = cita.get("hora_cita")
+        if isinstance(hora, datetime):
+            hora = hora.strftime("%H:%M")
+        elif hasattr(hora, "strftime"):
+            hora = hora.strftime("%H:%M")
+        elif hora:
+            hora = str(hora)[:5]
+        if hora:
+            horas_por_fecha.setdefault(fecha, set()).add(hora)
 
     slots = set(generar_slots())
     fechas_completas = sorted(
