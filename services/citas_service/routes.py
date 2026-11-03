@@ -312,6 +312,39 @@ def agenda_dia():
 
     return jsonify({"success": True, "total": len(resultado), "citas": resultado})
 
+@citas_bp.route("/api/citas/resumen-panel", methods=["GET"])
+def resumen_panel_admin():
+    """Carga los datos mínimos del panel admin sin enriquecer listas completas."""
+    fecha = (request.args.get("fecha") or "").strip()
+    desde = (request.args.get("desde") or "").strip()
+    try:
+        datetime.strptime(fecha, "%Y-%m-%d")
+        datetime.strptime(desde, "%Y-%m-%d")
+    except ValueError:
+        return jsonify({"error": "Fechas requeridas con formato YYYY-MM-DD"}), 400
+
+    programadas = call_proc("sp_listar_citas", ("programada", None, fecha, None)) or []
+    canceladas = call_proc("sp_listar_citas", ("cancelada", None, desde, None)) or []
+    no_asistidos = call_proc("sp_listar_citas", ("no_asistio", None, desde, None)) or []
+
+    proximas = [
+        cita for cita in programadas
+        if str(cita.get("fecha_cita", ""))[:10] == fecha
+    ][:20]
+    if proximas:
+        pacientes = _mapa_pacientes()
+        terapeutas = _mapa_terapeutas()
+        for cita in proximas:
+            _enriquecer_cita(cita, pacientes, terapeutas)
+            _fmt_fecha(cita)
+
+    return jsonify({
+        "success": True,
+        "proximas_citas": proximas,
+        "total_canceladas": sum(1 for c in canceladas if str(c.get("fecha_cita", ""))[:10] >= desde),
+        "total_no_asistidos": sum(1 for c in no_asistidos if str(c.get("fecha_cita", ""))[:10] >= desde),
+    })
+
 @citas_bp.route("/api/citas/paciente/<int:paciente_id>", methods=["GET"])
 def listar_citas_paciente(paciente_id):
     """Historial de un paciente (para detalle servido por
