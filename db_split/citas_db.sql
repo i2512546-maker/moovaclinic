@@ -124,6 +124,7 @@ ALTER TABLE `historial_citas`
   ADD KEY `persona_id` (`paciente_id`),
   ADD KEY `terapeuta_id` (`terapeuta_id`),
   ADD KEY `idx_fecha_cita` (`fecha_cita`),
+  ADD KEY `idx_estado_fecha_cita` (`estado`,`fecha_cita`),
   ADD KEY `fk_hc_servicio` (`servicio_id`);
 
 --
@@ -361,7 +362,31 @@ BEGIN
       AND (p_fecha IS NULL OR h.fecha_cita >= p_fecha)
       AND (p_medico_id IS NULL OR h.terapeuta_id = p_medico_id)
     ORDER BY h.fecha_cita ASC;
-END$$
+END$
+
+-- Consulta optimizada para una fecha exacta: evita traer todas las citas
+-- futuras y filtrarlas luego en Python.
+DROP PROCEDURE IF EXISTS `sp_listar_citas_dia`$
+CREATE PROCEDURE `sp_listar_citas_dia`(IN p_fecha DATE)
+BEGIN
+    SELECT h.id, h.id AS historial_id, h.fecha_cita, h.hora_cita, h.estado,
+           h.descripcion, h.paciente_id, h.terapeuta_id, h.servicio_id
+    FROM historial_citas h
+    WHERE h.fecha_cita = p_fecha
+      AND h.estado IN ('programada', 'confirmada', 'cancelada', 'completada', 'no_asistio')
+    ORDER BY h.hora_cita ASC, h.id ASC;
+END$
+
+-- Conteos de seguimiento en una sola consulta indexada.
+DROP PROCEDURE IF EXISTS `sp_resumen_citas_estados`$
+CREATE PROCEDURE `sp_resumen_citas_estados`(IN p_desde DATE)
+BEGIN
+    SELECT h.estado, COUNT(*) AS total
+    FROM historial_citas h
+    WHERE h.estado IN ('cancelada', 'no_asistio')
+      AND h.fecha_cita >= p_desde
+    GROUP BY h.estado;
+END$
 
 --
 -- sp_detalle_cita  |  LOCAL (FASE 2)
