@@ -573,6 +573,10 @@ def crear_cita():
         # simultáneas del mismo terapeuta, fecha y hora. Puede activarse
         # aunque la consulta previa de disponibilidad haya mostrado el slot libre.
         if getattr(exc, "errno", None) == 1062:
+            if es_evaluacion_inicial:
+                return jsonify({
+                    "error": "Este DNI ya tiene una evaluación inicial registrada. Puedes elegir una sesión de tratamiento."
+                }), 409
             current_app.logger.info(
                 "[crear_cita] Conflicto de reserva concurrente: terapeuta=%s fecha=%s hora=%s",
                 data["medico_id"], data["fecha_cita"], hora_cita,
