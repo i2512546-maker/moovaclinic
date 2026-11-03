@@ -1,4 +1,5 @@
 import secrets
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 
 import mysql.connector
@@ -88,6 +89,15 @@ def _mapa_terapeutas(timeout=None):
         return {t["ID"]: t for t in terapeutas}
     except Exception:
         return {}
+
+    
+
+def _mapas_enriquecimiento():
+    """Descarga en paralelo los dos catálogos usados para enriquecer citas."""
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        pacientes_futuro = executor.submit(_mapa_pacientes)
+        terapeutas_futuro = executor.submit(_mapa_terapeutas)
+        return pacientes_futuro.result(), terapeutas_futuro.result()
 
 
 def _fmt_hora(valor):
@@ -254,8 +264,7 @@ def listar_citas():
     for r in (call_proc("sp_resumen_pacientes") or []):
         resumen[r["paciente_id"]] = r["total"]
 
-    pacientes = _mapa_pacientes()
-    terapeutas = _mapa_terapeutas()
+    pacientes, terapeutas = _mapas_enriquecimiento()
 
     resultado = []
     for c in citas:
@@ -352,8 +361,7 @@ def resumen_panel_admin():
             )
     proximas = [cita for cita in citas_dia if cita.get("estado") == "programada"][:20]
     if proximas:
-        pacientes = _mapa_pacientes()
-        terapeutas = _mapa_terapeutas()
+        pacientes, terapeutas = _mapas_enriquecimiento()
         for cita in proximas:
             _enriquecer_cita(cita, pacientes, terapeutas)
             _fmt_fecha(cita)
