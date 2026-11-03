@@ -148,11 +148,77 @@
                         <div class="rounded-circle bg-warning bg-opacity-10 text-warning d-inline-flex align-items-center justify-content-center mb-3" style="width:64px; height:64px;">
                             <i class="fas fa-hourglass-half fs-3"></i>
                         </div>
-                        <h2 class="h4 fw-bold">No tienes tratamientos activos</h2>
-                        <p class="text-muted mb-4">No encontramos paquetes de sesiones activos con sesiones pendientes para este DNI. Agenda una cita nueva normal si deseas comenzar una nueva atención.</p>
+                        <h2 class="h4 fw-bold">Tu seguimiento está disponible</h2>
+                        <p class="text-muted mb-4">Aún no tienes un paquete de sesiones activo. Puedes revisar tu historial y el cronograma propuesto de atención.</p>
                         <a href="{{ url_for('citas_page') }}" class="btn btn-moova d-inline-flex align-items-center gap-2">
-                            <i class="fas fa-calendar-plus"></i> Agendar cita nueva
+                            <i class="fas fa-calendar-plus"></i> Agendar una cita
                         </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if paso == 'sin_paquetes' %}
+        <!-- Seguimiento demostrativo: historial real + siguientes pasos propuestos -->
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="card card-moova border-0 shadow mb-4">
+                    <div class="card-body p-4">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                            <div>
+                                <span class="badge bg-success-subtle text-success-emphasis"><i class="fas fa-shield-alt"></i> Identidad verificada</span>
+                                <h2 class="h4 fw-bold mt-2 mb-1">Plan de atención y seguimiento</h2>
+                                <p class="text-muted mb-0">Resumen de citas y evaluaciones registradas, con los siguientes pasos sugeridos.</p>
+                            </div>
+                            <a href="{{ url_for('citas_page') }}" class="btn btn-outline-primary"><i class="fas fa-calendar-plus"></i> Agendar cita</a>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr><th>Etapa</th><th>Fecha</th><th>Estado</th><th>Detalle</th></tr>
+                                </thead>
+                                <tbody>
+                                    {% for ev in evaluaciones %}
+                                    <tr>
+                                        <td><i class="fas fa-clipboard-check text-success me-1"></i> Evaluación inicial</td>
+                                        <td>{{ ev.fecha_creacion or 'Registrada' }}</td>
+                                        <td><span class="badge bg-success">Realizada</span></td>
+                                        <td>{{ ev.motivo_consulta or 'Evaluación clínica registrada' }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                    {% if not evaluaciones %}
+                                    <tr>
+                                        <td><i class="fas fa-clipboard-list text-primary me-1"></i> Evaluación inicial</td>
+                                        <td>Por programar</td>
+                                        <td><span class="badge bg-warning text-dark">Pendiente</span></td>
+                                        <td>Primera valoración clínica del paciente.</td>
+                                    </tr>
+                                    {% endif %}
+                                    {% for cita in historial_citas %}
+                                    <tr>
+                                        <td><i class="fas fa-calendar-check text-primary me-1"></i> {{ cita.servicio_nombre or cita.servicio or 'Cita de atención' }}</td>
+                                        <td>{{ cita.fecha_cita or cita.fecha or '—' }}</td>
+                                        <td><span class="badge bg-info text-dark">{{ cita.estado or 'Registrada' }}</span></td>
+                                        <td>{{ cita.terapeuta or cita.terapeuta_nombre or 'Especialista asignado' }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                    <tr>
+                                        <td><i class="fas fa-stethoscope text-primary me-1"></i> Evaluación general</td>
+                                        <td>Después de la evaluación inicial</td>
+                                        <td><span class="badge bg-warning text-dark">Pendiente</span></td>
+                                        <td>Definir diagnóstico funcional y objetivos terapéuticos.</td>
+                                    </tr>
+                                    <tr>
+                                        <td><i class="fas fa-calendar-week text-primary me-1"></i> Cronograma de sesiones propuesto</td>
+                                        <td>Por definir</td>
+                                        <td><span class="badge bg-secondary">Propuesto</span></td>
+                                        <td>Frecuencia y cantidad de sesiones se establecerán tras la evaluación general.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="small text-muted mb-0"><i class="fas fa-info-circle me-1"></i> Las etapas marcadas como “Pendiente” o “Propuesto” son una planificación referencial; no representan citas reservadas ni un diagnóstico confirmado.</p>
                     </div>
                 </div>
             </div>
