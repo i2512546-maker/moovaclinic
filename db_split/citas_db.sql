@@ -48,6 +48,7 @@ CREATE TABLE `historial_citas` (
   `hora_cita` time DEFAULT NULL,
   `descripcion` text DEFAULT NULL,
   `estado` enum('pendiente_pago','programada','confirmada','cancelada','completada','no_asistio') NOT NULL DEFAULT 'programada',
+  `reserva_activa` tinyint GENERATED ALWAYS AS (CASE WHEN `estado` IN ('pendiente_pago','programada','confirmada') THEN 1 ELSE NULL END) STORED,
   `recordatorio_enviado` tinyint(1) DEFAULT 0,
   `creado_en` datetime DEFAULT NULL,
   `actualizado_en` datetime DEFAULT NULL
@@ -116,7 +117,7 @@ INSERT INTO `otp_verificaciones` (`id`, `dni`, `codigo`, `accion`, `intentos`, `
 --
 ALTER TABLE `historial_citas`
   ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `uq_reserva` (`terapeuta_id`,`fecha_cita`,`hora_cita`),
+  ADD UNIQUE KEY `uq_reserva_activa` (`terapeuta_id`,`fecha_cita`,`hora_cita`,`reserva_activa`),
   ADD KEY `persona_id` (`paciente_id`),
   ADD KEY `terapeuta_id` (`terapeuta_id`),
   ADD KEY `idx_fecha_cita` (`fecha_cita`),
