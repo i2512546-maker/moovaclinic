@@ -27,7 +27,7 @@ tags:
   - name: auth
     description: Autenticacion y gestion de usuarios/roles
   - name: pacientes
-    description: Pacientes, servicios, paquetes, evaluaciones y consentimientos
+    description: Pacientes, servicios, paquetes y evaluaciones
   - name: citas
     description: Citas, disponibilidad, terapeutas, OTP y estadisticas
   - name: pagos
@@ -402,48 +402,6 @@ paths:
             properties:
               success: { type: boolean, example: true }
               evaluacion_id: { type: integer }
-        "400": { description: Campos requeridos }
-  /api/pacientes/{paciente_id}/consentimientos:
-    get:
-      tags: [pacientes]
-      summary: Listar consentimientos de un paciente
-      parameters:
-        - name: paciente_id
-          in: path
-          required: true
-          type: integer
-      responses:
-        "200":
-          description: Consentimientos
-          schema:
-            type: object
-            properties:
-              success: { type: boolean, example: true }
-              consentimientos: { type: array }
-    post:
-      tags: [pacientes]
-      summary: Crear consentimiento
-      parameters:
-        - name: paciente_id
-          in: path
-          required: true
-          type: integer
-        - name: body
-          in: body
-          required: true
-          schema:
-            type: object
-            properties:
-              tipo: { type: string, example: "tratamiento" }
-              texto_version: { type: string, example: "v1.0" }
-      responses:
-        "201":
-          description: Consentimiento creado
-          schema:
-            type: object
-            properties:
-              success: { type: boolean, example: true }
-              consentimiento_id: { type: integer }
         "400": { description: Campos requeridos }
 
   # ---------------- CITAS ----------------
