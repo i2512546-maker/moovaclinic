@@ -212,30 +212,29 @@ def listar_fechas_ocupadas():
     if (hasta - desde).days > 90:
         return jsonify({"error": "El rango máximo es de 90 días"}), 400
 
-    # La disponibilidad se calcula por HORA, no por día completo. También
-    # contamos las reservas pendientes de pago porque uq_reserva las bloquea.
+    # Una sola consulta acotada al rango. Solo bloquean las reservas
+    # pendientes de pago, programadas o confirmadas; canceladas y
+    # no_asistio liberan el horario y siguen en el historial.
+    filas = call_proc(
+        "sp_disponibilidad_citas_rango",
+        (int(medico_id), desde_txt, hasta_txt),
+    ) or []
     horas_por_fecha = {}
-    for estado in ("programada", "confirmada", "pendiente_pago"):
-        citas = call_proc("sp_listar_citas", (
-            estado, None, desde_txt, medico_id,
-        ))
-        for cita in citas or []:
-            fecha = cita.get("fecha_cita")
-            if isinstance(fecha, (date, datetime)):
-                fecha = fecha.strftime("%Y-%m-%d")
-            elif fecha:
-                fecha = str(fecha)[:10]
-            if not fecha or not desde_txt <= fecha <= hasta_txt:
-                continue
-            hora = cita.get("hora_cita")
-            if isinstance(hora, (datetime,)):
-                hora = hora.strftime("%H:%M")
-            elif hasattr(hora, "strftime"):
-                hora = hora.strftime("%H:%M")
-            elif hora:
-                hora = str(hora)[:5]
-            if hora:
-                horas_por_fecha.setdefault(fecha, set()).add(hora)
+    for cita in filas:
+        fecha = cita.get("fecha_cita")
+        if isinstance(fecha, (date, datetime)):
+            fecha = fecha.strftime("%Y-%m-%d")
+        elif fecha:
+            fecha = str(fecha)[:10]
+        hora = cita.get("hora_cita")
+        if isinstance(hora, datetime):
+            hora = hora.strftime("%H:%M")
+        elif hasattr(hora, "strftime"):
+            hora = hora.strftime("%H:%M")
+        elif hora:
+            hora = str(hora)[:5]
+        if fecha and hora:
+            horas_por_fecha.setdefault(fecha, set()).add(hora)
 
     slots = set(generar_slots())
     fechas_completas = sorted(
@@ -557,16 +556,7 @@ def crear_cita():
     if contar_ocupados(ocupados).get(str(hora_cita)[:5], 0) >= CUPO_POR_SLOT:
         return jsonify({"error": "Ese horario esta completo"}), 409
 
-    # Disponibilidad del medico por fecha (compatibilidad). Blindada.
-    try:
-        if not medico_disponible(data["medico_id"], data["fecha_cita"]):
-            return jsonify({"error": "El medico ya tiene una cita ese dia"}), 409
-    except Exception as exc:
-        current_app.logger.error(
-            "[crear_cita] Error en sp_medico_disponible: %s: %s",
-            type(exc).__name__, exc,
-        )
-        return jsonify({"error": "No se pudo procesar la solicitud, intenta de nuevo"}), 500
+    # No se bloquea el día completo: la disponibilidad se valida por slot.
 
     # El precio del terapeuta se mantiene para las sesiones habituales.
     # La evaluación inicial toma el precio publicado en el catálogo (S/ 55,
@@ -1024,8 +1014,7 @@ def modificar_cita(cita_id):
         if not hora_cita:
             return jsonify({"error": "No hay horarios disponibles para ese dia"}), 409
 
-    if not medico_disponible(nuevo_medico, nueva_fecha, excluir_cita_id=cita_id):
-        return jsonify({"error": "El medico ya tiene una cita ese dia"}), 409
+    # Se permite más de una cita por día; el control es por hora/slot.
 
     # ANTES del UPDATE: sp_modificar_cita sobrescribe terapeuta_id y
     # el aviso necesita saber quien se queda sin la cita.
