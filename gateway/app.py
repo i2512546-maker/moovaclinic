@@ -86,6 +86,8 @@ def _dni_ok(valor):
 
 
 def _terapeuta_id_de_sesion():
+    if "terapeuta_id" in session:
+        return session.get("terapeuta_id")
     usuario_id = session.get("usuario_id")
     if usuario_id is None:
         return None
@@ -99,7 +101,9 @@ def _terapeuta_id_de_sesion():
 
     for terapeuta in terapeutas:
         if str(terapeuta.get("usuario_id")) == str(usuario_id):
+            session["terapeuta_id"] = terapeuta.get("ID")
             return terapeuta.get("ID")
+    session["terapeuta_id"] = None
     return None
 
 
@@ -657,6 +661,8 @@ def create_app():
             registro_id=historial_id,
             detalle="Cita marcada como completada",
         )
+        if _is_ajax():
+            return jsonify({"success": True})
         return redirect(url_for("interfaz", fecha=fecha))
 
     @app.route("/citas/<int:cita_id>/no_asistio", methods=["POST"])
@@ -664,7 +670,7 @@ def create_app():
         if "usuario_id" not in session:
             return redirect(url_for("login"))
         fecha = request.form.get("fecha", hoy_lima().strftime("%Y-%m-%d"))
-        data, status = citas_client.get(f"/api/citas/{cita_id}")
+        data, status = citas_client.get(f"/api/citas/{cita_id}/basico")
         if status == 404:
             abort(404)
         if status != 200:
@@ -678,6 +684,8 @@ def create_app():
                 terapeuta_id is None
                 or str(cita.get("terapeuta_id")) != str(terapeuta_id)
             ):
+                if _is_ajax():
+                    return jsonify({"success": False, "error": "No autorizado"}), 403
                 return redirect(url_for("interfaz", fecha=fecha))
         # solo fechas de hoy o pasadas
         try:
@@ -685,17 +693,16 @@ def create_app():
         except Exception:
             fecha_cita = None
         if fecha_cita is None or fecha_cita > hoy_lima():
+            if _is_ajax():
+                return jsonify({"success": False, "error": "Fecha no valida"}), 400
             return redirect(url_for("interfaz", fecha=fecha))
         if str(cita.get("estado")) not in ("programada", "confirmada"):
+            if _is_ajax():
+                return jsonify({"success": False, "error": "Estado no valido"}), 409
             return redirect(url_for("interfaz", fecha=fecha))
         citas_client.post(f"/api/citas/{cita_id}/no-asistio", {})
-        log_accion(
-            usuario_id=session.get("usuario_id"),
-            accion="marcar_inasistencia",
-            tabla_afectada="historial_citas",
-            registro_id=cita_id,
-            detalle="Cita marcada como no asistida",
-        )
+        if _is_ajax():
+            return jsonify({"success": True, "estado": "no_asistio"})
         return redirect(url_for("interfaz", fecha=fecha))
 
     @app.route("/citas", methods=["GET", "POST"])
@@ -1698,6 +1705,8 @@ def create_app():
     @_admin_required
     def admin_cancelar_cita(cita_id):
         citas_client.delete(f"/api/citas/{cita_id}")
+        if _is_ajax():
+            return jsonify({"success": True})
         flash("exito:Cita cancelada.")
         return redirect(url_for("panel_admin"))
 
