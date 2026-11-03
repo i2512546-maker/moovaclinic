@@ -269,7 +269,8 @@
             <section class="wizard-panel" id="step-4" style="display:none;">
                 <div class="card card-moova border-0 shadow">
                     <div class="card-header bg-white border-0 pt-4 pb-0">
-                        <h2 class="h5 mb-1"><i class="fas fa-clipboard-check me-2 text-success"></i>Paso 4 — Revisa y confirma</h2>
+                        <h2 class="h5 mb-1"><i class="fas fa-clipboard-check me-2 text-success"></i>Paso 4 — Resumen de tu cita</h2>
+                        <p class="text-muted small mb-0">Verifica que el tratamiento, especialista, fecha y hora sean correctos. Todavía no se ha registrado ninguna cita.</p>
                     </div>
                     <div class="card-body">
                         <dl class="row mb-4">
@@ -278,9 +279,28 @@
                             <dt class="col-5">Fecha</dt><dd class="col-7" id="resumen-fecha">—</dd>
                             <dt class="col-5">Hora</dt><dd class="col-7 fw-semibold" id="resumen-hora">—</dd>
                             <dt class="col-5">Costo total</dt><dd class="col-7 fw-semibold text-success" id="costo-cita">S/ —</dd>
-                            <dt class="col-5">Anticipo a pagar hoy (50%)</dt><dd class="col-7 fw-semibold text-success" id="anticipo-cita">S/ —</dd>
-                            <dt class="col-5">Saldo a pagar en la clínica</dt><dd class="col-7 fw-semibold text-success" id="saldo-cita">S/ -</dd>
+                            <dt class="col-5">Anticipo (50%)</dt><dd class="col-7 fw-semibold text-success" id="anticipo-cita">S/ —</dd>
+                            <dt class="col-5">Saldo en la clínica</dt><dd class="col-7 fw-semibold text-success" id="saldo-cita">S/ —</dd>
                         </dl>
+                        <div class="d-flex justify-content-between mt-4">
+                            <button type="button" class="btn btn-moova-outline" id="btnBack4"><i class="fas fa-arrow-left me-2"></i>Atrás</button>
+                            <button type="button" class="btn btn-moova btn-lg" id="btnNext4">Continuar al pago <i class="fas fa-arrow-right ms-2"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="wizard-panel" id="step-5" style="display:none;">
+                <div class="card card-moova border-0 shadow">
+                    <div class="card-header bg-white border-0 pt-4 pb-0">
+                        <h2 class="h5 mb-1"><i class="fas fa-wallet me-2 text-success"></i>Paso 5 — Método de pago</h2>
+                        <p class="text-muted small mb-0">Selecciona cómo deseas pagar el anticipo del 50%.</p>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <strong>Anticipo: <span id="pago-anticipo-resumen">S/ —</span></strong>
+                            <div class="small mt-1">La cita todavía no está registrada. Se enviará a confirmar en el último paso.</div>
+                        </div>
                         <div class="mb-3">
                             <label for="metodo_pago" class="form-label"><i class="fas fa-money-check-alt me-1"></i>Método de pago</label>
                             <select name="metodo_pago" id="metodo_pago" class="form-select" required>
@@ -291,10 +311,35 @@
                                 <option value="transferencia">Transferencia bancaria</option>
                             </select>
                         </div>
-                        <p class="small text-muted"><i class="fas fa-info-circle me-1"></i>Para reservar tu cita se requiere un anticipo del 50% del costo de la atención.</p>
                         <div class="d-flex justify-content-between mt-4">
-                            <button type="button" class="btn btn-moova-outline" id="btnBack4"><i class="fas fa-arrow-left me-2"></i>Atrás</button>
-                            <button type="submit" class="btn btn-moova btn-lg" id="btn-submit">Confirmar y pagar anticipo <i class="fas fa-arrow-right ms-2"></i></button>
+                            <button type="button" class="btn btn-moova-outline" id="btnBack5"><i class="fas fa-arrow-left me-2"></i>Atrás</button>
+                            <button type="button" class="btn btn-moova btn-lg" id="btnNext5">Continuar <i class="fas fa-arrow-right ms-2"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="wizard-panel" id="step-6" style="display:none;">
+                <div class="card card-moova border-0 shadow">
+                    <div class="card-header bg-white border-0 pt-4 pb-0">
+                        <h2 class="h5 mb-1"><i class="fas fa-check-circle me-2 text-success"></i>Paso 6 — Confirmar y continuar al pago</h2>
+                        <p class="text-muted small mb-0">Revisa por última vez los datos. La reserva se registrará al confirmar este paso.</p>
+                    </div>
+                    <div class="card-body">
+                        <dl class="row mb-4">
+                            <dt class="col-5">Tratamiento</dt><dd class="col-7" id="confirmacion-servicio">—</dd>
+                            <dt class="col-5">Especialista</dt><dd class="col-7" id="confirmacion-medico">—</dd>
+                            <dt class="col-5">Fecha de cita</dt><dd class="col-7" id="confirmacion-fecha">—</dd>
+                            <dt class="col-5">Hora de cita</dt><dd class="col-7 fw-semibold" id="confirmacion-hora">—</dd>
+                            <dt class="col-5">Método de pago</dt><dd class="col-7" id="confirmacion-metodo">—</dd>
+                            <dt class="col-5">Anticipo</dt><dd class="col-7 fw-semibold text-success" id="confirmacion-anticipo">S/ —</dd>
+                        </dl>
+                        <div class="alert alert-warning small">
+                            Al confirmar, se creará una reserva pendiente de pago y pasarás a la pantalla segura para completar el anticipo. La cita solo quedará confirmada cuando el pago sea aprobado.
+                        </div>
+                        <div class="d-flex justify-content-between mt-4">
+                            <button type="button" class="btn btn-moova-outline" id="btnBack6"><i class="fas fa-arrow-left me-2"></i>Atrás</button>
+                            <button type="submit" class="btn btn-moova btn-lg" id="btn-submit">Confirmar reserva y pagar <i class="fas fa-arrow-right ms-2"></i></button>
                         </div>
                     </div>
                 </div>
@@ -331,7 +376,9 @@
                 1: "Tus datos: los usamos para identificarte y avisarte de tu cita.",
                 2: "Tratamiento: elige lo que necesitas. Si es tu primera vez, elige Evaluacion inicial.",
                 3: "Especialista y fecha: elige con quien y que dia. Los dias tachados estan ocupados.",
-                4: "Resumen: revisa todo y paga el anticipo del 50% para reservar."
+                4: "Resumen: revisa los datos de tu cita. Aún no se ha registrado.",
+                5: "Pago: selecciona el método para abonar el anticipo del 50%.",
+                6: "Confirmación: confirma tus datos y continúa a la pasarela de pago."
             };
             var ayudaEl = document.getElementById('ayuda-paso');
             if (ayudaEl && ayudas[paso]) ayudaEl.textContent = ayudas[paso];
@@ -710,6 +757,30 @@
         document.getElementById('btnBack2').addEventListener('click', function () { irPaso(1); });
         document.getElementById('btnBack3').addEventListener('click', function () { irPaso(2); });
         document.getElementById('btnBack4').addEventListener('click', function () { irPaso(3); });
+        document.getElementById('btnNext4').addEventListener('click', function () {
+            var anticipo = document.getElementById('anticipo-cita').textContent;
+            document.getElementById('pago-anticipo-resumen').textContent = anticipo;
+            irPaso(5);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+        document.getElementById('btnBack5').addEventListener('click', function () { irPaso(4); });
+        document.getElementById('btnNext5').addEventListener('click', function () {
+            var metodo = document.getElementById('metodo_pago');
+            if (!metodo.value) {
+                mostrarPopup('Selecciona un método de pago para continuar.', 'error');
+                metodo.focus();
+                return;
+            }
+            document.getElementById('confirmacion-servicio').textContent = document.getElementById('resumen-servicio').textContent;
+            document.getElementById('confirmacion-medico').textContent = document.getElementById('resumen-medico').textContent;
+            document.getElementById('confirmacion-fecha').textContent = document.getElementById('resumen-fecha').textContent;
+            document.getElementById('confirmacion-hora').textContent = document.getElementById('resumen-hora').textContent;
+            document.getElementById('confirmacion-metodo').textContent = metodo.options[metodo.selectedIndex].text;
+            document.getElementById('confirmacion-anticipo').textContent = document.getElementById('anticipo-cita').textContent;
+            irPaso(6);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+        document.getElementById('btnBack6').addEventListener('click', function () { irPaso(5); });
 
         function esErrorDisponibilidad(mensaje) {
             var texto = (mensaje || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -759,6 +830,10 @@
 
         formCita.addEventListener('submit', function (event) {
             event.preventDefault();
+            if (pasoActual !== 6) {
+                mostrarPopup('Debes llegar al paso 6 para confirmar tu reserva.', 'error');
+                return;
+            }
             var obligatorios = ['nombre', 'apellido', 'dni', 'telefono', 'servicio_id',
                 'medico_id', 'fecha_cita', 'hora_cita', 'metodo_pago'];
             if (!dniVerificado || dniInput.value.trim() !== dniValidado) {
