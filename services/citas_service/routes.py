@@ -321,6 +321,7 @@ def agenda_dia():
 
     return jsonify({"success": True, "total": len(resultado), "citas": resultado})
 
+
 @citas_bp.route("/api/citas/resumen-panel", methods=["GET"])
 def resumen_panel_admin():
     """Carga los datos mínimos del panel admin sin enriquecer listas completas."""
