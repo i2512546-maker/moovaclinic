@@ -487,22 +487,25 @@ def crear_cita():
     if servicio_id is not None:
         try:
             catalogo_data, catalogo_status = pacientes_client.get("/api/servicios")
-            if catalogo_status == 200:
-                servicio = next(
-                    (s for s in (catalogo_data.get("servicios") or [])
-                     if str(s.get("id")) == str(servicio_id)),
-                    None,
-                )
-                nombre_servicio = str((servicio or {}).get("nombre") or "").strip().casefold()
-                es_evaluacion_inicial = nombre_servicio in {
-                    "evaluacion inicial", "evaluación inicial",
-                }
-                if es_evaluacion_inicial:
-                    costo = float((servicio or {}).get("precio") or 55)
-                    if not 50 <= costo <= 60:
-                        return jsonify({
-                            "error": "El precio de la evaluación inicial debe estar entre S/ 50 y S/ 60."
-                        }), 400
+            if catalogo_status != 200:
+                return jsonify({"error": "No se pudo consultar el catálogo de servicios."}), 502
+            servicio = next(
+                (s for s in (catalogo_data.get("servicios") or [])
+                 if str(s.get("id")) == str(servicio_id)),
+                None,
+            )
+            if not servicio:
+                return jsonify({"error": "El servicio seleccionado no está disponible."}), 400
+            nombre_servicio = str(servicio.get("nombre") or "").strip().casefold()
+            es_evaluacion_inicial = nombre_servicio in {
+                "evaluacion inicial", "evaluación inicial",
+            }
+            if es_evaluacion_inicial:
+                costo = float(servicio.get("precio") or 55)
+                if not 50 <= costo <= 60:
+                    return jsonify({
+                        "error": "El precio de la evaluación inicial debe estar entre S/ 50 y S/ 60."
+                    }), 400
         except (TypeError, ValueError):
             return jsonify({"error": "No se pudo validar el precio del servicio."}), 400
         except Exception as exc:
