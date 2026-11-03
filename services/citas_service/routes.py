@@ -368,16 +368,16 @@ def resumen_panel_admin():
             conteos[estado] = sum(
                 1 for fila in filas if str(fila.get("fecha_cita", ""))[:10] >= desde
             )
-    proximas = [cita for cita in citas_dia if cita.get("estado") == "programada"][:20]
-    if proximas:
+    citas_hoy = list(citas_dia)
+    if citas_hoy:
         pacientes, terapeutas = _mapas_enriquecimiento()
-        for cita in proximas:
+        for cita in citas_hoy:
             _enriquecer_cita(cita, pacientes, terapeutas)
             _fmt_fecha(cita)
 
     return jsonify({
         "success": True,
-        "proximas_citas": proximas,
+        "proximas_citas": citas_hoy,
         "total_canceladas": conteos.get("cancelada", 0),
         "total_no_asistidos": conteos.get("no_asistio", 0),
     })
