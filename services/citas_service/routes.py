@@ -280,7 +280,16 @@ def agenda_dia():
 
     # Este procedimiento filtra por igualdad de fecha en MySQL y usa
     # el índice de fecha; no descarga las citas de todos los días futuros.
-    citas = call_proc("sp_listar_citas_dia", (fecha,)) or []
+    try:
+        citas = call_proc("sp_listar_citas_dia", (fecha,)) or []
+    except mysql.connector.Error as exc:
+        if getattr(exc, "errno", None) != 1305:
+            raise
+        # Compatibilidad temporal si la migración SQL aún no se ejecutó.
+        current_app.logger.warning("Falta sp_listar_citas_dia; usando consulta compatible")
+        citas = []
+        for estado in ("programada", "confirmada", "cancelada", "completada", "no_asistio"):
+            citas.extend(call_proc("sp_listar_citas", (estado, None, fecha, None)) or [])
     if not citas:
         return jsonify({"success": True, "total": 0, "citas": []})
 
@@ -319,12 +328,24 @@ def resumen_panel_admin():
     except ValueError:
         return jsonify({"error": "Fechas requeridas con formato YYYY-MM-DD"}), 400
 
-    citas_dia = call_proc("sp_listar_citas_dia", (fecha,)) or []
+    try:
+        citas_dia = call_proc("sp_listar_citas_dia", (fecha,)) or []
+        filas_conteo = call_proc("sp_resumen_citas_estados", (desde,)) or []
+        conteos = {fila["estado"]: int(fila["total"]) for fila in filas_conteo}
+    except mysql.connector.Error as exc:
+        if getattr(exc, "errno", None) != 1305:
+            raise
+        # La pantalla sigue funcionando si el despliegue de código se
+        # adelanta a la migración SQL; al aplicarla entra la ruta rápida.
+        current_app.logger.warning("Faltan SP optimizados; usando consultas compatibles")
+        citas_dia = call_proc("sp_listar_citas", ("programada", None, fecha, None)) or []
+        conteos = {}
+        for estado in ("cancelada", "no_asistio"):
+            filas = call_proc("sp_listar_citas", (estado, None, desde, None)) or []
+            conteos[estado] = sum(
+                1 for fila in filas if str(fila.get("fecha_cita", ""))[:10] >= desde
+            )
     proximas = [cita for cita in citas_dia if cita.get("estado") == "programada"][:20]
-    conteos = {
-        fila["estado"]: int(fila["total"])
-        for fila in (call_proc("sp_resumen_citas_estados", (desde,)) or [])
-    }
     if proximas:
         pacientes = _mapa_pacientes()
         terapeutas = _mapa_terapeutas()
