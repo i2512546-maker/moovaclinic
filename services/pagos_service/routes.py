@@ -163,6 +163,13 @@ def confirmar_pago_servicio(cita_id, referencia=None, datos_respuesta=None, veri
             )
 
     if pagado and cita:
+        _pago_info = call_proc_one("sp_obtener_pago", (cita_id,)) or {}
+        try:
+            _monto_anticipo = float((_pago_info or {}).get("monto") or 0)
+        except (TypeError, ValueError):
+            _monto_anticipo = 0.0
+        _saldo = _monto_anticipo
+
         import requests as http_requests
 
         from shared.config import TEXTBEE_API_KEY, TEXTBEE_DEVICE_ID, TEXTBEE_URL
@@ -194,7 +201,7 @@ def confirmar_pago_servicio(cita_id, referencia=None, datos_respuesta=None, veri
         telefono_paciente = cita.get("telefono_paciente") or cita.get("telefono")
         if telefono_paciente:
             _sms(telefono_paciente,
-                 f"MOOVA Clinic: Hola {cita.get('nombre')}, tu cita fue confirmada. Medico: {cita.get('terapeuta')} ({cita.get('Especialidad')}). Fecha: {fecha_fmt}.")
+                 f"MOOVA Clinic: Hola {cita.get('nombre')}, tu anticipo de S/ {_monto_anticipo:.2f} fue confirmado. Saldo en la clinica: S/ {_saldo:.2f}. Medico: {cita.get('terapeuta')} ({cita.get('Especialidad')}). Fecha: {fecha_fmt}.")
 
         telefono_medico = None
         terapeuta_id = cita.get("terapeuta_id")

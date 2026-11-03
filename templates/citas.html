@@ -110,6 +110,10 @@
             <button type="button" class="wizard-step" data-step="5" disabled><span class="wizard-dot">5</span><span class="wizard-label">Pago</span></button>
             <div class="wizard-connector" id="connector-5"></div>
             <button type="button" class="wizard-step" data-step="6" disabled><span class="wizard-dot">6</span><span class="wizard-label">Confirmación</span></button>
+        </div></div>
+
+        <div class="alert alert-info small mb-3" role="note">
+            <i class="fas fa-info-circle me-1"></i>Para reservar tu cita se paga un anticipo del 50% del costo. El saldo se paga en la clínica.
         </div>
 
         {% with messages = get_flashed_messages() %}
@@ -255,8 +259,9 @@
                             <dt class="col-5">Tratamiento</dt><dd class="col-7" id="resumen-servicio">—</dd>
                             <dt class="col-5">Especialista</dt><dd class="col-7" id="resumen-medico">—</dd>
                             <dt class="col-5">Fecha</dt><dd class="col-7" id="resumen-fecha">—</dd>
-                            <dt class="col-5">Costo</dt><dd class="col-7 fw-semibold text-success" id="costo-cita">S/ —</dd>
-                            <dt class="col-5">Anticipo (50%)</dt><dd class="col-7 fw-semibold text-success" id="anticipo-cita">S/ —</dd>
+                            <dt class="col-5">Costo total</dt><dd class="col-7 fw-semibold text-success" id="costo-cita">S/ —</dd>
+                            <dt class="col-5">Anticipo a pagar hoy (50%)</dt><dd class="col-7 fw-semibold text-success" id="anticipo-cita">S/ —</dd>
+                            <dt class="col-5">Saldo a pagar en la clínica</dt><dd class="col-7 fw-semibold text-success" id="saldo-cita">S/ -</dd>
                         </dl>
                         <div class="mb-3">
                             <label for="metodo_pago" class="form-label"><i class="fas fa-money-check-alt me-1"></i>Método de pago</label>
@@ -271,7 +276,7 @@
                         <p class="small text-muted"><i class="fas fa-info-circle me-1"></i>Para reservar tu cita se requiere un anticipo del 50% del costo de la atención.</p>
                         <div class="d-flex justify-content-between mt-4">
                             <button type="button" class="btn btn-moova-outline" id="btnBack4"><i class="fas fa-arrow-left me-2"></i>Atrás</button>
-                            <button type="submit" class="btn btn-moova btn-lg" id="btn-submit">Confirmar y pagar <i class="fas fa-arrow-right ms-2"></i></button>
+                            <button type="submit" class="btn btn-moova btn-lg" id="btn-submit">Confirmar y pagar anticipo <i class="fas fa-arrow-right ms-2"></i></button>
                         </div>
                     </div>
                 </div>
