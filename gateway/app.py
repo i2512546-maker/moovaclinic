@@ -57,21 +57,14 @@ csrf = CSRFProtect()
 
 
 def _cargar_anexos_paciente(paciente_id):
-    """Paquetes, evaluaciones iniciales y consentimientos de un paciente.
-
-    Cada bloque es independiente: si un módulo interno falla, el resto
-    de la ficha se sigue mostrando igual que antes en la vista HTML.
-    """
+    """Paquetes y evaluaciones iniciales de un paciente."""
     if not paciente_id:
-        return [], [], []
-    paquetes, evaluaciones, consentimientos = [], [], []
+        return [], []
     pdata, _ = pacientes_client.get(f"/api/pacientes/{paciente_id}/paquetes")
     paquetes = pdata.get("paquetes", [])
     edata, _ = pacientes_client.get(f"/api/pacientes/{paciente_id}/evaluaciones")
     evaluaciones = edata.get("evaluaciones", [])
-    cdata, _ = pacientes_client.get(f"/api/pacientes/{paciente_id}/consentimientos")
-    consentimientos = cdata.get("consentimientos", [])
-    return paquetes, evaluaciones, consentimientos
+    return paquetes, evaluaciones
 
 
 def _is_ajax():
@@ -1761,7 +1754,7 @@ def create_app():
             if not historial:
                 abort(403)
 
-        paquetes, evaluaciones, consentimientos = _cargar_anexos_paciente(paciente.get("id"))
+        paquetes, evaluaciones = _cargar_anexos_paciente(paciente.get("id"))
 
         # Las notas clínicas se guardan por cita; reunirlas para mostrarlas
         # juntas al final de la ficha del paciente. Si notas_service falla,
@@ -1800,7 +1793,7 @@ def create_app():
 
         return render_template("detalle_paciente.html", paciente=paciente,
                                historial=historial, paquetes=paquetes,
-                               evaluaciones=evaluaciones, consentimientos=consentimientos,
+                               evaluaciones=evaluaciones,
                                notas_paciente=notas_paciente, es_admin=es_admin,
                                hoy_impresion=hoy_lima().strftime("%d/%m/%Y %H:%M"))
 
@@ -1817,7 +1810,7 @@ def create_app():
         paquetes, evaluaciones, consentimientos = _cargar_anexos_paciente(paciente.get("id"))
 
         pdf_bytes = build_ficha_clinica_pdf(
-            paciente, historial, paquetes, evaluaciones, consentimientos,
+            paciente, historial, paquetes, evaluaciones,
             generado_por=session.get("usuario_nombre"),
         )
         log_accion(
