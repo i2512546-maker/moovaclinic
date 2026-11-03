@@ -302,7 +302,7 @@
 ### 14. Detalle Paciente
 - **Archivo/ruta:** `templates/detalle_paciente.html`, ruta `/pacientes/<dni>`
 - **Rol:** Admin sólo
-- **Función:** Ficha completa del paciente: datos personales, historial de citas, paquetes de sesiones, evaluaciones iniciales, consentimientos informados.
+- **Función:** Ficha completa del paciente: datos personales, historial de citas, paquetes de sesiones y evaluaciones iniciales.
 - **Objetivo:** Proporcionar al admin una visión integral del paciente para su seguimiento clínico.
 - **Pre-requisitos:** DNI válido; sesión admin.
 - **Datos a mostrar:** 
@@ -310,19 +310,16 @@
   - Historial de citas: tabla con fecha, terapeuta, especialidad, estado (badge), monto, estado pago.
   - Paquetes de sesiones: tabla con servicio nombre, sesiones usadas/sesiones totales, progreso (barra de progreso), fecha de compra, vencimiento, estado.
   - Evaluaciones iniciales: tabla con fecha, terapeuta, motivo consulta, dolor EVA (0-10), rango movimiento, objetivos terapéuticos.
-  - Consentimientos informados: tabla con tipo, versión, fecha aceptación (dd/mm/YYYY HH:MM), IP origen.
-  - Botón "Descargar Ficha PDF" → `GET /pacientes/<dni>/ficha-clinica.pdf` (endpoint `ficha_clinica_pdf`, solo admin). Genera el PDF con `reportlab` (`gateway/ficha_pdf.py`): encabezado, datos del paciente, historial de citas, paquetes, evaluaciones iniciales, consentimientos y pie con la fecha de emisión. Se abre en una pestaña nueva.
+  - Botón "Descargar Ficha PDF" → `GET /pacientes/<dni>/ficha-clinica.pdf` (endpoint `ficha_clinica_pdf`, solo admin). Genera el PDF con `reportlab` (`gateway/ficha_pdf.py`): encabezado, datos del paciente, historial de citas, paquetes, evaluaciones iniciales y pie con la fecha de emisión. Se abre en una pestaña nueva.
 - **Interacciones del usuario:** Ninguna beyond view; scroll dentro de la página.
 - **Navega a:** `/pacientes`, `/index`, `/logout`
 - **Servicios/endpoints/tablas:** 
-  - `GET /api/pacientes/{dni}` (pacientes_service.detalle_paciente) → devuelve `{paciente, historial, paquetes, evaluaciones, consentimientos}`.
+  - `GET /api/pacientes/{dni}` (pacientes_service.detalle_paciente) → devuelve `{paciente, historial}`.
     - `historial` = `call_proc("sp_listar_citas_paciente", (paciente_id,))` enriquecido con terapeuta/especialidad y datos de pago (desde `pagos_client.get("/api/pagos/pacientes/{paciente_id}")`).
     - `paquetes` = `call_proc("sp_listar_paquetes_paciente", (paciente_id,))` enriquecido con nombre de servicio (desde `pacientes_client.get("/api/servicios")`).
     - `evaluaciones` = `call_proc("sp_listar_evaluaciones", (paciente_id,))` con `terapeuta_nombre` enriquecido.
-    - `consentimientos` = `call_proc("sp_listar_consentimientos", (paciente_id,))`.
   - `GET /api/pacientes/{id}/paquetes` (pacientes_service.listar_paquetes) → lista paquetes con servicio y duración.
   - `GET /api/pacientes/{id}/evaluaciones` → lista evaluaciones.
-  - `GET /api/pacientes/{id}/consentimientos` → lista consentimientos.
 
 ### 15. Notas Cita
 - **Archivo/ruta:** `templates/notas_cita.html`, ruta `/notas/<cita_id>`
@@ -364,7 +361,7 @@
 | Auditoría | rol admin, filtros opcionales | `GET /api/auditoria?filtros` | Aplicar filtros, tabla logs, "No hay registros" |
 | KPIs | rol admin, rango fechas | `GET /api/kpis?desde=...&hasta=...` | Selector de fechas, tarjetas resumen, tabla por terapeuta |
 | Pacientes | rol admin | `GET /api/pacientes` | Buscador client‑side, cards con badge estado, enlaces historial |
-| Detalle Paciente | DNI válido, admin | `GET /api/pacientes/{dni}`, `/paquetes`, `/evaluaciones`, `/consentimientos` | Ficha completa: datos, historial, paquetes, evaluaciones, consentimientos, descarga del PDF |
+| Detalle Paciente | DNI válido, admin | `GET /api/pacientes/{dni}`, `/paquetes`, `/evaluaciones` | Ficha completa: datos, historial, paquetes, evaluaciones y descarga del PDF |
 | Notas Cita | sesión activa, cita_id | `GET /api/notas/{cita_id}`, `POST /api/notas/{cita_id}` | Form nueva nota, lista notas previas, flash éxito |
 
 ---
