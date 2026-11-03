@@ -299,6 +299,11 @@ def create_app():
     app.secret_key = secret_key
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    # La sesion de personal vive durante la sesion del navegador: navegar
+    # entre el panel y la pagina publica no debe cerrarla. Al cerrar el
+    # navegador, el cookie de sesion deja de estar disponible.
+    app.config["SESSION_COOKIE_PATH"] = "/"
+    app.config["SESSION_PERMANENT"] = False
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 31536000
     # Solo si se usa HTTPS en producción; en localhost http queda desactivado automaticamente
     if os.getenv("FLASK_ENV") == "production":
@@ -547,6 +552,12 @@ def create_app():
 
     @app.route("/login", methods=["GET", "POST"])
     def login():
+        # Si el usuario ya esta autenticado, /login no debe mostrar otra vez
+        # el formulario ni dar la impresion de que se cerro su sesion.
+        if request.method == "GET" and session.get("usuario_id"):
+            destino = "panel_admin" if session.get("rol") == "admin" else "interfaz"
+            return redirect(url_for(destino))
+
         if request.method == "POST":
             correo = request.form["correo"].strip()
             clave = request.form["clave"].strip()
@@ -571,6 +582,7 @@ def create_app():
             if status == 200 and data.get("success"):
                 limite.registrar_exito(claves)
                 u = data["usuario"]
+                session.permanent = False
                 session["usuario_id"] = u["id"]
                 session["usuario_nombre"] = u["nombre"]
                 session["rol"] = u["rol"]
@@ -1321,12 +1333,29 @@ def create_app():
             elif accion == "actualizar_precio":
                 mid = request.form.get("medico_id")
                 precio = request.form.get("precio", "").strip()
-                if mid and precio:
+                if not mid or not precio:
+                    flash("Ingresa un precio valido.")
+                else:
                     try:
-                        pacientes_client.put(f"/api/terapeutas/{mid}/precio", {"precio": float(precio)})
-                        flash("exito:Precio actualizado.")
+                        precio_num = float(precio)
+                        if precio_num <= 0:
+                            raise ValueError("El precio debe ser mayor que cero.")
+                        respuesta, estado = pacientes_client.put(
+                            f"/api/terapeutas/{mid}/precio", {"precio": precio_num}
+                        )
+                        if estado in (200, 201) and (respuesta or {}).get("success", True):
+                            flash("exito:Precio actualizado correctamente.")
+                        else:
+                            app.logger.warning(
+                                "No se pudo actualizar el precio del terapeuta %s (HTTP %s)",
+                                mid, estado,
+                            )
+                            flash((respuesta or {}).get("error") or "No se pudo actualizar el precio. Inténtalo nuevamente.")
                     except ValueError:
-                        flash("Precio invalido.")
+                        flash("Precio invalido. Ingresa un monto mayor que cero.")
+                    except Exception:
+                        app.logger.exception("Error al actualizar el precio del terapeuta %s", mid)
+                        flash("No se pudo actualizar el precio por un problema de conexión. Tu sesión sigue activa.")
 
             elif accion == "actualizar_telefono":
                 uid = request.form.get("usuario_id")
@@ -1415,19 +1444,28 @@ def create_app():
                                 uid = terapeuta.get("usuario_id")
                                 if uid:
                                     auth_client.put(f"/api/auth/usuarios/{uid}", {"nombre": nombre})
-                                pacientes_client.put(f"/api/terapeutas/{mid}/precio", {"precio": precio_num})
-                                if activo_raw in ("0", "1"):
-                                    pacientes_client.put(f"/api/terapeutas/{mid}/activo", {"activo": int(activo_raw)})
-                                if especialidad and esp_id is not None:
-                                    pacientes_client.put(f"/api/terapeutas/{mid}/especialidad", {"especialidad_id": esp_id})
-                                log_accion(
-                                    usuario_id=session.get("usuario_id"),
-                                    accion="actualizar_usuario",
-                                    tabla_afectada="usuarios",
-                                    registro_id=uid,
-                                    detalle=f"Terapeuta id={mid} actualizado: nombre={nombre}",
-                                )
-                                flash("exito:Terapeuta actualizado.")
+                                try:
+                                    _, precio_status = pacientes_client.put(
+                                        f"/api/terapeutas/{mid}/precio", {"precio": precio_num}
+                                    )
+                                    if precio_status not in (200, 201):
+                                        flash("No se pudo actualizar el precio de la fisioterapeuta.")
+                                    else:
+                                        if activo_raw in ("0", "1"):
+                                            pacientes_client.put(f"/api/terapeutas/{mid}/activo", {"activo": int(activo_raw)})
+                                        if especialidad and esp_id is not None:
+                                            pacientes_client.put(f"/api/terapeutas/{mid}/especialidad", {"especialidad_id": esp_id})
+                                        log_accion(
+                                            usuario_id=session.get("usuario_id"),
+                                            accion="actualizar_usuario",
+                                            tabla_afectada="usuarios",
+                                            registro_id=uid,
+                                            detalle=f"Terapeuta id={mid} actualizado: nombre={nombre}",
+                                        )
+                                        flash("exito:Terapeuta actualizado.")
+                                except Exception:
+                                    app.logger.exception("Error al actualizar la fisioterapeuta %s", mid)
+                                    flash("No se pudo guardar el cambio. Tu sesión continúa activa.")
 
             return redirect(url_for("panel_admin"))
 
