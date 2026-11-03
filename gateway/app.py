@@ -3,6 +3,7 @@ import io
 import math
 import os
 import random
+import secrets
 import sys
 import threading
 
@@ -559,6 +560,10 @@ def create_app():
             return redirect(url_for(destino))
 
         if request.method == "POST":
+            nonce_pestana = request.form.get("nonce_pestana", "")
+            if not nonce_pestana or nonce_pestana != session.get("login_tab_nonce"):
+                flash("La sesión de acceso no es válida. Vuelve a intentarlo.")
+                return redirect(url_for("login"))
             correo = request.form["correo"].strip()
             clave = request.form["clave"].strip()
             if not correo or not clave:
@@ -583,6 +588,8 @@ def create_app():
                 limite.registrar_exito(claves)
                 u = data["usuario"]
                 session.permanent = False
+                session.pop("login_tab_nonce", None)
+                session["tab_session_id"] = nonce_pestana
                 session["usuario_id"] = u["id"]
                 session["usuario_nombre"] = u["nombre"]
                 session["rol"] = u["rol"]
@@ -594,6 +601,8 @@ def create_app():
                 limite.registrar_fallo(claves)
                 flash(MENSAJE_LOGIN_INVALIDO)
 
+        if request.method == "GET" and "usuario_id" not in session:
+            session["login_tab_nonce"] = secrets.token_urlsafe(32)
         return render_template("login.html")
 
     @app.route("/logout")
