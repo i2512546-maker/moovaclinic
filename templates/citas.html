@@ -248,6 +248,16 @@
                             <input type="text" id="fecha-calendario" class="visually-hidden" aria-label="Calendario de disponibilidad">
                             <div id="calendarioCita"></div>
                         </div>
+                        <div class="mt-4" id="horario-contenedor" style="display:none;">
+                            <label for="hora_cita" class="form-label fw-semibold"><i class="fas fa-clock me-1"></i>Selecciona la hora de tu cita</label>
+                            <select name="hora_cita" id="hora_cita" class="form-select" disabled>
+                                <option value="">Primero selecciona una fecha</option>
+                                {% for hora in horarios_disponibles %}
+                                <option value="{{ hora }}">{{ hora }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">La hora que elijas se reservará junto con la fecha seleccionada.</small>
+                        </div>
                         <div class="d-flex justify-content-between mt-4">
                             <button type="button" class="btn btn-moova-outline" id="btnBack3"><i class="fas fa-arrow-left me-2"></i>Atrás</button>
                             <button type="button" class="btn btn-moova" id="btnNext3">Siguiente <i class="fas fa-arrow-right ms-2"></i></button>
@@ -266,6 +276,7 @@
                             <dt class="col-5">Tratamiento</dt><dd class="col-7" id="resumen-servicio">—</dd>
                             <dt class="col-5">Especialista</dt><dd class="col-7" id="resumen-medico">—</dd>
                             <dt class="col-5">Fecha</dt><dd class="col-7" id="resumen-fecha">—</dd>
+                            <dt class="col-5">Hora</dt><dd class="col-7 fw-semibold" id="resumen-hora">—</dd>
                             <dt class="col-5">Costo total</dt><dd class="col-7 fw-semibold text-success" id="costo-cita">S/ —</dd>
                             <dt class="col-5">Anticipo a pagar hoy (50%)</dt><dd class="col-7 fw-semibold text-success" id="anticipo-cita">S/ —</dd>
                             <dt class="col-5">Saldo a pagar en la clínica</dt><dd class="col-7 fw-semibold text-success" id="saldo-cita">S/ -</dd>
@@ -384,6 +395,11 @@
         function limpiarFecha() {
             document.getElementById('fecha_cita').value = '';
             document.getElementById('resumen-fecha').textContent = '—';
+            var selectorHora = document.getElementById('hora_cita');
+            selectorHora.value = '';
+            selectorHora.disabled = true;
+            document.getElementById('horario-contenedor').style.display = 'none';
+            document.getElementById('resumen-hora').textContent = '—';
             if (calendario) calendario.clear();
         }
 
@@ -452,6 +468,11 @@
                         onChange: function (_seleccionadas, fecha) {
                             document.getElementById('fecha_cita').value = fecha;
                             document.getElementById('resumen-fecha').textContent = fecha;
+                            var selectorHora = document.getElementById('hora_cita');
+                            selectorHora.value = '';
+                            selectorHora.disabled = false;
+                            document.getElementById('horario-contenedor').style.display = '';
+                            document.getElementById('resumen-hora').textContent = 'Selecciona una hora';
                         }
                     });
                 } else {
@@ -655,10 +676,18 @@
                 mostrarPopup('Selecciona una fecha disponible antes de continuar.', 'error');
                 return;
             }
+            if (!document.getElementById('hora_cita').value) {
+                mostrarPopup('Selecciona la hora exacta de tu cita antes de continuar.', 'error');
+                return;
+            }
             document.getElementById('resumen-servicio').textContent =
                 document.querySelector('.servicio-card.selected .h6').textContent.trim();
             irPaso(4);
             window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        document.getElementById('hora_cita').addEventListener('change', function () {
+            document.getElementById('resumen-hora').textContent = this.value || '—';
         });
 
         document.getElementById('btnBack2').addEventListener('click', function () { irPaso(1); });
@@ -711,7 +740,7 @@
         formCita.addEventListener('submit', function (event) {
             event.preventDefault();
             var obligatorios = ['nombre', 'apellido', 'dni', 'telefono', 'servicio_id',
-                'medico_id', 'fecha_cita', 'metodo_pago'];
+                'medico_id', 'fecha_cita', 'hora_cita', 'metodo_pago'];
             if (!dniVerificado || dniInput.value.trim() !== dniValidado) {
                 mostrarPopup('La identidad debe verificarse nuevamente antes de confirmar la cita.', 'error');
                 irPaso(1);
