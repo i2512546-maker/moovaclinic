@@ -1,5 +1,4 @@
 import csv
-from concurrent.futures import ThreadPoolExecutor
 import io
 import math
 import os
@@ -7,6 +6,7 @@ import random
 import secrets
 import sys
 import threading
+from concurrent.futures import ThreadPoolExecutor
 
 sys.path.insert(0, os.path.dirname(__file__))
 import re
@@ -1513,7 +1513,7 @@ def create_app():
         medicos = (tdata or {}).get("terapeutas", [])
         especialidades = (edata or {}).get("especialidades", [])
         usuarios = (udata or {}).get("usuarios", [])
-        datos_panel = panel_data if panel_status == 200 else {}
+        datos_panel = (panel_data or {}) if panel_status == 200 else {}
         proximas_citas = datos_panel.get("proximas_citas", [])
         total_canceladas = datos_panel.get("total_canceladas", 0)
         total_no_asistidos = datos_panel.get("total_no_asistidos", 0)
