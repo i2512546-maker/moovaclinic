@@ -218,7 +218,7 @@ BEGIN
     SELECT LAST_INSERT_ID() AS id;
 END$$
 
-DROP PROCEDURE IF EXISTS `sp_crear_cita_evaluacion`$
+DROP PROCEDURE IF EXISTS `sp_crear_cita_evaluacion`$$
 CREATE PROCEDURE `sp_crear_cita_evaluacion`(
     IN p_paciente_id INT, IN p_terapeuta_id INT, IN p_servicio_id INT,
     IN p_fecha DATETIME, IN p_hora TIME
@@ -235,7 +235,7 @@ BEGIN
     SELECT LAST_INSERT_ID() AS id;
 END$$
 
-DROP PROCEDURE IF EXISTS `sp_crear_cita_evaluacion_pendiente_pago`$
+DROP PROCEDURE IF EXISTS `sp_crear_cita_evaluacion_pendiente_pago`$$
 CREATE PROCEDURE `sp_crear_cita_evaluacion_pendiente_pago`(
     IN p_paciente_id INT, IN p_terapeuta_id INT, IN p_servicio_id INT,
     IN p_fecha DATETIME, IN p_hora TIME
@@ -252,7 +252,7 @@ BEGIN
     SELECT LAST_INSERT_ID() AS id;
 END$$
 
-DROP PROCEDURE IF EXISTS `sp_existe_evaluacion_inicial`$
+DROP PROCEDURE IF EXISTS `sp_existe_evaluacion_inicial`$$
 CREATE PROCEDURE `sp_existe_evaluacion_inicial`(IN p_paciente_id INT)
 BEGIN
     SELECT 1 AS existe
@@ -261,7 +261,7 @@ BEGIN
     LIMIT 1;
 END$$
 
-DROP PROCEDURE IF EXISTS `sp_confirmar_cita_pago`$
+DROP PROCEDURE IF EXISTS `sp_confirmar_cita_pago`$$
 CREATE PROCEDURE `sp_confirmar_cita_pago`(IN p_cita_id INT)
 BEGIN
     UPDATE historial_citas
