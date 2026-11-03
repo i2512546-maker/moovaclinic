@@ -51,7 +51,7 @@
                     <button type="submit" class="btn btn-moova w-100"><i class="bi bi-search"></i> Consultar semana</button>
                 </div>
             </form>
-            <div class="small text-muted mt-3">Periodo: {{ desde }} al {{ hasta }}</div>
+            <div class="small text-muted mt-3">Periodo: {{ desde_display }} al {{ hasta_display }}</div>
         </div>
     </section>
     {% if error %}
@@ -78,7 +78,7 @@
                 <tbody>
                 {% for c in citas_semana %}
                 <tr>
-                    <td class="text-nowrap">{{ c.fecha_cita }}</td><td class="text-nowrap">{{ c.hora_cita or '—' }}</td>
+                    <td class="text-nowrap">{{ c.fecha_display or c.fecha_cita }}</td><td class="text-nowrap">{{ c.hora_cita or '—' }}</td>
                     <td>{{ c.nombre or '' }} {{ c.apellido or '' }}</td><td>{{ c.telefono or '—' }}</td><td>{{ c.terapeuta or '—' }}</td>
                     <td>{% if c.estado == 'cancelada' %}<span class="badge badge-cancelada">Cancelada</span>{% else %}<span class="badge text-bg-danger">No asistió</span>{% endif %}</td>
                     <td class="no-print">{% if c.dni %}<a class="btn btn-sm btn-outline-secondary" href="{{ url_for('detalle_paciente_page', paciente_dni=c.dni) }}">Abrir</a>{% else %}—{% endif %}</td>
