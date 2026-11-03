@@ -427,6 +427,12 @@ def crear_evaluacion(paciente_id):
     if not terapeuta_id or not motivo_consulta:
         return jsonify({"error": "terapeuta_id y motivo_consulta son requeridos."}), 400
 
+    existente = call_proc_one("sp_existe_evaluacion_paciente", (paciente_id,)) or {}
+    if existente.get("existe"):
+        return jsonify({
+            "error": "Este paciente ya tiene una evaluación inicial registrada."
+        }), 409
+
     result = call_proc_one("sp_crear_evaluacion", (
         paciente_id, terapeuta_id, motivo_consulta,
         data.get("escala_dolor_eva"),
