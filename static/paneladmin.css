@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Nunito:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&family=Nunito:wght@300;400;500;600&display=swap');
 
 :root {
     --azul-oscuro: #123B91;
@@ -70,7 +70,7 @@ header {
 }
 
 .logo {
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 1.6rem;
     font-weight: 600;
     color: var(--navy);
@@ -90,7 +90,7 @@ header {
 }
 
 .bienvenida {
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 0.9rem;
     color: var(--text-soft);
     display: flex;
@@ -109,7 +109,7 @@ header {
     gap: 6px;
     color: var(--accent);
     text-decoration: none;
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 0.88rem;
     font-weight: 500;
     padding: 7px 16px;
@@ -128,7 +128,7 @@ header {
     gap: 6px;
     color: #b91c1c;
     text-decoration: none;
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 0.88rem;
     font-weight: 500;
     padding: 7px 16px;
@@ -150,7 +150,7 @@ header {
     margin-bottom: 24px;
 }
 .page-title h1 {
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 1.6rem;
     font-weight: 600;
     color: var(--navy-dark);
@@ -167,7 +167,7 @@ header {
     gap: 10px;
     padding: 14px 20px;
     border-radius: var(--radius);
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 0.95rem;
     font-weight: 500;
     margin-bottom: 20px;
@@ -203,7 +203,7 @@ header {
 }
 .card-header i { color: var(--sky); font-size: 1.1rem; }
 .card-header h2 {
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 1.1rem;
     font-weight: 600;
     color: var(--navy);
@@ -218,7 +218,7 @@ header {
 }
 
 label {
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 0.88rem;
     font-weight: 500;
     color: var(--navy);
@@ -251,7 +251,7 @@ input::placeholder { color: #a8c2d6; }
     color: white;
     border: none;
     border-radius: 50px;
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 1rem;
     font-weight: 500;
     cursor: pointer;
@@ -277,7 +277,7 @@ thead tr { background: linear-gradient(135deg, var(--navy), var(--accent)); }
 th {
     color: white;
     padding: 12px 14px;
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 0.9rem;
     font-weight: 500;
     text-align: left;
@@ -307,7 +307,7 @@ tbody tr:hover { background: var(--sky-pale); }
     align-items: center;
     justify-content: center;
     color: white;
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 1rem;
     font-weight: 600;
     flex-shrink: 0;
@@ -320,7 +320,7 @@ tbody tr:hover { background: var(--sky-pale); }
     border-radius: 50px;
     padding: 3px 10px;
     font-size: 0.78rem;
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
 }
 
 .correo-td { color: var(--text-soft); font-size: 0.82rem; }
@@ -386,7 +386,7 @@ tbody tr:hover { background: var(--sky-pale); }
     text-align: center;
     color: var(--text-soft);
     padding: 30px;
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
 }
 
 /* ── MODAL ── */
@@ -412,7 +412,7 @@ tbody tr:hover { background: var(--sky-pale); }
 }
 
 .modal-card h3 {
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 1.2rem;
     color: var(--navy);
     margin-bottom: 6px;
@@ -441,7 +441,7 @@ tbody tr:hover { background: var(--sky-pale); }
     color: var(--text-soft);
     border: 2px solid var(--border);
     border-radius: 50px;
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 0.95rem;
     cursor: pointer;
     transition: var(--transition);

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Nunito:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&family=Nunito:wght@300;400;500;600&display=swap');
 
 :root {
     --azul-oscuro: #123B91;
@@ -106,7 +106,7 @@ body::after {
 }
 
 .logo {
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 1.9rem;
     font-weight: 600;
     color: var(--navy);
@@ -133,7 +133,7 @@ body::after {
 }
 
 label {
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 0.95rem;
     font-weight: 500;
     color: var(--navy);
@@ -193,7 +193,7 @@ input::placeholder { color: #a8c2d6; }
     border: 2px solid #fca5a5;
     border-radius: 12px;
     padding: 12px 16px;
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 0.95rem;
     font-weight: 500;
 }
@@ -207,7 +207,7 @@ input::placeholder { color: #a8c2d6; }
     color: white;
     border: none;
     border-radius: 50px;
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 1.05rem;
     font-weight: 500;
     cursor: pointer;
@@ -235,7 +235,7 @@ input::placeholder { color: #a8c2d6; }
 .login-footer a {
     color: var(--text-soft);
     text-decoration: none;
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 0.95rem;
     font-weight: 500;
     display: inline-flex;

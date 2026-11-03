@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Nunito:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&family=Nunito:wght@300;400;500;600&display=swap');
 
 :root {
     --azul-oscuro: #123B91;
@@ -115,7 +115,7 @@ body::after {
 
 /* Textos */
 h1 {
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 1.9rem;
     font-weight: 600;
     color: var(--navy-dark);
@@ -172,7 +172,7 @@ h1 {
     text-decoration: none;
     padding: 13px 30px;
     border-radius: 50px;
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 1rem;
     font-weight: 500;
     box-shadow: 0 6px 20px rgba(8,120,201,0.3);
@@ -208,7 +208,7 @@ h1 {
     text-decoration: none;
     padding: 11px 24px;
     border-radius: 50px;
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 0.95rem;
     font-weight: 500;
     border: 2px solid var(--sky-light);
@@ -242,7 +242,7 @@ h1 {
     text-decoration: none;
     padding: 10px 18px;
     border-radius: 50px;
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 0.9rem;
     font-weight: 500;
     transition: var(--transition);

@@ -3,10 +3,10 @@
    ----------------------------------------------------------------------------
    Lenguaje visual único: clínica moderna, azul/celeste/blanco, bordes
    redondeados, sombras suaves, gradientes, microanimaciones y responsive.
-   Fredoka (títulos/botones/nav) + Nunito (textos/formularios).
+   Quicksand (títulos/botones/nav) + Nunito (textos/formularios).
    ============================================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Nunito:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&family=Nunito:wght@300;400;500;600&display=swap');
 
 /* ─────────── 1. TOKENS / PALETA ─────────── */
 :root {
@@ -15,13 +15,13 @@
     --white:         #ffffff;
 
     --navy:          #1a3a5c;
-    --navy-dark:     #0f2640;
+    --navy-dark:     #1B2F4A;
 
-    --sky:           #5aacdf;
+    --sky:           #7E9BD3;
     --sky-light:     #a8d8f0;
     --sky-pale:      #ddf0fb;
 
-    --accent:        #2271b3;
+    --accent:        #5A7BB5;
     --accent-soft:   #e3f1fb;
 
     --text:          #2c3e50;
@@ -61,7 +61,7 @@
     --moova-primary-light: #5aacdf;
     --moova-primary-dark:  #12365a;
     --moova-primary-soft:  #e3f1fb;
-    --moova-navy:          #1a3a5c;
+    --moova-navy:          #1B2F4A;
     --moova-sky:           #ddf0fb;
     --moova-text:          #2c3e50;
     --moova-muted:         #6b87a0;
@@ -87,7 +87,7 @@ body {
 h1, h2, h3, h4, h5, h6,
 button, .btn, nav, .navbar, .logo, label, .form-label,
 th, .badge, .dropdown-item, .alert {
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -165,7 +165,7 @@ nav.navbar.navbar-expand-lg.fixed-top .navbar-bubble {
 }
 
 .navbar .nav-link {
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-weight: 500;
     color: var(--text-soft) !important;
     border-radius: 50px;
@@ -180,7 +180,7 @@ nav.navbar.navbar-expand-lg.fixed-top .navbar-bubble {
 }
 .navbar-brand.logo,
 .logo {
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 1.7rem;
     font-weight: 600;
     color: var(--navy);
@@ -280,7 +280,7 @@ nav.navbar.navbar-expand-lg.fixed-top .navbar-bubble {
     color: #fff;
     border-radius: 50px;
     padding: 0.6rem 1.5rem;
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 0.95rem;
     font-weight: 500;
     display: inline-flex;
@@ -308,7 +308,7 @@ nav.navbar.navbar-expand-lg.fixed-top .navbar-bubble {
     background: #fff;
     border-radius: 50px;
     padding: 0.5rem 1.4rem;
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-weight: 500;
     display: inline-flex;
     align-items: center;
@@ -329,7 +329,7 @@ nav.navbar.navbar-expand-lg.fixed-top .navbar-bubble {
     border: 2px solid #fca5a5;
     border-radius: 50px;
     padding: 0.45rem 1.2rem;
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 0.88rem;
     font-weight: 500;
     display: inline-flex;
@@ -391,13 +391,13 @@ nav.navbar.navbar-expand-lg.fixed-top .navbar-bubble {
 .card-header {
     background: #fff;
     border-bottom: 2px solid var(--border);
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     color: var(--navy);
 }
 
-/* Header interno de paneles (Fredoka + icono celeste) */
+/* Header interno de paneles (Quicksand + icono celeste) */
 .panel-header h1, .panel-header h2, .panel-header h3, .panel-header h4 {
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     color: var(--navy);
     font-weight: 600;
 }
@@ -405,7 +405,7 @@ nav.navbar.navbar-expand-lg.fixed-top .navbar-bubble {
 
 /* ─────────── 6. FORMULARIOS ─────────── */
 .form-label, label.form-label {
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 0.9rem;
     font-weight: 500;
     color: var(--navy);
@@ -465,7 +465,7 @@ textarea::placeholder { color: #a8c2d6; }
 .table thead th {
     color: #fff;
     background: linear-gradient(135deg, var(--navy), var(--accent));
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 0.85rem;
     font-weight: 500;
     border: none;
@@ -489,7 +489,7 @@ textarea::placeholder { color: #a8c2d6; }
 
 /* ─────────── 8. BADGES / TAGS / ESTADOS ─────────── */
 .badge {
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-weight: 500;
     border-radius: 50px;
     padding: 0.45em 0.9em;
@@ -547,7 +547,7 @@ textarea::placeholder { color: #a8c2d6; }
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 1rem;
     font-weight: 600;
     flex-shrink: 0;
@@ -559,7 +559,7 @@ textarea::placeholder { color: #a8c2d6; }
 .alert {
     border-radius: var(--radius-sm);
     border-width: 2px;
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-weight: 500;
 }
 .alert-success {
@@ -597,7 +597,7 @@ textarea::placeholder { color: #a8c2d6; }
     box-shadow: 0 24px 60px rgba(10, 30, 60, 0.35);
 }
 .modal-header, .modal-footer { border-color: var(--border); }
-.modal-title { font-family: 'Fredoka', sans-serif; color: var(--navy); }
+.modal-title { font-family: 'Quicksand', sans-serif; color: var(--navy); }
 .modal-backdrop {
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
@@ -633,7 +633,7 @@ textarea::placeholder { color: #a8c2d6; }
     text-align: center;
 }
 .modal-overlay .modal-box h2, .modal-overlay .modal-box h3 {
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     color: var(--navy);
 }
 .modal-close {
@@ -650,7 +650,7 @@ textarea::placeholder { color: #a8c2d6; }
 }
 .modal-close:hover { color: var(--navy); }
 .modal-monto {
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 1.5rem;
     font-weight: 700;
     color: var(--accent);
@@ -720,7 +720,7 @@ textarea::placeholder { color: #a8c2d6; }
     padding: 8px;
 }
 .dropdown-item {
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 0.92rem;
     font-weight: 500;
     border-radius: 10px;
@@ -828,7 +828,7 @@ textarea::placeholder { color: #a8c2d6; }
     text-decoration: none;
     padding: 10px 20px;
     border-radius: 50px;
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 0.9rem;
     font-weight: 500;
     border: 2px solid;
@@ -871,14 +871,14 @@ textarea::placeholder { color: #a8c2d6; }
     box-shadow: 0 4px 12px rgba(34, 113, 179, 0.3);
 }
 .pago-method-head h2 {
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 1.15rem;
     color: var(--navy);
     margin: 0;
 }
 .pago-method-head p { color: var(--text-soft); font-size: 0.88rem; margin: 2px 0 0; }
 .pago-monto {
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 1.7rem;
     font-weight: 700;
     color: var(--navy);
@@ -930,7 +930,7 @@ textarea::placeholder { color: #a8c2d6; }
 }
 .card-preview-chip { font-size: 1.3rem; margin-bottom: 14px; }
 .card-preview-num {
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 1.3rem;
     letter-spacing: 2px;
     margin-bottom: 16px;
@@ -979,7 +979,7 @@ textarea::placeholder { color: #a8c2d6; }
 }
 .page-header { text-align: center; margin-bottom: 40px; }
 .page-header h1 {
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: clamp(2rem, 5vw, 3rem);
     font-weight: 600;
     color: var(--navy-dark);
@@ -995,7 +995,7 @@ textarea::placeholder { color: #a8c2d6; }
     border: 2px solid var(--sky-light);
     border-radius: 50px;
     padding: 5px 16px;
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 0.85rem;
     font-weight: 500;
     letter-spacing: 1.5px;
@@ -1018,7 +1018,7 @@ textarea::placeholder { color: #a8c2d6; }
     border: 2px solid var(--sky-light);
     border-radius: 50px;
     padding: 4px 14px;
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 0.85rem;
 }
 
@@ -1050,7 +1050,7 @@ textarea::placeholder { color: #a8c2d6; }
 
 .hero-content { max-width: 780px; position: relative; z-index: 1; animation: fadeUp 0.8s ease both; }
 .hero-content h1 {
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: clamp(2.6rem, 6vw, 4.8rem);
     font-weight: 600;
     color: var(--navy-dark);
@@ -1061,7 +1061,7 @@ textarea::placeholder { color: #a8c2d6; }
 
 .section-title { text-align: center; margin-bottom: 3rem; }
 .section-title h2 {
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-weight: 600;
     color: var(--navy-dark);
 }
@@ -1084,7 +1084,7 @@ textarea::placeholder { color: #a8c2d6; }
 .stat-item:hover { transform: translateY(-6px); box-shadow: var(--shadow-hover); }
 .stat-item i { font-size: 2rem; color: var(--sky); margin-bottom: 12px; display: block; }
 .stat-item h3 {
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 2.4rem;
     font-weight: 600;
     color: var(--navy);
@@ -1128,7 +1128,7 @@ textarea::placeholder { color: #a8c2d6; }
 }
 .galeria-item:hover { transform: scale(1.02); box-shadow: var(--shadow-hover); }
 .galeria-item i { font-size: 2.5rem; color: var(--sky-light); }
-.galeria-item span { font-family: 'Fredoka', sans-serif; font-size: 0.95rem; color: var(--text-soft); font-weight: 500; }
+.galeria-item span { font-family: 'Quicksand', sans-serif; font-size: 0.95rem; color: var(--text-soft); font-weight: 500; }
 
 /* Proceso */
 .proceso {
@@ -1138,7 +1138,7 @@ textarea::placeholder { color: #a8c2d6; }
     border-bottom: 3px solid var(--accent);
 }
 .proceso .section-title h2 { color: #fff; }
-.proceso-step h3 { font-family: 'Fredoka', sans-serif; font-weight: 600; color: #fff; }
+.proceso-step h3 { font-family: 'Quicksand', sans-serif; font-weight: 600; color: #fff; }
 .proceso-step p { color: rgba(255, 255, 255, 0.85); }
 .step-number {
     width: 78px;
@@ -1146,7 +1146,7 @@ textarea::placeholder { color: #a8c2d6; }
     border-radius: 50%;
     background: linear-gradient(135deg, var(--sky), var(--accent));
     color: #fff;
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 2rem;
     font-weight: 600;
     display: flex;
@@ -1182,7 +1182,7 @@ textarea::placeholder { color: #a8c2d6; }
     color: #fff !important;
     border: none !important;
     border-radius: 50px;
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-weight: 500;
     box-shadow: 0 6px 20px rgba(34, 113, 179, 0.35);
     transition: var(--transition);
@@ -1211,7 +1211,7 @@ textarea::placeholder { color: #a8c2d6; }
     display: inline-block;
     background: linear-gradient(135deg, var(--accent), var(--sky));
     color: #fff;
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 0.75rem;
     padding: 2px 12px;
     border-radius: 50px;
@@ -1289,7 +1289,7 @@ textarea::placeholder { color: #a8c2d6; }
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 0.85rem;
     font-weight: 600;
     background: #fff;
@@ -1316,7 +1316,7 @@ textarea::placeholder { color: #a8c2d6; }
 }
 
 .wizard-label {
-    font-family: 'Fredoka', sans-serif;
+    font-family: 'Quicksand', sans-serif;
     font-size: 0.72rem;
     font-weight: 500;
     color: var(--text-soft);
