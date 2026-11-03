@@ -339,6 +339,13 @@ def kpis_resumen():
     return jsonify({"success": True, "resumen": resumen, "por_terapeuta": por_terapeuta})
 
 
+@citas_bp.route("/api/citas/paciente/<int:paciente_id>/evaluacion-inicial", methods=["GET"])
+def existe_evaluacion_inicial_paciente(paciente_id):
+    """Indica si el paciente ya reservó una evaluación inicial."""
+    existe = call_proc_one("sp_existe_evaluacion_inicial", (paciente_id,)) or {}
+    return jsonify({"success": True, "existe": bool(existe.get("existe"))})
+
+
 @citas_bp.route("/api/citas/<int:cita_id>", methods=["GET"])
 def detalle_cita(cita_id):
     cita = call_proc_one("sp_detalle_cita", (cita_id,))
@@ -458,8 +465,9 @@ def crear_cita():
         )
         return jsonify({"error": "No se pudo procesar la solicitud, intenta de nuevo"}), 500
 
-    # El precio del medico se obtiene mediante una llamada interna al
-    # modulo de pacientes (antes sp_consulta_medico_precio, CROSS-DB).
+    # El precio del terapeuta se mantiene para las sesiones habituales.
+    # La evaluación inicial toma el precio publicado en el catálogo (S/ 55,
+    # configurable entre S/ 50 y S/ 60).
     try:
         medico_data, medico_status = pacientes_client.get(f"/api/terapeutas/{data['medico_id']}")
     except Exception as exc:
@@ -475,6 +483,34 @@ def crear_cita():
         costo = float(medico.get("precio") or 0)
     except (TypeError, ValueError):
         costo = 0.0
+    es_evaluacion_inicial = False
+    if servicio_id is not None:
+        try:
+            catalogo_data, catalogo_status = pacientes_client.get("/api/servicios")
+            if catalogo_status == 200:
+                servicio = next(
+                    (s for s in (catalogo_data.get("servicios") or [])
+                     if str(s.get("id")) == str(servicio_id)),
+                    None,
+                )
+                nombre_servicio = str((servicio or {}).get("nombre") or "").strip().casefold()
+                es_evaluacion_inicial = nombre_servicio in {
+                    "evaluacion inicial", "evaluación inicial",
+                }
+                if es_evaluacion_inicial:
+                    costo = float((servicio or {}).get("precio") or 55)
+                    if not 50 <= costo <= 60:
+                        return jsonify({
+                            "error": "El precio de la evaluación inicial debe estar entre S/ 50 y S/ 60."
+                        }), 400
+        except (TypeError, ValueError):
+            return jsonify({"error": "No se pudo validar el precio del servicio."}), 400
+        except Exception as exc:
+            current_app.logger.error(
+                "[crear_cita] No se pudo consultar el catálogo de servicios: %s: %s",
+                type(exc).__name__, exc,
+            )
+            return jsonify({"error": "No se pudo validar el servicio seleccionado."}), 502
     anticipo = round(costo / 2, 2) if costo > 0 else 0.0
 
     # Resolver/crear el paciente mediante el modulo interno de pacientes.
@@ -506,11 +542,27 @@ def crear_cita():
         )
         return jsonify({"error": "Servicio de pacientes no disponible, intenta de nuevo"}), 502
 
+    # Si es evaluación inicial, el procedimiento marca la reserva como única
+    # para ese paciente. La restricción UNIQUE en la BD también protege
+    # contra dos solicitudes simultáneas con el mismo DNI.
+    if es_evaluacion_inicial:
+        existente = call_proc_one("sp_existe_evaluacion_inicial", (paciente_id,)) or {}
+        if existente.get("existe"):
+            return jsonify({
+                "error": "Este DNI ya tiene una evaluación inicial registrada. Puedes elegir una sesión de tratamiento."
+            }), 409
+
     # Si hay anticipo, la cita queda oculta como pendiente de pago hasta
     # que la pasarela confirme. Así no aparece en la agenda ni en reportes
     # antes de completar el proceso.
     requiere_pago = bool(metodo_pago and anticipo > 0)
-    procedimiento_creacion = "sp_crear_cita_pendiente_pago" if requiere_pago else "sp_crear_cita"
+    if es_evaluacion_inicial:
+        procedimiento_creacion = (
+            "sp_crear_cita_evaluacion_pendiente_pago"
+            if requiere_pago else "sp_crear_cita_evaluacion"
+        )
+    else:
+        procedimiento_creacion = "sp_crear_cita_pendiente_pago" if requiere_pago else "sp_crear_cita"
     try:
         cita = call_proc_one(
             procedimiento_creacion,
