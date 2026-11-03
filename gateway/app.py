@@ -1,4 +1,5 @@
 import csv
+from concurrent.futures import ThreadPoolExecutor
 import io
 import math
 import os
@@ -56,15 +57,25 @@ from shared.service_client import (
 
 csrf = CSRFProtect()
 
+def _llamadas_paralelas(*funciones, max_workers=4):
+    """Ejecuta consultas independientes sin encadenar sus tiempos de espera."""
+    if not funciones:
+        return ()
+    with ThreadPoolExecutor(max_workers=min(max_workers, len(funciones))) as executor:
+        return tuple(f.result() for f in (executor.submit(fn) for fn in funciones))
+
 
 def _cargar_anexos_paciente(paciente_id):
     """Paquetes y evaluaciones iniciales de un paciente."""
     if not paciente_id:
         return [], []
-    pdata, _ = pacientes_client.get(f"/api/pacientes/{paciente_id}/paquetes")
-    paquetes = pdata.get("paquetes", [])
-    edata, _ = pacientes_client.get(f"/api/pacientes/{paciente_id}/evaluaciones")
-    evaluaciones = edata.get("evaluaciones", [])
+    (pdata, _), (edata, _) = _llamadas_paralelas(
+        lambda: pacientes_client.get(f"/api/pacientes/{paciente_id}/paquetes"),
+        lambda: pacientes_client.get(f"/api/pacientes/{paciente_id}/evaluaciones"),
+        max_workers=2,
+    )
+    paquetes = (pdata or {}).get("paquetes", [])
+    evaluaciones = (edata or {}).get("evaluaciones", [])
     return paquetes, evaluaciones
 
 
@@ -766,10 +777,13 @@ def create_app():
         # el enlace para continuarla (ver _cita_pendiente_de_pago).
         cita_pendiente = _cita_pendiente_de_pago() if request.method == "GET" else None
 
-        data, _ = citas_client.get("/api/citas/terapeutas")
-        terapeutas = data.get("terapeutas", [])
-        sdata, _ = pacientes_client.get("/api/servicios")
-        servicios = sdata.get("servicios", [])
+        (data, _), (sdata, _) = _llamadas_paralelas(
+            lambda: citas_client.get("/api/citas/terapeutas"),
+            lambda: pacientes_client.get("/api/servicios"),
+            max_workers=2,
+        )
+        terapeutas = (data or {}).get("terapeutas", [])
+        servicios = (sdata or {}).get("servicios", [])
 
         if request.method == "POST":
             form_data = {k: request.form.get(k, "").strip() for k in
@@ -1475,16 +1489,19 @@ def create_app():
 
             return redirect(url_for("panel_admin"))
 
-        tdata, _ = pacientes_client.get("/api/terapeutas")
-        medicos = tdata.get("terapeutas", [])
-        edata, _ = pacientes_client.get("/api/especialidades")
-        especialidades = edata.get("especialidades", [])
-        udata, _ = auth_client.get("/api/auth/usuarios")
-        usuarios = udata.get("usuarios", [])
-
-        params = "?fecha=" + hoy_lima().strftime("%Y-%m-%d") + "&estado=programada"
-        cdata, _ = citas_client.get(f"/api/citas{params}")
-        proximas_citas = cdata.get("citas", [])[:20]
+        fecha_hoy = hoy_lima().strftime("%Y-%m-%d")
+        params = "?fecha=" + fecha_hoy + "&estado=programada"
+        (tdata, _), (edata, _), (udata, _), (cdata, _) = _llamadas_paralelas(
+            lambda: pacientes_client.get("/api/terapeutas"),
+            lambda: pacientes_client.get("/api/especialidades"),
+            lambda: auth_client.get("/api/auth/usuarios"),
+            lambda: citas_client.get(f"/api/citas{params}"),
+            max_workers=4,
+        )
+        medicos = (tdata or {}).get("terapeutas", [])
+        especialidades = (edata or {}).get("especialidades", [])
+        usuarios = (udata or {}).get("usuarios", [])
+        proximas_citas = (cdata or {}).get("citas", [])[:20]
 
         bloqueos = []
         rl = app.extensions.get("rate_limit")
@@ -1496,15 +1513,22 @@ def create_app():
         total_canceladas = 0
         total_no_asistidos = 0
         try:
-            for estado in ("cancelada", "no_asistio"):
-                cdata, cstatus = citas_client.get(f"/api/citas?estado={estado}")
-                if cstatus == 200:
-                    for c in (cdata.get("citas") or []):
-                        if str(c.get("fecha_cita", ""))[:10] >= desde:
-                            if estado == "cancelada":
-                                total_canceladas += 1
-                            else:
-                                total_no_asistidos += 1
+            resultados_estados = _llamadas_paralelas(
+                lambda: citas_client.get("/api/citas?estado=cancelada"),
+                lambda: citas_client.get("/api/citas?estado=no_asistio"),
+                max_workers=2,
+            )
+            for indice, (cdata, cstatus) in enumerate(resultados_estados):
+                if cstatus != 200:
+                    continue
+                cantidad = sum(
+                    1 for cita in (cdata or {}).get("citas", [])
+                    if str(cita.get("fecha_cita", ""))[:10] >= desde
+                )
+                if indice == 0:
+                    total_canceladas = cantidad
+                else:
+                    total_no_asistidos = cantidad
         except Exception:
             pass
 
