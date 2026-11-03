@@ -1351,16 +1351,54 @@ def create_app():
                             auth_client.put(f"/api/auth/usuarios/{terapeuta['usuario_id']}", {"activo": 1})
                         flash("exito:Terapeuta reactivado.")
 
-            elif accion == "cambiar_clave":
+            elif accion == "editar_terapeuta" or accion == "actualizar_terapeuta":
                 mid = request.form.get("medico_id")
-                nc = request.form.get("nueva_clave", "").strip()
-                if mid and nc:
-                    tdata, _ = pacientes_client.get(f"/api/terapeutas/{mid}")
-                    terapeuta = tdata.get("terapeuta", {}) if tdata else {}
-                    if terapeuta and terapeuta.get("usuario_id"):
-                        # El hash de la clave lo hace el modulo auth.
-                        auth_client.put(f"/api/auth/usuarios/{terapeuta['usuario_id']}", {"clave": nc})
-                        flash("exito:Contrasena actualizada.")
+                nombre = request.form.get("nombre", "").strip()
+                especialidad = request.form.get("especialidad", "").strip()
+                precio_raw = request.form.get("precio", "").strip()
+                activo_raw = request.form.get("activo", "").strip()
+
+                # Validacion de nombre: letras y espacios, longitud razonable.
+                if not mid:
+                    flash("Terapeuta no encontrado.")
+                elif not nombre or len(nombre) < 2 or len(nombre) > 80 or not all(c.isalpha() or c.isspace() for c in nombre):
+                    flash("Nombre invalido.")
+                else:
+                    try:
+                        precio_num = float(precio_raw) if precio_raw else None
+                    except ValueError:
+                        precio_num = None
+                    if precio_num is None or precio_num <= 0:
+                        flash("Precio invalido.")
+                    else:
+                        tdata, _ = pacientes_client.get(f"/api/terapeutas/{mid}")
+                        terapeuta = tdata.get("terapeuta", {}) if tdata else {}
+                        if not terapeuta:
+                            flash("Terapeuta no encontrado.")
+                        else:
+                            esp_id = None
+                            if especialidad:
+                                edata, estatus = pacientes_client.get(f"/api/especialidades/por-nombre/{especialidad}")
+                                esp_id = (edata or {}).get("id") if estatus == 200 else None
+                                if esp_id is None:
+                                    flash("Especialidad no encontrada.")
+                            if esp_id is not None or not especialidad:
+                                uid = terapeuta.get("usuario_id")
+                                if uid:
+                                    auth_client.put(f"/api/auth/usuarios/{uid}", {"nombre": nombre})
+                                pacientes_client.put(f"/api/terapeutas/{mid}/precio", {"precio": precio_num})
+                                if activo_raw in ("0", "1"):
+                                    pacientes_client.put(f"/api/terapeutas/{mid}/activo", {"activo": int(activo_raw)})
+                                if especialidad and esp_id is not None:
+                                    pacientes_client.put(f"/api/terapeutas/{mid}/especialidad", {"especialidad_id": esp_id})
+                                log_accion(
+                                    usuario_id=session.get("usuario_id"),
+                                    accion="actualizar_usuario",
+                                    tabla_afectada="usuarios",
+                                    registro_id=uid,
+                                    detalle=f"Terapeuta id={mid} actualizado: nombre={nombre}",
+                                )
+                                flash("exito:Terapeuta actualizado.")
 
             return redirect(url_for("panel_admin"))
 
