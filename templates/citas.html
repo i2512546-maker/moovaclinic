@@ -485,11 +485,12 @@
 
         function actualizarHorasDisponibles(fecha) {
             var selector = document.getElementById('hora_cita');
-            var ocupadas = horasOcupadasPorFecha[fecha] || [];
             selector.value = '';
             document.getElementById('hora-elegida-panel').style.display = 'none';
             document.getElementById('hora-elegida-texto').textContent = '';
-            var libres = horariosBase.filter(function (hora) { return !ocupadas.includes(hora); });
+            var libres = horariosBase.filter(function (hora) {
+                return !horaEstaOcupada(fecha, hora);
+            });
             dibujarHorarios(libres);
             document.getElementById('resumen-hora').textContent =
                 libres.length ? 'Selecciona una hora' : 'No quedan horas disponibles para este día';
