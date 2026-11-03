@@ -1,0 +1,53 @@
+/* landing-marca.css: identidad de MOOVA solo en la landing */
+:root {
+    --moova-peri: #7E9BD3;
+    --moova-navy: #1B2F4A;
+    --moova-peri-light: #DCE6F5;
+    --moova-peri-dark: #5A7BB5;
+}
+
+body { font-family: 'Quicksand', sans-serif; color: var(--moova-navy); }
+h1, h2, h3, h4, h5, h6 { font-family: 'Quicksand', sans-serif; font-weight: 700; color: var(--moova-navy); }
+
+a { color: var(--moova-peri-dark); }
+a:hover { color: var(--moova-navy); }
+
+.btn-moova { background: var(--moova-peri); color: #fff; border: none; }
+.btn-moova:hover { background: var(--moova-peri-dark); color: #fff; }
+
+/* marquee promos */
+.promo-marquee { overflow: hidden; position: relative; }
+.promo-track {
+    display: flex;
+    gap: 1rem;
+    animation: promo-scroll 30s linear infinite;
+    width: max-content;
+}
+.promo-track-dup { display: flex; gap: 1rem; }
+.promo-card {
+    flex: 0 0 260px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    background: #fff;
+    padding: 0.5rem;
+}
+.promo-card img {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    display: block;
+}
+.promo-pie { font-size: 0.85rem; color: var(--moova-navy); margin: 0.5rem 0 0; }
+
+@keyframes promo-scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+
+.promo-marquee:hover .promo-track,
+.promo-marquee:focus-within .promo-track { animation-play-state: paused; }
+
+@media (prefers-reduced-motion: reduce) {
+    .promo-track { animation: none; overflow-x: auto; scroll-snap-type: x mandatory; }
+    .promo-card { scroll-snap-align: start; }
+}

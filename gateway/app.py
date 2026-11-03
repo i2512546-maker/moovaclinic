@@ -35,6 +35,7 @@ from shared.config import (
     LOGIN_VENTANA_MIN,
     OTP_SESION_MIN,
     PAGOS_MODO_DEMO,
+    PROMO_ACTIVA,
     REDES_SOCIALES,
     TRUST_PROXY,
 )
@@ -522,7 +523,7 @@ def create_app():
 
     @app.route("/")
     def index():
-        return render_template("index.html")
+        return render_template("index.html", promo_activa=PROMO_ACTIVA)
 
     @app.route("/login", methods=["GET", "POST"])
     def login():

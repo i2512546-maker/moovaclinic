@@ -80,6 +80,9 @@ HORA_FIN = int(os.getenv("HORA_FIN", 18))
 DURACION_SLOT_MIN = int(os.getenv("DURACION_SLOT_MIN", 60))
 CUPO_POR_SLOT = int(os.getenv("CUPO_POR_SLOT", 1))
 
+# Promocion en landing.
+PROMO_ACTIVA = os.getenv("PROMO_ACTIVA", "1").strip().lower() in ("1", "true", "yes", "on")
+
 # Reporte de pacientes en riesgo de fuga (modulo de citas).
 # Dias desde la ultima cita a partir de los cuales un paciente sin
 # cita programada pasa a considerarse "en riesgo".
