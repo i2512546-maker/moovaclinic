@@ -182,8 +182,8 @@ class GuardiasDeLecturaTest(BaseOTP):
         self._sellar(DNI_A, "tratamiento")
         ctx = self._contexto_citas()
         with ctx[0] as get, ctx[1], ctx[2], \
-                patch("gateway.app._paquetes_activos_dni",
-                      return_value=({"dni": DNI_A, "id": 7}, [])):
+                patch("gateway.app._datos_seguimiento_dni",
+                      return_value=({"dni": DNI_A, "id": 7}, [], [], [])):
             r1 = self.client.get(f"/citas/modificar?paso=citas&dni={DNI_A}")
             r2 = self.client.get(f"/tratamiento?paso=menu&dni={DNI_A}")
         self.assertEqual(r1.status_code, 200)
@@ -396,8 +396,8 @@ class FlujoCompletoTest(BaseOTP):
         ctx = self._contexto_citas()
         with patch("gateway.app.citas_client.post",
                    side_effect=self._falso_post_otp), \
-                patch("gateway.app._paquetes_activos_dni",
-                      return_value=({"dni": DNI_A, "id": 7}, [])), \
+                patch("gateway.app._datos_seguimiento_dni",
+                      return_value=({"dni": DNI_A, "id": 7}, [], [], [])), \
                 ctx[0], ctx[1], ctx[2]:
             self.client.post("/tratamiento", data={
                 "accion": "verificar", "dni": DNI_A, "otp": "123456",
