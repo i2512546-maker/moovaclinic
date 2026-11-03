@@ -1490,18 +1490,23 @@ def create_app():
             return redirect(url_for("panel_admin"))
 
         fecha_hoy = hoy_lima().strftime("%Y-%m-%d")
-        params = "?fecha=" + fecha_hoy + "&estado=programada"
-        (tdata, _), (edata, _), (udata, _), (cdata, _) = _llamadas_paralelas(
+        desde = (hoy_lima() - timedelta(days=30)).strftime("%Y-%m-%d")
+        (tdata, _), (edata, _), (udata, _), (panel_data, panel_status) = _llamadas_paralelas(
             lambda: pacientes_client.get("/api/terapeutas"),
             lambda: pacientes_client.get("/api/especialidades"),
             lambda: auth_client.get("/api/auth/usuarios"),
-            lambda: citas_client.get(f"/api/citas{params}"),
+            lambda: citas_client.get(
+                f"/api/citas/resumen-panel?fecha={fecha_hoy}&desde={desde}"
+            ),
             max_workers=4,
         )
         medicos = (tdata or {}).get("terapeutas", [])
         especialidades = (edata or {}).get("especialidades", [])
         usuarios = (udata or {}).get("usuarios", [])
-        proximas_citas = (cdata or {}).get("citas", [])[:20]
+        datos_panel = panel_data if panel_status == 200 else {}
+        proximas_citas = datos_panel.get("proximas_citas", [])
+        total_canceladas = datos_panel.get("total_canceladas", 0)
+        total_no_asistidos = datos_panel.get("total_no_asistidos", 0)
 
         bloqueos = []
         rl = app.extensions.get("rate_limit")
