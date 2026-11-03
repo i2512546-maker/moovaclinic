@@ -288,6 +288,49 @@ def listar_citas():
     return jsonify({"success": True, "total": len(resultado), "citas": resultado})
 
 
+@citas_bp.route("/api/citas/seguimiento", methods=["GET"])
+def seguimiento_citas():
+    """Devuelve cancelaciones e inasistencias dentro de un rango semanal."""
+    desde = (request.args.get("desde") or "").strip()
+    hasta = (request.args.get("hasta") or "").strip()
+    try:
+        desde_dt = datetime.strptime(desde, "%Y-%m-%d").date()
+        hasta_dt = datetime.strptime(hasta, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"success": False, "error": "Se requieren desde y hasta en formato YYYY-MM-DD"}), 400
+    if desde_dt > hasta_dt:
+        return jsonify({"success": False, "error": "La fecha inicial no puede ser posterior a la final"}), 400
+
+    pacientes, terapeutas = _mapas_enriquecimiento()
+    citas = []
+    vistos = set()
+    for estado in ("cancelada", "no_asistio"):
+        filas = call_proc("sp_listar_citas", (estado, None, desde, None)) or []
+        for cita in filas:
+            _fmt_fecha(cita)
+            fecha = str(cita.get("fecha_cita") or "")[:10]
+            if not (desde <= fecha <= hasta):
+                continue
+            cita_id = cita.get("id") or cita.get("historial_id") or cita.get("cita_id")
+            clave = str(cita_id) if cita_id is not None else None
+            if clave is not None and clave in vistos:
+                continue
+            _enriquecer_cita(cita, pacientes, terapeutas)
+            cita["estado"] = estado
+            citas.append(cita)
+            if clave is not None:
+                vistos.add(clave)
+
+    citas.sort(key=lambda c: (str(c.get("fecha_cita") or ""), str(c.get("hora_cita") or "")))
+    return jsonify({
+        "success": True,
+        "total": len(citas),
+        "canceladas": sum(1 for c in citas if c.get("estado") == "cancelada"),
+        "no_asistidos": sum(1 for c in citas if c.get("estado") == "no_asistio"),
+        "citas": citas,
+    })
+
+
 @citas_bp.route("/api/citas/agenda", methods=["GET"])
 def agenda_dia():
     """Devuelve la agenda diaria con una sola carga de datos auxiliares."""
