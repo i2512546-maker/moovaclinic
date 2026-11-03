@@ -21,6 +21,7 @@ from shared.fechas import ahora_lima, hoy_lima
 from shared.horarios import (
     autoasignar,
     contar_ocupados,
+    generar_slots,
     validar_slot,
 )
 from shared.proc import call_proc, call_proc_execute, call_proc_one
