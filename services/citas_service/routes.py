@@ -361,7 +361,13 @@ def resumen_panel_admin():
         # La pantalla sigue funcionando si el despliegue de código se
         # adelanta a la migración SQL; al aplicarla entra la ruta rápida.
         current_app.logger.warning("Faltan SP optimizados; usando consultas compatibles")
-        citas_dia = call_proc("sp_listar_citas", ("programada", None, fecha, None)) or []
+        citas_dia = []
+        for estado in ("programada", "confirmada", "cancelada", "completada", "no_asistio"):
+            filas_estado = call_proc("sp_listar_citas", (estado, None, fecha, None)) or []
+            citas_dia.extend(
+                fila for fila in filas_estado
+                if str(fila.get("fecha_cita", ""))[:10] == fecha
+            )
         conteos = {}
         for estado in ("cancelada", "no_asistio"):
             filas = call_proc("sp_listar_citas", (estado, None, desde, None)) or []
