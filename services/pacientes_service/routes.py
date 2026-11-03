@@ -443,27 +443,3 @@ def crear_evaluacion(paciente_id):
     return jsonify({"success": True, "evaluacion_id": eval_id}), 201
 
 
-# ============================================================
-# Consentimientos
-# ============================================================
-
-@pacientes_bp.route("/api/pacientes/<int:paciente_id>/consentimientos", methods=["GET"])
-def listar_consentimientos(paciente_id):
-    consentimientos = call_proc("sp_listar_consentimientos", (paciente_id,))
-    return jsonify({"success": True, "consentimientos": consentimientos})
-
-
-@pacientes_bp.route("/api/pacientes/<int:paciente_id>/consentimientos", methods=["POST"])
-def crear_consentimiento(paciente_id):
-    data = request.get_json() or {}
-    tipo = data.get("tipo", "").strip()
-    texto_version = data.get("texto_version", "").strip()
-
-    if not tipo or not texto_version:
-        return jsonify({"error": "tipo y texto_version son requeridos."}), 400
-
-    result = call_proc_one("sp_crear_consentimiento", (
-        paciente_id, tipo, texto_version, data.get("ip_origen"),
-    ))
-    consent_id = result["id"] if result else None
-    return jsonify({"success": True, "consentimiento_id": consent_id}), 201
