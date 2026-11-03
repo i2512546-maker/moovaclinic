@@ -103,14 +103,17 @@
             <div class="wizard-connector" id="connector-1"></div>
             <button type="button" class="wizard-step" data-step="2" disabled><span class="wizard-dot">2</span><span class="wizard-label">Tratamiento</span></button>
             <div class="wizard-connector" id="connector-2"></div>
-            <button type="button" class="wizard-step" data-step="3" disabled><span class="wizard-dot">3</span><span class="wizard-label">Fecha</span></button>
+            <button type="button" class="wizard-step" data-step="3" disabled><span class="wizard-dot">3</span><span class="wizard-label">Especialista y fecha</span></button>
             <div class="wizard-connector" id="connector-3"></div>
             <button type="button" class="wizard-step" data-step="4" disabled><span class="wizard-dot">4</span><span class="wizard-label">Resumen</span></button>
             <div class="wizard-connector" id="connector-4"></div>
             <button type="button" class="wizard-step" data-step="5" disabled><span class="wizard-dot">5</span><span class="wizard-label">Pago</span></button>
             <div class="wizard-connector" id="connector-5"></div>
             <button type="button" class="wizard-step" data-step="6" disabled><span class="wizard-dot">6</span><span class="wizard-label">Confirmación</span></button>
-        </div></div>
+        </div>
+
+        <p id="ayuda-paso" class="text-center text-muted small mb-3">Tus datos: los usamos para identificarte y avisarte de tu cita.</p>
+</div>
 
         <div class="alert alert-info small mb-3" role="note">
             <i class="fas fa-info-circle me-1"></i>Para reservar tu cita se paga un anticipo del 50% del costo. El saldo se paga en la clínica.
@@ -225,6 +228,8 @@
                                             <span class="d-block fw-semibold">{{ m.Nombre or 'Especialista' }}</span>
                                             {% if m.Especialidad and m.Especialidad|string|lower != 'none' %}
                                             <span class="badge bg-success-subtle text-success-emphasis">{{ m.Especialidad }}</span>
+                                            {% else %}
+                                            <span class="badge bg-success-subtle text-success-emphasis">Fisioterapia</span>
                                             {% endif %}
                                         </span>
                                     </span>
@@ -308,6 +313,15 @@
 
         function irPaso(paso) {
             pasoActual = paso;
+            var ayudas = {
+                1: "Tus datos: los usamos para identificarte y avisarte de tu cita.",
+                2: "Tratamiento: elige lo que necesitas. Si es tu primera vez, elige Evaluacion inicial.",
+                3: "Especialista y fecha: elige con quien y que dia. Los dias tachados estan ocupados.",
+                4: "Resumen: revisa todo y paga el anticipo del 50% para reservar."
+            };
+            var ayudaEl = document.getElementById('ayuda-paso');
+            if (ayudaEl && ayudas[paso]) ayudaEl.textContent = ayudas[paso];
+
             document.querySelectorAll('.wizard-panel').forEach(function (panel) {
                 panel.style.display = 'none';
             });
