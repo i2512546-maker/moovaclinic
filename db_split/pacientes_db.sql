@@ -457,6 +457,12 @@ BEGIN
     UPDATE terapeutas SET activo = p_activo WHERE id = p_medico_id;
 END$$
 
+DROP PROCEDURE IF EXISTS `sp_actualizar_especialidad`$$
+CREATE PROCEDURE `sp_actualizar_especialidad`(IN p_medico_id INT, IN p_especialidad_id INT)
+BEGIN
+    UPDATE terapeutas SET especialidad_id = p_especialidad_id WHERE id = p_medico_id;
+END$$
+
 DROP PROCEDURE IF EXISTS `sp_estadisticas_especialistas`$$
 CREATE PROCEDURE `sp_estadisticas_especialistas`()
 BEGIN
