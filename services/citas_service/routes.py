@@ -662,7 +662,17 @@ def crear_cita():
     # para ese paciente. La restricción UNIQUE en la BD también protege
     # contra dos solicitudes simultáneas con el mismo DNI.
     if es_evaluacion_inicial:
-        existente = call_proc_one("sp_existe_evaluacion_inicial", (paciente_id,)) or {}
+        try:
+            existente = call_proc_one(
+                "sp_existe_evaluacion_inicial", (paciente_id,)
+            ) or {}
+        except Exception as exc:
+            _limpiar_paciente_nuevo_si_huerfano(paciente_id, paciente_creado_ahora)
+            current_app.logger.error(
+                "[crear_cita] No se pudo verificar evaluación inicial: %s: %s",
+                type(exc).__name__, exc,
+            )
+            return jsonify({"error": "No se pudo verificar el historial de evaluaciones."}), 500
         if existente.get("existe"):
             _limpiar_paciente_nuevo_si_huerfano(paciente_id, paciente_creado_ahora)
             return jsonify({
@@ -670,9 +680,17 @@ def crear_cita():
             }), 409
         # Tambien se consideran evaluaciones clinicas ya registradas en
         # pacientes_service, aunque sean anteriores a esta nueva reserva.
-        evaluaciones_data, evaluaciones_status = pacientes_client.get(
-            f"/api/pacientes/{paciente_id}/evaluaciones"
-        )
+        try:
+            evaluaciones_data, evaluaciones_status = pacientes_client.get(
+                f"/api/pacientes/{paciente_id}/evaluaciones"
+            )
+        except Exception as exc:
+            _limpiar_paciente_nuevo_si_huerfano(paciente_id, paciente_creado_ahora)
+            current_app.logger.warning(
+                "[crear_cita] No se pudo consultar evaluaciones del paciente %s: %s",
+                paciente_id, exc,
+            )
+            return jsonify({"error": "No se pudo verificar el historial de evaluaciones."}), 502
         if evaluaciones_status != 200:
             _limpiar_paciente_nuevo_si_huerfano(paciente_id, paciente_creado_ahora)
             return jsonify({"error": "No se pudo verificar el historial de evaluaciones."}), 502
@@ -733,6 +751,11 @@ def crear_cita():
         )
         return jsonify({"error": "No se pudo procesar la solicitud, intenta de nuevo"}), 500
     cita_id = cita["id"] if cita else None
+    if not cita_id:
+        _limpiar_paciente_nuevo_si_huerfano(paciente_id, paciente_creado_ahora)
+        return jsonify({
+            "error": "No se pudo confirmar la reserva. Verifica la disponibilidad e inténtalo nuevamente."
+        }), 500
 
     log_accion(
         accion="crear_cita",
