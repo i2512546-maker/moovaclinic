@@ -49,6 +49,8 @@ CREATE TABLE `historial_citas` (
   `descripcion` text DEFAULT NULL,
   `estado` enum('pendiente_pago','programada','confirmada','cancelada','completada','no_asistio') NOT NULL DEFAULT 'programada',
   `reserva_activa` tinyint GENERATED ALWAYS AS (CASE WHEN `estado` IN ('pendiente_pago','programada','confirmada') THEN 1 ELSE NULL END) STORED,
+  `es_evaluacion_inicial` tinyint(1) NOT NULL DEFAULT 0,
+  `evaluacion_inicial_paciente_id` int GENERATED ALWAYS AS (CASE WHEN `es_evaluacion_inicial` = 1 THEN `paciente_id` ELSE NULL END) STORED,
   `recordatorio_enviado` tinyint(1) DEFAULT 0,
   `creado_en` datetime DEFAULT NULL,
   `actualizado_en` datetime DEFAULT NULL
@@ -118,6 +120,7 @@ INSERT INTO `otp_verificaciones` (`id`, `dni`, `codigo`, `accion`, `intentos`, `
 ALTER TABLE `historial_citas`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uq_reserva_activa` (`terapeuta_id`,`fecha_cita`,`hora_cita`,`reserva_activa`),
+  ADD UNIQUE KEY `uq_evaluacion_inicial_paciente` (`evaluacion_inicial_paciente_id`),
   ADD KEY `persona_id` (`paciente_id`),
   ADD KEY `terapeuta_id` (`terapeuta_id`),
   ADD KEY `idx_fecha_cita` (`fecha_cita`),
@@ -214,7 +217,50 @@ BEGIN
     SELECT LAST_INSERT_ID() AS id;
 END$$
 
-DROP PROCEDURE IF EXISTS `sp_confirmar_cita_pago`$$
+DROP PROCEDURE IF EXISTS `sp_crear_cita_evaluacion`$
+CREATE PROCEDURE `sp_crear_cita_evaluacion`(
+    IN p_paciente_id INT, IN p_terapeuta_id INT, IN p_servicio_id INT,
+    IN p_fecha DATETIME, IN p_hora TIME
+)
+BEGIN
+    INSERT INTO historial_citas (
+        paciente_id, terapeuta_id, servicio_id, fecha_cita, hora_cita,
+        estado, es_evaluacion_inicial, creado_en, actualizado_en
+    )
+    VALUES (
+        p_paciente_id, p_terapeuta_id, p_servicio_id, p_fecha, p_hora,
+        'programada', 1, NOW(), NOW()
+    );
+    SELECT LAST_INSERT_ID() AS id;
+END$
+
+DROP PROCEDURE IF EXISTS `sp_crear_cita_evaluacion_pendiente_pago`$
+CREATE PROCEDURE `sp_crear_cita_evaluacion_pendiente_pago`(
+    IN p_paciente_id INT, IN p_terapeuta_id INT, IN p_servicio_id INT,
+    IN p_fecha DATETIME, IN p_hora TIME
+)
+BEGIN
+    INSERT INTO historial_citas (
+        paciente_id, terapeuta_id, servicio_id, fecha_cita, hora_cita,
+        estado, es_evaluacion_inicial, creado_en, actualizado_en
+    )
+    VALUES (
+        p_paciente_id, p_terapeuta_id, p_servicio_id, p_fecha, p_hora,
+        'pendiente_pago', 1, NOW(), NOW()
+    );
+    SELECT LAST_INSERT_ID() AS id;
+END$
+
+DROP PROCEDURE IF EXISTS `sp_existe_evaluacion_inicial`$
+CREATE PROCEDURE `sp_existe_evaluacion_inicial`(IN p_paciente_id INT)
+BEGIN
+    SELECT 1 AS existe
+    FROM historial_citas
+    WHERE paciente_id = p_paciente_id AND es_evaluacion_inicial = 1
+    LIMIT 1;
+END$
+
+DROP PROCEDURE IF EXISTS `sp_confirmar_cita_pago`$
 CREATE PROCEDURE `sp_confirmar_cita_pago`(IN p_cita_id INT)
 BEGIN
     UPDATE historial_citas
