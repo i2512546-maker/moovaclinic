@@ -674,6 +674,7 @@ def crear_cita():
             f"/api/pacientes/{paciente_id}/evaluaciones"
         )
         if evaluaciones_status != 200:
+            _limpiar_paciente_nuevo_si_huerfano(paciente_id, paciente_creado_ahora)
             return jsonify({"error": "No se pudo verificar el historial de evaluaciones."}), 502
         if (evaluaciones_data or {}).get("evaluaciones"):
             _limpiar_paciente_nuevo_si_huerfano(paciente_id, paciente_creado_ahora)
