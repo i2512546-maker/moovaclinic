@@ -496,9 +496,21 @@ def crear_cita():
             (paciente_id, data["medico_id"], servicio_id, data["fecha_cita"], hora_cita),
         )
     except mysql.connector.Error as exc:
+        # La restricción uq_reserva es la última barrera contra dos reservas
+        # simultáneas del mismo terapeuta, fecha y hora. Puede activarse
+        # aunque la consulta previa de disponibilidad haya mostrado el slot libre.
+        if getattr(exc, "errno", None) == 1062:
+            current_app.logger.info(
+                "[crear_cita] Conflicto de reserva concurrente: terapeuta=%s fecha=%s hora=%s",
+                data["medico_id"], data["fecha_cita"], hora_cita,
+            )
+            return jsonify({
+                "error": "Ese horario acaba de ser reservado por otra persona. "
+                         "Selecciona otra hora disponible e inténtalo nuevamente."
+            }), 409
         current_app.logger.error(
-            "[crear_cita] Error en BD (sp_crear_cita): %s: %s",
-            type(exc).__name__, exc,
+            "[crear_cita] Error en BD (%s): %s: %s",
+            procedimiento_creacion, type(exc).__name__, exc,
         )
         return jsonify({"error": "No se pudo procesar la solicitud, intenta de nuevo"}), 500
     except Exception as exc:
