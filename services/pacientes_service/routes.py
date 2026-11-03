@@ -332,6 +332,16 @@ def actualizar_precio_terapeuta(medico_id):
     return jsonify({"success": True})
 
 
+@pacientes_bp.route("/api/terapeutas/<int:medico_id>/especialidad", methods=["PUT"])
+def actualizar_especialidad_terapeuta(medico_id):
+    data = request.get_json() or {}
+    especialidad_id = data.get("especialidad_id")
+    if especialidad_id is None:
+        return jsonify({"error": "especialidad_id requerido."}), 400
+    call_proc_execute("sp_actualizar_especialidad", (medico_id, especialidad_id))
+    return jsonify({"success": True})
+
+
 @pacientes_bp.route("/api/terapeutas/<int:medico_id>/activo", methods=["PUT"])
 def set_terapeuta_activo(medico_id):
     data = request.get_json() or {}

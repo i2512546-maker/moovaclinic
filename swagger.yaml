@@ -643,6 +643,19 @@ paths:
             properties:
               success: { type: boolean, example: true }
               cancelada: { type: boolean, example: true }
+  /api/citas/{cita_id}/no-asistio:
+    post:
+      tags: [citas]
+      summary: Marcar cita como no asistida
+      parameters:
+        - name: cita_id
+          in: path
+          required: true
+          type: integer
+      responses:
+        "200": { description: Marcada }
+        "409": { description: No se pudo marcar }
+
   /api/citas/otp/solicitar:
     post:
       tags: [citas]
@@ -1464,6 +1477,25 @@ paths:
               activo: { type: boolean }
       responses:
         "200": { description: Estado actualizado }
+
+  /api/terapeutas/{medico_id}/especialidad:
+    put:
+      tags: [pacientes]
+      summary: Actualizar especialidad de un terapeuta
+      parameters:
+        - name: medico_id
+          in: path
+          required: true
+          type: integer
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              especialidad_id: { type: integer }
+      responses:
+        "200": { description: Actualizada }
 
   /api/especialidades/por-nombre/{nombre}:
     get:
