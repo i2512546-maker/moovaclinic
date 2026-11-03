@@ -1379,9 +1379,29 @@ def create_app():
         rl = app.extensions.get("rate_limit")
         if rl is not None:
             bloqueos = rl.bloqueos_activos()
+
+        # Tarjeta: canceladas y no asistidas (ultimos 30 dias)
+        desde = (hoy_lima() - timedelta(days=30)).strftime("%Y-%m-%d")
+        total_canceladas = 0
+        total_no_asistidos = 0
+        try:
+            for estado in ("cancelada", "no_asistio"):
+                cdata, cstatus = citas_client.get(f"/api/citas?estado={estado}")
+                if cstatus == 200:
+                    for c in (cdata.get("citas") or []):
+                        if str(c.get("fecha_cita", ""))[:10] >= desde:
+                            if estado == "cancelada":
+                                total_canceladas += 1
+                            else:
+                                total_no_asistidos += 1
+        except Exception:
+            pass
+
         return render_template("paneladmin.html", medicos=medicos, proximas_citas=proximas_citas,
                                especialidades=especialidades, usuarios=usuarios,
-                               bloqueos=bloqueos)
+                               bloqueos=bloqueos,
+                               tarjeta_canceladas=total_canceladas,
+                               tarjeta_no_asistidos=total_no_asistidos)
 
     @app.route("/panel_admin/desbloquear", methods=["POST"])
     @_admin_required
@@ -1583,14 +1603,9 @@ def create_app():
     @app.route("/panel_admin/seguimiento")
     @_admin_required
     def panel_admin_seguimiento():
-        """Reporte de pacientes en riesgo de fuga.
-
-        Pide el listado al modulo interno de citas (/api/citas/riesgo). Si
-        ocurre un error, se muestra el panel vacio con el aviso
-        en vez de una pagina en blanco.
-        """
         fecha = (request.args.get("fecha") or "").strip()
         dias_umbral = (request.args.get("dias_umbral") or "").strip()
+        tab = (request.args.get("tab") or "sin_volver").strip()
 
         params = {}
         if fecha:
@@ -1611,12 +1626,30 @@ def create_app():
         except Exception:
             error = "Servicio de citas no disponible"
 
+        # canceladas y no asistidas (ultimos 30 dias)
+        canceladas = []
+        no_asistidos = []
+        try:
+            for estado in ("cancelada", "no_asistio"):
+                cdata, cstatus = citas_client.get(f"/api/citas?estado={estado}")
+                if cstatus == 200:
+                    for c in (cdata.get("citas") or []):
+                        if estado == "cancelada":
+                            canceladas.append(c)
+                        else:
+                            no_asistidos.append(c)
+        except Exception:
+            pass
+
         return render_template(
-            "riesgo.html",
+            "seguimiento.html",
             resumen=resumen,
             error=error,
             fecha=fecha,
             dias_umbral=dias_umbral,
+            tab=tab,
+            canceladas=canceladas,
+            no_asistidos=no_asistidos,
         )
 
     @app.route("/panel_admin/cancelar_cita/<int:cita_id>", methods=["POST"])

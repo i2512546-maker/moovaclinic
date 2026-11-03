@@ -103,6 +103,16 @@
     </div>
     {% endif %}
 
+    <div class="card card-moova shadow-sm mb-4">
+        <div class="card-body d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div>
+                <h2 class="h5 mb-1"><i class="bi bi-person-x me-2"></i>Canceladas y no asistidas (últimos 30 días)</h2>
+                <p class="mb-0 text-muted small">Canceladas: {{ tarjeta_canceladas|default(0) }} · No asistidas: {{ tarjeta_no_asistidos|default(0) }}</p>
+            </div>
+            <a href="{{ url_for('panel_admin_seguimiento') }}" class="btn btn-moova btn-sm">Ver seguimiento</a>
+        </div>
+    </div>
+
     <div class="row g-4">
 
         <div class="col-12 col-lg-5 col-xl-4">

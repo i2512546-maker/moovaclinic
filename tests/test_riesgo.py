@@ -14,7 +14,7 @@ from shared.config import API_KEY
 from tests.internal_client import internal_test_client
 
 RUTA = "/_internal/api/citas/riesgo"
-PANEL = "/panel_admin/riesgo"
+PANEL = "/panel_admin/seguimiento"
 
 # Fila tal como la devuelve sp_pacientes_en_riesgo.
 FILA = {
@@ -227,7 +227,8 @@ class RiesgoPanelTest(unittest.TestCase):
             "gateway.app.citas_client.get", return_value=(resumen, 200)
         ) as get:
             self.client.get(PANEL + "?fecha=2026-11-02&dias_umbral=14")
-        ruta = get.call_args[0][0]
+        rutas = [c[0][0] for c in get.call_args_list]
+        ruta = next((r for r in rutas if "riesgo" in r), rutas[0])
         self.assertIn("fecha=2026-11-02", ruta)
         self.assertIn("dias_umbral=14", ruta)
 
