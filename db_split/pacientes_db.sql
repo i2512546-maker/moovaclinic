@@ -162,7 +162,8 @@ INSERT INTO `servicios` (`id`, `nombre`, `descripcion`, `duracion_min`, `precio`
 (1, 'Sesion de Fisioterapia', 'Sesion individual de rehabilitacion fisica', 60, 80.00, 1, '2026-08-27 08:13:59'),
 (2, 'Sesion de Terapia Cardiorrespiratoria', 'Rehabilitacion cardiorrespiratoria', 60, 100.00, 1, '2026-08-27 08:13:59'),
 (3, 'Sesion de Terapia Muscular', 'Fortalecimiento y recuperacion muscular', 45, 70.00, 1, '2026-08-27 08:13:59'),
-(4, 'Evaluacion Inicial', 'Evaluacion completa del paciente nuevo', 30, 50.00, 1, '2026-08-27 08:13:59');
+(4, 'Evaluacion Inicial', 'Evaluacion completa del paciente nuevo', 30, 50.00, 1, '2026-08-27 08:13:59'),
+(5, 'Evaluacion Inicial', 'Primera valoración funcional y clínica antes de iniciar el tratamiento', 30, 55.00, 1, '2026-11-03 00:00:00');
 
 -- --------------------------------------------------------
 --
@@ -287,7 +288,7 @@ ALTER TABLE `especialidades`
 -- AUTO_INCREMENT for table `servicios`
 --
 ALTER TABLE `servicios`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `terapeutas`
