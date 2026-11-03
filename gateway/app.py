@@ -759,7 +759,30 @@ def create_app():
             if _is_ajax():
                 return jsonify({"success": False, "error": "Estado no valido"}), 409
             return redirect(url_for("interfaz", fecha=fecha))
-        citas_client.post(f"/api/citas/{cita_id}/no-asistio", {})
+        try:
+            resultado, status = citas_client.post(
+                f"/api/citas/{cita_id}/no-asistio", {}
+            )
+        except Exception:
+            app.logger.exception(
+                "No se pudo registrar la inasistencia de la cita %s", cita_id
+            )
+            resultado, status = None, 502
+
+        if (
+            status != 200
+            or not isinstance(resultado, dict)
+            or not resultado.get("success")
+        ):
+            error = (resultado or {}).get("error") or (
+                "No se pudo registrar la inasistencia. Inténtalo nuevamente."
+            )
+            codigo = status if isinstance(status, int) and 400 <= status < 600 else 502
+            if _is_ajax():
+                return jsonify({"success": False, "error": error}), codigo
+            flash(f"error:{error}")
+            return redirect(url_for("interfaz", fecha=fecha))
+
         if _is_ajax():
             return jsonify({"success": True, "estado": "no_asistio"})
         return redirect(url_for("interfaz", fecha=fecha))
@@ -1818,7 +1841,26 @@ def create_app():
     @app.route("/panel_admin/cancelar_cita/<int:cita_id>", methods=["POST"])
     @_admin_required
     def admin_cancelar_cita(cita_id):
-        citas_client.delete(f"/api/citas/{cita_id}")
+        try:
+            resultado, status = citas_client.delete(f"/api/citas/{cita_id}")
+        except Exception:
+            app.logger.exception("No se pudo cancelar la cita %s", cita_id)
+            resultado, status = None, 502
+
+        if (
+            status != 200
+            or not isinstance(resultado, dict)
+            or not resultado.get("success")
+        ):
+            error = (resultado or {}).get("error") or (
+                "No se pudo cancelar la cita. Inténtalo nuevamente."
+            )
+            codigo = status if isinstance(status, int) and 400 <= status < 600 else 502
+            if _is_ajax():
+                return jsonify({"success": False, "error": error}), codigo
+            flash(f"error:{error}")
+            return redirect(url_for("panel_admin"))
+
         if _is_ajax():
             return jsonify({"success": True})
         flash("exito:Cita cancelada.")
