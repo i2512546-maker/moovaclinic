@@ -499,7 +499,8 @@
         {% if session.get('usuario_id') %}
         <a href="{{ url_for('panel_admin' if session.get('rol') == 'admin' else 'interfaz') }}"
            class="btn-login-footer btn btn-light shadow-sm rounded-pill"
-           style="position:fixed; bottom:28px; right:28px; z-index:999; color:var(--sky); font-family:'Quicksand',sans-serif; font-weight:500;">
+           data-tab-session="{{ session.get('tab_session_id', '') }}"
+           style="display:none; position:fixed; bottom:28px; right:28px; z-index:999; color:var(--sky); font-family:'Quicksand',sans-serif; font-weight:500;">
             <i class="fas fa-user-check me-1"></i> Volver a mi panel
         </a>
         {% else %}
@@ -510,6 +511,21 @@
 
 
 <script>
+(function () {
+    const botonPanel = document.querySelector("[data-tab-session]");
+    if (!botonPanel) return;
+    const nonceServidor = botonPanel.dataset.tabSession;
+    const noncePestana = sessionStorage.getItem("moova_tab_session");
+    if (nonceServidor && noncePestana === nonceServidor) {
+        botonPanel.style.display = "";
+        return;
+    }
+    // Si se restaura una pestaña cerrada, el cookie puede seguir existiendo.
+    // Sin el marcador de ESTA pestaña, se cierra la sesión del personal.
+    fetch("{{ url_for('logout') }}", { credentials: "same-origin" })
+        .finally(function () { window.location.reload(); });
+})();
+
 // Estadisticas dinamicas desde la API
 fetch('/api/estadisticas')
     .then(function(resp) { return resp.json(); })
