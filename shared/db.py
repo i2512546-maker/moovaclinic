@@ -5,8 +5,8 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 
 import mysql.connector
-from mysql.connector.pooling import MySQLConnectionPool
 from flask import request
+from mysql.connector.pooling import MySQLConnectionPool
 
 from shared.config import (
     AUDIT_DB_NAME,
