@@ -259,17 +259,17 @@ def _datos_seguimiento_dni(dni):
     if not paciente:
         return paciente, paquetes, [], []
     try:
-        data, status = citas_client.get(f"/api/citas/paciente/{paciente['id']}")
-        citas = (data or {}).get("citas") or [] if status == 200 else []
-    except Exception:
-        citas = []
-    try:
-        data, status = pacientes_client.get(
-            f"/api/pacientes/{paciente['id']}/evaluaciones"
+        (cdata, cstatus), (edata, estatus) = _llamadas_paralelas(
+            lambda: citas_client.get(f"/api/citas/paciente/{paciente['id']}"),
+            lambda: pacientes_client.get(
+                f"/api/pacientes/{paciente['id']}/evaluaciones"
+            ),
+            max_workers=2,
         )
-        evaluaciones = (data or {}).get("evaluaciones") or [] if status == 200 else []
+        citas = (cdata or {}).get("citas") or [] if cstatus == 200 else []
+        evaluaciones = (edata or {}).get("evaluaciones") or [] if estatus == 200 else []
     except Exception:
-        evaluaciones = []
+        citas, evaluaciones = [], []
     return paciente, paquetes, citas, evaluaciones
 
 
@@ -1743,29 +1743,24 @@ def create_app():
             ruta += "?" + urlencode(params)
 
         resumen, error = None, None
+        canceladas, no_asistidos = [], []
         try:
-            data, status = citas_client.get(ruta)
-            if status == 200 and data.get("success"):
+            (data, status), (cdata, cstatus), (ndata, nstatus) = _llamadas_paralelas(
+                lambda: citas_client.get(ruta),
+                lambda: citas_client.get("/api/citas?estado=cancelada"),
+                lambda: citas_client.get("/api/citas?estado=no_asistio"),
+                max_workers=3,
+            )
+            if status == 200 and (data or {}).get("success"):
                 resumen = data
             else:
                 error = (data or {}).get("error") or "No se pudo cargar el reporte de riesgo"
+            if cstatus == 200:
+                canceladas = (cdata or {}).get("citas") or []
+            if nstatus == 200:
+                no_asistidos = (ndata or {}).get("citas") or []
         except Exception:
             error = "Servicio de citas no disponible"
-
-        # canceladas y no asistidas (ultimos 30 dias)
-        canceladas = []
-        no_asistidos = []
-        try:
-            for estado in ("cancelada", "no_asistio"):
-                cdata, cstatus = citas_client.get(f"/api/citas?estado={estado}")
-                if cstatus == 200:
-                    for c in (cdata.get("citas") or []):
-                        if estado == "cancelada":
-                            canceladas.append(c)
-                        else:
-                            no_asistidos.append(c)
-        except Exception:
-            pass
 
         return render_template(
             "seguimiento.html",
@@ -1963,11 +1958,10 @@ def create_app():
             return jsonify({"success": False, "error": "No se pudo consultar el historial del paciente."}), 502
 
         paciente_id = paciente_data["id"]
-        evaluaciones_data, evaluaciones_status = pacientes_client.get(
-            f"/api/pacientes/{paciente_id}/evaluaciones"
-        )
-        citas_data, citas_status = citas_client.get(
-            f"/api/citas/paciente/{paciente_id}/evaluacion-inicial"
+        (evaluaciones_data, evaluaciones_status), (citas_data, citas_status) = _llamadas_paralelas(
+            lambda: pacientes_client.get(f"/api/pacientes/{paciente_id}/evaluaciones"),
+            lambda: citas_client.get(f"/api/citas/paciente/{paciente_id}/evaluacion-inicial"),
+            max_workers=2,
         )
         if evaluaciones_status != 200 or citas_status != 200:
             return jsonify({"success": False, "error": "No se pudo verificar si ya tienes una evaluación inicial."}), 502
