@@ -29,6 +29,23 @@
         .servicio-card.selected, .terapeuta-card.selected { border: 2px solid var(--green) !important; box-shadow: 0 0 0 .2rem rgba(34, 197, 94, .12); }
         #calendarioCita { display: flex; justify-content: center; }
         #calendarioCita .flatpickr-calendar.inline { box-shadow: none; }
+        .horarios-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: .65rem; }
+        .hora-opcion { border: 1px solid #d9e5df; border-radius: 12px; background: #fff; color: #245b48; padding: .7rem .5rem; font-weight: 700; transition: .18s ease; }
+        .hora-opcion:hover, .hora-opcion:focus-visible { border-color: var(--green); background: #f0faf4; outline: none; box-shadow: 0 0 0 .18rem rgba(34,197,94,.12); }
+        .hora-elegida { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .9rem 1rem; border: 1px solid #b7e4c7; border-radius: 12px; background: #f0faf4; }
+        .metodos-pago-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; }
+        .metodo-pago-card { display: flex; align-items: center; gap: .85rem; min-height: 88px; padding: 1rem; border: 1px solid #dce5e1; border-radius: 14px; background: #fff; text-align: left; transition: border-color .18s, box-shadow .18s, background .18s; }
+        .metodo-pago-card:hover { border-color: var(--green); }
+        .metodo-pago-card.selected { border: 2px solid var(--green); background: #f3fbf6; box-shadow: 0 0 0 .18rem rgba(34,197,94,.12); }
+        .metodo-pago-logo { width: 54px; height: 42px; flex: 0 0 54px; display: flex; align-items: center; justify-content: center; border-radius: 10px; font-weight: 900; font-size: 1rem; letter-spacing: -.04em; }
+        .logo-yape { color: #fff; background: #7423a8; }
+        .logo-plin { color: #fff; background: linear-gradient(135deg,#00a7a0,#3157c8); }
+        .logo-tarjeta { color: #164b8d; background: #edf4ff; font-size: 1.55rem; }
+        .logo-transferencia { color: #24734f; background: #eaf7ef; font-size: 1.4rem; }
+        .yape-qr-panel { display: none; margin-top: 1rem; padding: 1rem; border: 1px dashed #c9b3df; border-radius: 14px; background: #fbf8ff; text-align: center; }
+        .yape-qr-panel.visible { display: block; }
+        .yape-qr-panel img { width: min(100%, 250px); max-height: 290px; object-fit: contain; border-radius: 10px; background: #fff; }
+        @media (max-width: 480px) { .metodos-pago-grid { grid-template-columns: 1fr; } .hora-elegida { align-items: flex-start; flex-direction: column; } }
         @media (max-width: 480px) {
             .wizard-steps { padding: 0; }
             .wizard-step { min-width: 0; flex: 1 1 0; }
@@ -254,14 +271,19 @@
                             <div id="calendarioCita"></div>
                         </div>
                         <div class="mt-4" id="horario-contenedor" style="display:none;">
-                            <label for="hora_cita" class="form-label fw-semibold"><i class="fas fa-clock me-1"></i>Selecciona la hora de tu cita</label>
-                            <select name="hora_cita" id="hora_cita" class="form-select" disabled>
-                                <option value="">Primero selecciona una fecha</option>
+                            <label class="form-label fw-semibold"><i class="fas fa-clock me-1"></i>Horarios disponibles</label>
+                            <input type="hidden" name="hora_cita" id="hora_cita" value="">
+                            <div id="hora-elegida-panel" class="hora-elegida mb-3" style="display:none;" aria-live="polite">
+                                <div><span class="small text-muted d-block">Tu horario seleccionado</span><strong id="hora-elegida-texto" class="text-success fs-5"></strong></div>
+                                <button type="button" id="btn-cambiar-hora" class="btn btn-sm btn-outline-success">Cambiar hora</button>
+                            </div>
+                            <div id="horarios-lista" class="horarios-grid" aria-label="Horarios disponibles">
                                 {% for hora in horarios_disponibles %}
-                                <option value="{{ hora }}">{{ hora }}</option>
+                                <button type="button" class="hora-opcion" data-hora="{{ hora }}">{{ hora }}</button>
                                 {% endfor %}
-                            </select>
-                            <small class="text-muted">La hora que elijas se reservará junto con la fecha seleccionada.</small>
+                            </div>
+                            <p id="horarios-sin-disponibilidad" class="small text-muted mt-2 mb-0" style="display:none;">No quedan horarios disponibles para este día.</p>
+                            <small class="text-muted d-block mt-2">Al elegir una hora, se apartará de esta lista y verás los demás horarios que siguen disponibles.</small>
                         </div>
                         <div class="d-flex justify-content-between mt-4">
                             <button type="button" class="btn btn-moova-outline" id="btnBack3"><i class="fas fa-arrow-left me-2"></i>Atrás</button>
@@ -306,15 +328,28 @@
                             <strong>Anticipo: <span id="pago-anticipo-resumen">S/ —</span></strong>
                             <div class="small mt-1">La cita todavía no está registrada. Se enviará a confirmar en el último paso.</div>
                         </div>
+                        <input type="hidden" name="metodo_pago" id="metodo_pago" value="">
                         <div class="mb-3">
-                            <label for="metodo_pago" class="form-label"><i class="fas fa-money-check-alt me-1"></i>Método de pago</label>
-                            <select name="metodo_pago" id="metodo_pago" class="form-select" required>
-                                <option value="" disabled selected>Selecciona un método</option>
-                                <option value="yape">Yape</option>
-                                <option value="plin">Plin</option>
-                                <option value="tarjeta">Tarjeta</option>
-                                <option value="transferencia">Transferencia bancaria</option>
-                            </select>
+                            <label class="form-label"><i class="fas fa-money-check-alt me-1"></i>Elige tu método de pago</label>
+                            <div class="metodos-pago-grid" id="metodos-pago-lista">
+                                <button type="button" class="metodo-pago-card" data-metodo="yape" aria-pressed="false">
+                                    <span class="metodo-pago-logo logo-yape">YAPE</span><span><strong class="d-block">Yape</strong><small class="text-muted">Pago con QR</small></span>
+                                </button>
+                                <button type="button" class="metodo-pago-card" data-metodo="plin" aria-pressed="false">
+                                    <span class="metodo-pago-logo logo-plin">PLIN</span><span><strong class="d-block">Plin</strong><small class="text-muted">Pago desde tu app</small></span>
+                                </button>
+                                <button type="button" class="metodo-pago-card" data-metodo="tarjeta" aria-pressed="false">
+                                    <span class="metodo-pago-logo logo-tarjeta"><i class="fa-brands fa-cc-visa"></i></span><span><strong class="d-block">Tarjeta</strong><small class="text-muted">Crédito o débito</small></span>
+                                </button>
+                                <button type="button" class="metodo-pago-card" data-metodo="transferencia" aria-pressed="false">
+                                    <span class="metodo-pago-logo logo-transferencia"><i class="fas fa-building-columns"></i></span><span><strong class="d-block">Transferencia</strong><small class="text-muted">Transferencia bancaria</small></span>
+                                </button>
+                            </div>
+                            <div id="yape-qr-panel" class="yape-qr-panel" aria-live="polite">
+                                <strong class="d-block mb-2">Escanea este QR de ejemplo con Yape</strong>
+                                <img src="{{ url_for('static', filename='img/yape.webp') }}" alt="Código QR de Yape de MOOVA Clinic">
+                                <small class="d-block text-muted mt-2">En la siguiente pantalla podrás completar el proceso de pago.</small>
+                            </div>
                         </div>
                         <div class="d-flex justify-content-between mt-4">
                             <button type="button" class="btn btn-moova-outline" id="btnBack5"><i class="fas fa-arrow-left me-2"></i>Atrás</button>
@@ -448,26 +483,71 @@
         function actualizarHorasDisponibles(fecha) {
             var selector = document.getElementById('hora_cita');
             var ocupadas = horasOcupadasPorFecha[fecha] || [];
-            var libres = 0;
-            Array.from(selector.options).forEach(function (opcion) {
-                if (!opcion.value) return;
-                var ocupada = ocupadas.includes(opcion.value);
-                opcion.disabled = ocupada;
-                opcion.hidden = ocupada;
-                if (!ocupada) libres++;
-            });
             selector.value = '';
-            selector.disabled = libres === 0;
+            document.getElementById('hora-elegida-panel').style.display = 'none';
+            document.getElementById('hora-elegida-texto').textContent = '';
+            var libres = Array.from(document.querySelectorAll('.hora-opcion[data-hora]'))
+                .map(function (boton) { return boton.dataset.hora; })
+                .filter(function (hora) { return !ocupadas.includes(hora); });
+            dibujarHorarios(libres);
             document.getElementById('resumen-hora').textContent =
-                libres ? 'Selecciona una hora' : 'No quedan horas disponibles para este día';
+                libres.length ? 'Selecciona una hora' : 'No quedan horas disponibles para este día';
         }
+
+        function dibujarHorarios(horas) {
+            var lista = document.getElementById('horarios-lista');
+            var sinDisponibilidad = document.getElementById('horarios-sin-disponibilidad');
+            lista.innerHTML = '';
+            horas.forEach(function (hora) {
+                var boton = document.createElement('button');
+                boton.type = 'button';
+                boton.className = 'hora-opcion';
+                boton.dataset.hora = hora;
+                boton.textContent = hora;
+                boton.addEventListener('click', function () {
+                    seleccionarHora(hora);
+                });
+                lista.appendChild(boton);
+            });
+            sinDisponibilidad.style.display = horas.length ? 'none' : '';
+        }
+
+        function seleccionarHora(hora) {
+            document.getElementById('hora_cita').value = hora;
+            document.getElementById('hora-elegida-texto').textContent = hora;
+            document.getElementById('hora-elegida-panel').style.display = '';
+            document.getElementById('resumen-hora').textContent = hora;
+            var fecha = document.getElementById('fecha_cita').value;
+            var ocupadas = horasOcupadasPorFecha[fecha] || [];
+            var restantes = Array.from(document.querySelectorAll('.hora-opcion[data-hora]'))
+                .map(function (boton) { return boton.dataset.hora; })
+                .filter(function (otraHora) { return otraHora !== hora && !ocupadas.includes(otraHora); });
+            dibujarHorarios(restantes);
+        }
+
+        document.getElementById('btn-cambiar-hora').addEventListener('click', function () {
+            var fecha = document.getElementById('fecha_cita').value;
+            if (!fecha) return;
+            var ocupadas = horasOcupadasPorFecha[fecha] || [];
+            var todas = Array.from(document.querySelectorAll('.hora-opcion[data-hora]'))
+                .map(function (boton) { return boton.dataset.hora; });
+            var seleccionada = document.getElementById('hora_cita').value;
+            if (seleccionada) todas.push(seleccionada);
+            document.getElementById('hora_cita').value = '';
+            document.getElementById('hora-elegida-panel').style.display = 'none';
+            document.getElementById('hora-elegida-texto').textContent = '';
+            dibujarHorarios(Array.from(new Set(todas)).filter(function (hora) { return !ocupadas.includes(hora); }));
+            document.getElementById('resumen-hora').textContent = 'Selecciona una hora';
+        });
 
         function limpiarFecha() {
             document.getElementById('fecha_cita').value = '';
             document.getElementById('resumen-fecha').textContent = '—';
             var selectorHora = document.getElementById('hora_cita');
             selectorHora.value = '';
-            selectorHora.disabled = true;
+            document.getElementById('hora-elegida-panel').style.display = 'none';
+            document.getElementById('hora-elegida-texto').textContent = '';
+            document.getElementById('horarios-lista').innerHTML = '';
             document.getElementById('horario-contenedor').style.display = 'none';
             document.getElementById('resumen-hora').textContent = '—';
             if (calendario) calendario.clear();
@@ -603,6 +683,11 @@
             document.getElementById('medico_id').value = '';
             document.getElementById('fecha_cita').value = '';
             document.getElementById('metodo_pago').value = '';
+            document.querySelectorAll('.metodo-pago-card').forEach(function (boton) {
+                boton.classList.remove('selected');
+                boton.setAttribute('aria-pressed', 'false');
+            });
+            document.getElementById('yape-qr-panel').classList.remove('visible');
             document.getElementById('resumen-servicio').textContent = '—';
             document.getElementById('resumen-medico').textContent = '—';
             document.getElementById('resumen-fecha').textContent = '—';
@@ -797,9 +882,7 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         });
 
-        document.getElementById('hora_cita').addEventListener('change', function () {
-            document.getElementById('resumen-hora').textContent = this.value || '—';
-        });
+
 
         document.getElementById('btnBack2').addEventListener('click', function () { irPaso(1); });
         document.getElementById('btnBack3').addEventListener('click', function () { irPaso(2); });
@@ -811,18 +894,32 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         });
         document.getElementById('btnBack5').addEventListener('click', function () { irPaso(4); });
+        var nombresMetodosPago = { yape: 'Yape', plin: 'Plin', tarjeta: 'Tarjeta', transferencia: 'Transferencia bancaria' };
+        document.querySelectorAll('.metodo-pago-card').forEach(function (boton) {
+            boton.addEventListener('click', function () {
+                var metodo = boton.dataset.metodo;
+                document.getElementById('metodo_pago').value = metodo;
+                document.querySelectorAll('.metodo-pago-card').forEach(function (otra) {
+                    var seleccionado = otra === boton;
+                    otra.classList.toggle('selected', seleccionado);
+                    otra.setAttribute('aria-pressed', seleccionado ? 'true' : 'false');
+                });
+                document.getElementById('yape-qr-panel').classList.toggle('visible', metodo === 'yape');
+            });
+        });
+
         document.getElementById('btnNext5').addEventListener('click', function () {
             var metodo = document.getElementById('metodo_pago');
             if (!metodo.value) {
                 mostrarPopup('Selecciona un método de pago para continuar.', 'error');
-                metodo.focus();
+                document.querySelector('.metodo-pago-card').focus();
                 return;
             }
             document.getElementById('confirmacion-servicio').textContent = document.getElementById('resumen-servicio').textContent;
             document.getElementById('confirmacion-medico').textContent = document.getElementById('resumen-medico').textContent;
             document.getElementById('confirmacion-fecha').textContent = document.getElementById('resumen-fecha').textContent;
             document.getElementById('confirmacion-hora').textContent = document.getElementById('resumen-hora').textContent;
-            document.getElementById('confirmacion-metodo').textContent = metodo.options[metodo.selectedIndex].text;
+            document.getElementById('confirmacion-metodo').textContent = nombresMetodosPago[metodo.value] || metodo.value;
             document.getElementById('confirmacion-anticipo').textContent = document.getElementById('anticipo-cita').textContent;
             irPaso(6);
             window.scrollTo({ top: 0, behavior: 'smooth' });
