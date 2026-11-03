@@ -1736,48 +1736,82 @@ def create_app():
     @app.route("/panel_admin/seguimiento")
     @_admin_required
     def panel_admin_seguimiento():
-        fecha = (request.args.get("fecha") or "").strip()
-        dias_umbral = (request.args.get("dias_umbral") or "").strip()
-        tab = (request.args.get("tab") or "sin_volver").strip()
-
-        params = {}
-        if fecha:
-            params["fecha"] = fecha
-        if dias_umbral:
-            params["dias_umbral"] = dias_umbral
-        ruta = "/api/citas/riesgo"
-        if params:
-            ruta += "?" + urlencode(params)
-
-        resumen, error = None, None
-        canceladas, no_asistidos = [], []
+        hoy = hoy_lima()
+        mes = (request.args.get("mes") or hoy.strftime("%Y-%m")).strip()
         try:
-            (data, status), (cdata, cstatus), (ndata, nstatus) = _llamadas_paralelas(
-                lambda: citas_client.get(ruta),
-                lambda: citas_client.get("/api/citas?estado=cancelada"),
-                lambda: citas_client.get("/api/citas?estado=no_asistio"),
-                max_workers=3,
-            )
-            if status == 200 and (data or {}).get("success"):
-                resumen = data
-            else:
-                error = (data or {}).get("error") or "No se pudo cargar el reporte de riesgo"
-            if cstatus == 200:
-                canceladas = (cdata or {}).get("citas") or []
-            if nstatus == 200:
-                no_asistidos = (ndata or {}).get("citas") or []
-        except Exception:
-            error = "Servicio de citas no disponible"
+            primer_dia = datetime.strptime(mes, "%Y-%m").date()
+        except ValueError:
+            primer_dia = hoy.replace(day=1)
+            mes = primer_dia.strftime("%Y-%m")
 
+        if primer_dia.month == 12:
+            siguiente_mes = primer_dia.replace(year=primer_dia.year + 1, month=1, day=1)
+        else:
+            siguiente_mes = primer_dia.replace(month=primer_dia.month + 1, day=1)
+        ultimo_dia = siguiente_mes - timedelta(days=1)
+
+        # Semanas de lunes a domingo, recortadas al mes seleccionado.
+        cursor = primer_dia - timedelta(days=primer_dia.weekday())
+        semanas = []
+        while cursor <= ultimo_dia:
+            desde_semana = max(cursor, primer_dia)
+            hasta_semana = min(cursor + timedelta(days=6), ultimo_dia)
+            numero = len(semanas) + 1
+            semanas.append({
+                "numero": numero,
+                "desde": desde_semana,
+                "hasta": hasta_semana,
+                "etiqueta": f"Semana {numero} · {desde_semana.strftime('%d/%m')} - {hasta_semana.strftime('%d/%m')}",
+            })
+            cursor += timedelta(days=7)
+
+        try:
+            semana_seleccionada = int(request.args.get("semana") or 0)
+        except ValueError:
+            semana_seleccionada = 0
+        if semana_seleccionada < 1 or semana_seleccionada > len(semanas):
+            semana_seleccionada = next(
+                (op["numero"] for op in semanas if op["desde"] <= hoy <= op["hasta"]),
+                1,
+            )
+        periodo = semanas[semana_seleccionada - 1]
+        desde = periodo["desde"].strftime("%Y-%m-%d")
+        hasta = periodo["hasta"].strftime("%Y-%m-%d")
+
+        canceladas, no_asistidos, error = [], [], None
+        try:
+            (cdata, cstatus), (ndata, nstatus) = _llamadas_paralelas(
+                lambda: citas_client.get(f"/api/citas?estado=cancelada&fecha={desde}"),
+                lambda: citas_client.get(f"/api/citas?estado=no_asistio&fecha={desde}"),
+                max_workers=2,
+            )
+            if cstatus == 200:
+                canceladas = [
+                    c for c in ((cdata or {}).get("citas") or [])
+                    if desde <= str(c.get("fecha_cita") or "")[:10] <= hasta
+                ]
+            else:
+                error = (cdata or {}).get("error") or "No se pudieron cargar las citas canceladas."
+            if nstatus == 200:
+                no_asistidos = [
+                    c for c in ((ndata or {}).get("citas") or [])
+                    if desde <= str(c.get("fecha_cita") or "")[:10] <= hasta
+                ]
+            else:
+                error = error or (ndata or {}).get("error") or "No se pudieron cargar las inasistencias."
+        except Exception:
+            app.logger.exception("No se pudo cargar el seguimiento semanal de citas")
+            error = "Servicio de citas no disponible."
+
+        citas_semana = sorted(
+            canceladas + no_asistidos,
+            key=lambda c: (str(c.get("fecha_cita") or ""), str(c.get("hora_cita") or "")),
+        )
         return render_template(
-            "seguimiento.html",
-            resumen=resumen,
-            error=error,
-            fecha=fecha,
-            dias_umbral=dias_umbral,
-            tab=tab,
-            canceladas=canceladas,
-            no_asistidos=no_asistidos,
+            "seguimiento.html", mes=mes, semanas=semanas,
+            semana_seleccionada=semana_seleccionada, desde=desde, hasta=hasta,
+            canceladas=canceladas, no_asistidos=no_asistidos,
+            citas_semana=citas_semana, error=error,
         )
 
     @app.route("/panel_admin/cancelar_cita/<int:cita_id>", methods=["POST"])
