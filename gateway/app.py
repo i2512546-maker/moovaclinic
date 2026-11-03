@@ -1807,7 +1807,7 @@ def create_app():
 
         paciente = data.get("paciente", {})
         historial = data.get("historial", [])
-        paquetes, evaluaciones, consentimientos = _cargar_anexos_paciente(paciente.get("id"))
+        paquetes, evaluaciones = _cargar_anexos_paciente(paciente.get("id"))
 
         pdf_bytes = build_ficha_clinica_pdf(
             paciente, historial, paquetes, evaluaciones,
