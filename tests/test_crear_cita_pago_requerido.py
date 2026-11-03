@@ -45,6 +45,10 @@ class CrearCitaPagoRequeridoTest(unittest.TestCase):
                 "services.citas_service.routes.pacientes_client.get",
                 side_effect=pacientes_get or self._pacientes_get,
             ),
+            patch(
+                "services.citas_service.routes.call_proc",
+                return_value=[],
+            ),
             patch("services.citas_service.routes.log_accion"),
         ]
         for item in patches:

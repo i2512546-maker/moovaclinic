@@ -74,6 +74,12 @@ LIBERAR_VENCIDOS_ENABLED = (
     in ("1", "true", "yes", "on")
 )
 
+# Horarios de atencion por terapeuta (modulo de citas).
+HORA_INICIO = int(os.getenv("HORA_INICIO", 10))
+HORA_FIN = int(os.getenv("HORA_FIN", 18))
+DURACION_SLOT_MIN = int(os.getenv("DURACION_SLOT_MIN", 60))
+CUPO_POR_SLOT = int(os.getenv("CUPO_POR_SLOT", 1))
+
 # Reporte de pacientes en riesgo de fuga (modulo de citas).
 # Dias desde la ultima cita a partir de los cuales un paciente sin
 # cita programada pasa a considerarse "en riesgo".

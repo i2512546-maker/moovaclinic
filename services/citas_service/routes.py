@@ -8,6 +8,7 @@ from flask import current_app, jsonify, request
 from services.citas_service import citas_bp
 from shared.audit import log_accion
 from shared.config import (
+    CUPO_POR_SLOT,
     KPIS_DB_NAME,
     OTP_EXPIRA_MIN,
     OTP_MAX_INTENTOS,
@@ -16,7 +17,12 @@ from shared.config import (
     TEXTBEE_DEVICE_ID,
     TEXTBEE_URL,
 )
-from shared.fechas import hoy_lima
+from shared.fechas import ahora_lima, hoy_lima
+from shared.horarios import (
+    autoasignar,
+    contar_ocupados,
+    validar_slot,
+)
 from shared.proc import call_proc, call_proc_execute, call_proc_one
 from shared.service_client import auth_client, pacientes_client, pagos_client
 from shared.validators import validar_datos_paciente
@@ -379,8 +385,48 @@ def crear_cita():
     except ValueError:
         return jsonify({"error": "Formato de hora invalido (HH:MM)"}), 400
 
-    # Disponibilidad del medico (DB local). Blindada: si la BD no responde
-    # en tiempo, respondemos 500 en vez de colgar el request.
+    # Slots ocupados del terapeuta ese dia (para validar cupo por hora).
+    ocupados = []
+    try:
+        filas = call_proc("sp_slots_ocupados", (data["medico_id"], data["fecha_cita"]))
+        for f in (filas or []):
+            h = f.get("hora_cita")
+            n = int(f.get("n") or 1)
+            texto = _fmt_hora(h) if h is not None else ""
+            if texto:
+                ocupados.extend([texto] * n)
+    except Exception as exc:
+        current_app.logger.error(
+            "[crear_cita] Error en sp_slots_ocupados: %s: %s",
+            type(exc).__name__, exc,
+        )
+        return jsonify({"error": "No se pudo procesar la solicitud, intenta de nuevo"}), 500
+
+    ahora = ahora_lima()
+    fecha_date = fecha_obj
+
+    # Autoasignacion si no vino hora.
+    if not hora_cita:
+        hora_cita = autoasignar(ocupados, fecha_date, ahora)
+        if not hora_cita:
+            return jsonify({"error": "No hay horarios disponibles para ese dia"}), 409
+
+    # Validacion de slot.
+    if not validar_slot(hora_cita):
+        return jsonify({"error": "Horario invalido"}), 400
+    # Si es hoy, no permitir slots pasados.
+    if fecha_date == ahora.date():
+        try:
+            slot_min = int(hora_cita.split(":")[0]) * 60 + int(hora_cita.split(":")[1])
+            if slot_min <= ahora.hour * 60 + ahora.minute:
+                return jsonify({"error": "Ese horario ya paso"}), 400
+        except Exception:
+            pass
+    # Verificar cupo.
+    if contar_ocupados(ocupados).get(str(hora_cita)[:5], 0) >= CUPO_POR_SLOT:
+        return jsonify({"error": "Ese horario esta completo"}), 409
+
+    # Disponibilidad del medico por fecha (compatibilidad). Blindada.
     try:
         if not medico_disponible(data["medico_id"], data["fecha_cita"]):
             return jsonify({"error": "El medico ya tiene una cita ese dia"}), 409
@@ -729,6 +775,46 @@ def modificar_cita(cita_id):
         hora_cita = _normalizar_hora_cita(data.get("hora_cita"))
     except ValueError:
         return jsonify({"error": "Formato de hora invalido (HH:MM)"}), 400
+
+    # Slots ocupados excluyendo la propia cita.
+    ocupados = []
+    try:
+        filas = call_proc("sp_slots_ocupados", (nuevo_medico, nueva_fecha))
+        for f in (filas or []):
+            h = f.get("hora_cita")
+            n = int(f.get("n") or 1)
+            texto = _fmt_hora(h) if h is not None else ""
+            if texto:
+                ocupados.extend([texto] * n)
+    except Exception:
+        pass
+    # excluir la cita actual
+    try:
+        cita_actual = call_proc_one("sp_detalle_cita", (cita_id,))
+        if cita_actual and cita_actual.get("hora_cita") is not None:
+            h = _fmt_hora(cita_actual.get("hora_cita"))
+            if h in ocupados:
+                ocupados.remove(h)
+    except Exception:
+        pass
+
+    if hora_cita:
+        if not validar_slot(hora_cita):
+            return jsonify({"error": "Horario invalido"}), 400
+        from datetime import datetime as _dt
+        fecha_date = _dt.strptime(nueva_fecha, "%Y-%m-%d").date()
+        ahora = ahora_lima()
+        if fecha_date == ahora.date():
+            slot_min = int(hora_cita.split(":")[0]) * 60 + int(hora_cita.split(":")[1])
+            if slot_min <= ahora.hour * 60 + ahora.minute:
+                return jsonify({"error": "Ese horario ya paso"}), 400
+        if contar_ocupados(ocupados).get(str(hora_cita)[:5], 0) >= CUPO_POR_SLOT:
+            return jsonify({"error": "Ese horario esta completo"}), 409
+    else:
+        hora_cita = autoasignar(ocupados, _dt.strptime(nueva_fecha, "%Y-%m-%d").date(), ahora_lima())
+        if not hora_cita:
+            return jsonify({"error": "No hay horarios disponibles para ese dia"}), 409
+
     if not medico_disponible(nuevo_medico, nueva_fecha, excluir_cita_id=cita_id):
         return jsonify({"error": "El medico ya tiene una cita ese dia"}), 409
 

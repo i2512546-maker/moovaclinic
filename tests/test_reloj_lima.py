@@ -214,8 +214,8 @@ class CitasServiceCuentaEnLimaTest(unittest.TestCase):
                   "telefono": "999888777", "medico_id": 1, "fecha_cita": fecha,
                   "servicio_id": 2, "metodo_pago": "yape"}
         with patch.object(fechas, "datetime", _RelojFalso), \
-                patch("services.citas_service.routes.medico_disponible",
-                      return_value=False):
+                patch("services.citas_service.routes.medico_disponible", return_value=False), \
+                patch("services.citas_service.routes.call_proc", return_value=[]):
             return self.client.post(
                 "/_internal/api/citas", json=cuerpo, headers=CABECERAS
             )

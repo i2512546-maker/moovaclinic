@@ -244,10 +244,10 @@ class AvisoEnPutTest(AvisoTerapeutaBase):
 
     def test_cambio_solo_de_hora_envia_un_sms(self):
         resp = self._put({"fecha_cita": "2026-10-25", "medico_id": 3,
-                          "hora_cita": "11:30"})
+                          "hora_cita": "11:00"})
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(self.sms_textos), 1)
-        self.assertIn("a las 11:30", self.sms_textos[0][1])
+        self.assertIn("a las 11:00", self.sms_textos[0][1])
 
     def test_sin_cambio_relevante_no_envia_nada(self):
         # Mismo terapeuta, misma fecha y misma hora: el cambio no toca
