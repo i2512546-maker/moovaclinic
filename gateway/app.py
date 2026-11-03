@@ -633,19 +633,16 @@ def create_app():
         es_pasado = fecha_str < hoy_lima().strftime("%Y-%m-%d")
         es_admin = session.get("rol") == "admin"
 
-        # Mostrar tanto programadas como confirmadas; ambas ocupan agenda.
-        # El endpoint filtra desde la fecha, así que aquí se limita al día exacto.
-        citas_por_id = {}
-        for estado_cita in ("programada", "confirmada", "cancelada", "completada", "no_asistio"):
-            params = f"?fecha={fecha_str}&estado={estado_cita}"
-            data, status = citas_client.get(f"/api/citas{params}")
-            if status == 200:
-                for cita in data.get("citas", []):
-                    if str(cita.get("fecha_cita", ""))[:10] == fecha_str:
-                        cita_id = cita.get("id") or cita.get("historial_id") or cita.get("cita_id")
-                        if cita_id is not None:
-                            citas_por_id.setdefault(str(cita_id), cita)
-        pacientes = list(citas_por_id.values())
+        # La agenda se obtiene en una sola llamada. El servicio agrupa
+        # los estados y comparte el enriquecimiento de pacientes/terapeutas.
+        agenda_data, agenda_status = citas_client.get(
+            f"/api/citas/agenda?fecha={fecha_str}"
+        )
+        pacientes = (
+            (agenda_data or {}).get("citas", [])
+            if agenda_status == 200 else []
+        )
+
         if not es_admin:
             terapeuta_id = _terapeuta_id_de_sesion()
             pacientes = [
