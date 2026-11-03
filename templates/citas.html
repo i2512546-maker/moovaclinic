@@ -32,6 +32,7 @@
         .horarios-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: .65rem; }
         .hora-opcion { border: 1px solid #d9e5df; border-radius: 12px; background: #fff; color: #245b48; padding: .7rem .5rem; font-weight: 700; transition: .18s ease; }
         .hora-opcion:hover, .hora-opcion:focus-visible { border-color: var(--green); background: #f0faf4; outline: none; box-shadow: 0 0 0 .18rem rgba(34,197,94,.12); }
+        .hora-opcion:disabled, .hora-opcion.hora-ocupada { background: #f1f3f5; color: #8a9299; border-color: #d7dde1; border-style: dashed; cursor: not-allowed; opacity: 1; box-shadow: none; }
         .hora-elegida { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .9rem 1rem; border: 1px solid #b7e4c7; border-radius: 12px; background: #f0faf4; }
         .metodos-pago-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; }
         .metodo-pago-card { display: flex; align-items: center; gap: .85rem; min-height: 88px; padding: 1rem; border: 1px solid #dce5e1; border-radius: 14px; background: #fff; text-align: left; transition: border-color .18s, box-shadow .18s, background .18s; }
@@ -494,47 +495,71 @@
                 libres.length ? 'Selecciona una hora' : 'No quedan horas disponibles para este día';
         }
 
-        function dibujarHorarios(horas) {
+        function horaYaPaso(fecha, hora) {
+            if (!fecha || !hora) return false;
+            // Las citas se guardan en hora de Lima (UTC-5), sin depender
+            // de la zona horaria configurada en el dispositivo.
+            var instante = new Date(fecha + 'T' + hora + ':00-05:00');
+            return Number.isFinite(instante.getTime()) && instante.getTime() <= Date.now();
+        }
+
+        function horaEstaOcupada(fecha, hora) {
+            var ocupadas = horasOcupadasPorFecha[fecha] || [];
+            return ocupadas.includes(hora) || horaYaPaso(fecha, hora);
+        }
+
+        function dibujarHorarios(_horasDisponibles, horaSeleccionada) {
             var lista = document.getElementById('horarios-lista');
             var sinDisponibilidad = document.getElementById('horarios-sin-disponibilidad');
+            var fecha = document.getElementById('fecha_cita').value;
             lista.innerHTML = '';
-            horas.forEach(function (hora) {
+            var hayLibres = false;
+            horariosBase.forEach(function (hora) {
+                if (hora === horaSeleccionada) return;
+                var ocupada = horaEstaOcupada(fecha, hora);
                 var boton = document.createElement('button');
                 boton.type = 'button';
-                boton.className = 'hora-opcion';
+                boton.className = 'hora-opcion' + (ocupada ? ' hora-ocupada' : '');
                 boton.dataset.hora = hora;
-                boton.textContent = hora;
-                boton.addEventListener('click', function () {
-                    seleccionarHora(hora);
-                });
+                boton.textContent = ocupada ? hora + ' · Ocupado' : hora;
+                boton.disabled = ocupada;
+                if (!ocupada) {
+                    hayLibres = true;
+                    boton.addEventListener('click', function () {
+                        seleccionarHora(hora);
+                    });
+                } else {
+                    boton.setAttribute('aria-label', hora + ' no disponible');
+                    boton.title = horaYaPaso(fecha, hora) ? 'Este horario ya pasó' : 'Horario reservado';
+                }
                 lista.appendChild(boton);
             });
-            sinDisponibilidad.style.display = horas.length ? 'none' : '';
+            sinDisponibilidad.style.display = hayLibres ? 'none' : '';
         }
 
         function seleccionarHora(hora) {
+            var fecha = document.getElementById('fecha_cita').value;
+            if (horaEstaOcupada(fecha, hora)) {
+                document.getElementById('hora_cita').value = '';
+                mostrarPopup('Ese horario ya no está disponible. Actualizaremos los horarios para que elijas otro.', 'error');
+                cargarDisponibilidad(false, 'El horario cambió. Selecciona uno de los espacios libres.');
+                return;
+            }
             var selector = document.getElementById('hora_cita');
             selector.value = hora;
             document.getElementById('hora-elegida-texto').textContent = hora;
             document.getElementById('hora-elegida-panel').style.display = '';
             document.getElementById('resumen-hora').textContent = hora;
-            var fecha = document.getElementById('fecha_cita').value;
-            var ocupadas = horasOcupadasPorFecha[fecha] || [];
-            var restantes = horariosBase.filter(function (otraHora) {
-                return otraHora !== hora && !ocupadas.includes(otraHora);
-            });
-            dibujarHorarios(restantes);
+            dibujarHorarios([], hora);
         }
 
         document.getElementById('btn-cambiar-hora').addEventListener('click', function () {
             var fecha = document.getElementById('fecha_cita').value;
             if (!fecha) return;
-            var ocupadas = horasOcupadasPorFecha[fecha] || [];
-            var todas = horariosBase.slice();
             document.getElementById('hora_cita').value = '';
             document.getElementById('hora-elegida-panel').style.display = 'none';
             document.getElementById('hora-elegida-texto').textContent = '';
-            dibujarHorarios(Array.from(new Set(todas)).filter(function (hora) { return !ocupadas.includes(hora); }));
+            dibujarHorarios(horariosBase);
             document.getElementById('resumen-hora').textContent = 'Selecciona una hora';
         });
 
