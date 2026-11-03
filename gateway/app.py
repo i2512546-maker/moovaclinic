@@ -1780,25 +1780,17 @@ def create_app():
 
         canceladas, no_asistidos, error = [], [], None
         try:
-            (cdata, cstatus), (ndata, nstatus) = _llamadas_paralelas(
-                lambda: citas_client.get(f"/api/citas?estado=cancelada&fecha={desde}"),
-                lambda: citas_client.get(f"/api/citas?estado=no_asistio&fecha={desde}"),
-                max_workers=2,
+            data, status = citas_client.get(
+                f"/api/citas/seguimiento?desde={desde}&hasta={hasta}"
             )
-            if cstatus == 200:
-                canceladas = [
-                    c for c in ((cdata or {}).get("citas") or [])
-                    if desde <= str(c.get("fecha_cita") or "")[:10] <= hasta
-                ]
+            if status != 200 or not isinstance(data, dict) or data.get("success") is not True:
+                error = (data or {}).get("error") or "No se pudieron cargar las citas de esta semana."
+            elif not isinstance(data.get("citas"), list):
+                error = "El servicio de citas devolvió una respuesta incompleta."
             else:
-                error = (cdata or {}).get("error") or "No se pudieron cargar las citas canceladas."
-            if nstatus == 200:
-                no_asistidos = [
-                    c for c in ((ndata or {}).get("citas") or [])
-                    if desde <= str(c.get("fecha_cita") or "")[:10] <= hasta
-                ]
-            else:
-                error = error or (ndata or {}).get("error") or "No se pudieron cargar las inasistencias."
+                citas_recibidas = data["citas"]
+                canceladas = [c for c in citas_recibidas if c.get("estado") == "cancelada"]
+                no_asistidos = [c for c in citas_recibidas if c.get("estado") == "no_asistio"]
         except Exception:
             app.logger.exception("No se pudo cargar el seguimiento semanal de citas")
             error = "Servicio de citas no disponible."
