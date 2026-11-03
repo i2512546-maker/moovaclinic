@@ -4,9 +4,9 @@
 -- Hacer copia de seguridad antes de ejecutar.
 -- ============================================================
 
-DELIMITER $
+DELIMITER $$
 
-DROP PROCEDURE IF EXISTS sp_disponibilidad_citas_rango$
+DROP PROCEDURE IF EXISTS sp_disponibilidad_citas_rango$$
 CREATE PROCEDURE sp_disponibilidad_citas_rango(
     IN p_terapeuta_id INT, IN p_desde DATE, IN p_hasta DATE
 )
@@ -17,7 +17,7 @@ BEGIN
       AND fecha_cita BETWEEN p_desde AND p_hasta
       AND estado IN ('pendiente_pago', 'programada', 'confirmada')
     ORDER BY fecha_cita, hora_cita;
-END$
+END$$
 
 DROP PROCEDURE IF EXISTS sp_eliminar_paciente_si_huerfano$$
 CREATE PROCEDURE sp_eliminar_paciente_si_huerfano(IN p_paciente_id INT)
