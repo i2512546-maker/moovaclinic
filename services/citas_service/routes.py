@@ -374,12 +374,19 @@ def resumen_panel_admin():
             conteos[estado] = sum(
                 1 for fila in filas if str(fila.get("fecha_cita", ""))[:10] >= desde
             )
-    citas_hoy = list(citas_dia)
+    # Las reservas que siguen pendientes de pago también se muestran
+    # en el panel para que administración tenga el estado completo del día.
+    pendientes_pago = call_proc("sp_listar_citas", ("pendiente_pago", None, fecha, None)) or []
+    citas_hoy = list(citas_dia) + [
+        fila for fila in pendientes_pago
+        if str(fila.get("fecha_cita", ""))[:10] == fecha
+    ]
     if citas_hoy:
         pacientes, terapeutas = _mapas_enriquecimiento()
         for cita in citas_hoy:
             _enriquecer_cita(cita, pacientes, terapeutas)
             _fmt_fecha(cita)
+        citas_hoy.sort(key=lambda cita: str(cita.get("hora_cita") or ""))
 
     return jsonify({
         "success": True,
