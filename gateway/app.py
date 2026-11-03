@@ -1807,9 +1807,18 @@ def create_app():
             canceladas + no_asistidos,
             key=lambda c: (str(c.get("fecha_cita") or ""), str(c.get("hora_cita") or "")),
         )
+        for cita in citas_semana:
+            try:
+                cita["fecha_display"] = datetime.strptime(
+                    str(cita.get("fecha_cita") or "")[:10], "%Y-%m-%d"
+                ).strftime("%d/%m/%Y")
+            except ValueError:
+                cita["fecha_display"] = cita.get("fecha_cita")
         return render_template(
             "seguimiento.html", mes=mes, semanas=semanas,
             semana_seleccionada=semana_seleccionada, desde=desde, hasta=hasta,
+            desde_display=periodo["desde"].strftime("%d/%m/%Y"),
+            hasta_display=periodo["hasta"].strftime("%d/%m/%Y"),
             canceladas=canceladas, no_asistidos=no_asistidos,
             citas_semana=citas_semana, error=error,
         )
