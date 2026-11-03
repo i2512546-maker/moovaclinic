@@ -1090,9 +1090,10 @@ def solicitar_otp():
         return jsonify({"error": "No se encontraron citas programadas para ese DNI."}), 404
 
     if accion == "tratamiento":
-        # Los pacientes que continuan un tratamiento NO necesitan una
-        # cita programada previa: se valida que tengan al menos un
-        # paquete activo con sesiones disponibles en el modulo de pagos.
+        # Continuar tratamiento tambien debe estar disponible para pacientes
+        # que ya tienen citas registradas pero aun no cuentan con un paquete
+        # de sesiones. La pantalla mostrara su historial y un cronograma
+        # propuesto (sin presentarlo como citas ya confirmadas).
         try:
             paq_data, _ = pagos_client.get(f"/api/pagos/pacientes/{paciente['id']}/paquetes")
             tiene_paquete_activo = any(
@@ -1102,8 +1103,21 @@ def solicitar_otp():
             )
         except Exception:
             tiene_paquete_activo = False
-        if not tiene_paquete_activo:
-            return jsonify({"error": "No tienes tratamientos activos pendientes de pago."}), 404
+        try:
+            citas_paciente = call_proc("sp_listar_citas_paciente", (paciente["id"],)) or []
+        except Exception:
+            citas_paciente = []
+        try:
+            eval_data, eval_status = pacientes_client.get(
+                f"/api/pacientes/{paciente['id']}/evaluaciones"
+            )
+            evaluaciones = (eval_data or {}).get("evaluaciones") or [] if eval_status == 200 else []
+        except Exception:
+            evaluaciones = []
+        if not (tiene_paquete_activo or citas_paciente or evaluaciones):
+            return jsonify({
+                "error": "No encontramos citas, evaluaciones ni tratamientos asociados a ese DNI."
+            }), 404
     else:
         if not call_proc_one("sp_existe_cita_programada_paciente", (paciente["id"],)):
             return jsonify({"error": "No se encontraron citas programadas para ese DNI."}), 404
