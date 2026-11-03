@@ -212,6 +212,10 @@
                                     </td>
                                     <td>
                                         <div class="d-flex align-items-center gap-1">
+                                            <button class="btn btn-icon" title="Editar"
+                                                onclick="editarTerapeuta('{{ m.ID }}', '{{ m.Nombre }}')">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
                                             <button class="btn btn-icon" title="Cambiar clave"
                                                 onclick="abrirClave('{{ m.ID }}', '{{ m.Nombre }}')">
                                                 <i class="bi bi-key"></i>
