@@ -112,6 +112,21 @@ def crear_paciente_min():
     return jsonify({"success": True, "id": result["id"] if result else None}), 201
 
 
+@pacientes_bp.route("/api/pacientes/min/<int:paciente_id>", methods=["DELETE"])
+def eliminar_paciente_min_si_huerfano(paciente_id):
+    """Limpia un alta de reserva fallida, solo si aún no tiene historial."""
+    try:
+        resultado = call_proc_one("sp_eliminar_paciente_si_huerfano", (paciente_id,))
+    except Exception as exc:
+        current_app.logger.warning(
+            "No se pudo revertir paciente temporal %s: %s: %s",
+            paciente_id, type(exc).__name__, exc,
+        )
+        return jsonify({"error": "No se pudo verificar si el paciente puede eliminarse."}), 500
+    eliminados = int((resultado or {}).get("eliminados") or 0)
+    return jsonify({"success": True, "eliminado": bool(eliminados)}), 200
+
+
 @pacientes_bp.route("/api/pacientes/<dni>", methods=["GET"])
 def detalle_paciente(dni):
     paciente = call_proc_one("sp_obtener_paciente_por_dni", (dni,))
