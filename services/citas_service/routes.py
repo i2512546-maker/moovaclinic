@@ -201,8 +201,10 @@ def listar_fechas_ocupadas():
     if (hasta - desde).days > 90:
         return jsonify({"error": "El rango máximo es de 90 días"}), 400
 
-    fechas = set()
-    for estado in ("programada", "confirmada"):
+    # La disponibilidad se calcula por HORA, no por día completo. También
+    # contamos las reservas pendientes de pago porque uq_reserva las bloquea.
+    horas_por_fecha = {}
+    for estado in ("programada", "confirmada", "pendiente_pago"):
         citas = call_proc("sp_listar_citas", (
             estado, None, desde_txt, medico_id,
         ))
@@ -212,11 +214,29 @@ def listar_fechas_ocupadas():
                 fecha = fecha.strftime("%Y-%m-%d")
             elif fecha:
                 fecha = str(fecha)[:10]
-            if fecha and desde_txt <= fecha <= hasta_txt:
-                fechas.add(fecha)
+            if not fecha or not desde_txt <= fecha <= hasta_txt:
+                continue
+            hora = cita.get("hora_cita")
+            if isinstance(hora, (datetime,)):
+                hora = hora.strftime("%H:%M")
+            elif hasattr(hora, "strftime"):
+                hora = hora.strftime("%H:%M")
+            elif hora:
+                hora = str(hora)[:5]
+            if hora:
+                horas_por_fecha.setdefault(fecha, set()).add(hora)
 
-    return jsonify({"fechas": sorted(fechas)})
-
+    slots = set(generar_slots())
+    fechas_completas = sorted(
+        fecha for fecha, horas in horas_por_fecha.items()
+        if slots.issubset(horas)
+    )
+    return jsonify({
+        "fechas": fechas_completas,
+        "horas_ocupadas": {
+            fecha: sorted(horas) for fecha, horas in horas_por_fecha.items()
+        },
+    })
 
 @citas_bp.route("/api/citas", methods=["GET"])
 def listar_citas():
