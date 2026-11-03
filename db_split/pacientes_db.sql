@@ -476,8 +476,8 @@ END$
 
 -- Solo elimina altas mínimas de una reserva fallida. Si existe una cita o
 -- evaluación asociada, conserva el expediente.
-DROP PROCEDURE IF EXISTS \`sp_eliminar_paciente_si_huerfano\`\$\$
-CREATE PROCEDURE \`sp_eliminar_paciente_si_huerfano\`(IN p_paciente_id INT)
+DROP PROCEDURE IF EXISTS `sp_eliminar_paciente_si_huerfano`$$
+CREATE PROCEDURE `sp_eliminar_paciente_si_huerfano`(IN p_paciente_id INT)
 BEGIN
     DELETE FROM pacientes
     WHERE id = p_paciente_id
@@ -490,7 +490,7 @@ BEGIN
           WHERE e.paciente_id = p_paciente_id
       );
     SELECT ROW_COUNT() AS eliminados;
-END$
+END$$
 
 --
 -- sp_listar_terapeutas  |  LOCAL (FASE 2)
