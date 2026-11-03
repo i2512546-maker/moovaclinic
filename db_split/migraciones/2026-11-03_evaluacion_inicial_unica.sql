@@ -8,10 +8,13 @@
 --      SELECT paciente_id, COUNT(*) total
 --      FROM evaluaciones_iniciales GROUP BY paciente_id HAVING COUNT(*) > 1;
 --    Si devuelve filas, conciliarlas manualmente; esta migracion no borra datos.
--- 3) Ejecutar en phpMyAdmin con permisos para ALTER/CREATE PROCEDURE.
+-- 3) Ejecutar en la base que aparece en DB_NAME en Railway/Alwaysdata,
+--    seleccionandola primero en phpMyAdmin. El runtime actual usa UNA sola
+--    base de datos compartida por todos los modulos; no usar los nombres
+--    historicos moovacloud_pacientes/moovacloud_citas de los dumps split.
+-- 4) Permisos necesarios: ALTER y CREATE ROUTINE.
 -- ============================================================
 
-USE moovacloud_pacientes;
 
 -- Si el catalogo ya tiene Evaluacion Inicial, la reactiva y normaliza.
 UPDATE servicios
@@ -50,8 +53,6 @@ DELIMITER ;
 -- La reserva de evaluacion tambien queda marcada en historial_citas.
 -- La columna generada + UNIQUE bloquea incluso solicitudes simultaneas.
 -- ------------------------------------------------------------
-
-USE moovacloud_citas;
 
 ALTER TABLE historial_citas
     ADD COLUMN es_evaluacion_inicial TINYINT(1) NOT NULL DEFAULT 0
