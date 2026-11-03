@@ -29,13 +29,13 @@
             </a>
             {% if current_user.es_admin %}
             <a href="{{ url_for('panel_admin_kpis') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
-                <i class="bi bi-graph-up"></i> Reportes / KPIs
+                <i class="bi bi-graph-up"></i> Reportes
             </a>
             <a href="{{ url_for('panel_admin_auditoria') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
                 <i class="bi bi-journal-text"></i> Auditoría
             </a>
             <a href="{{ url_for('panel_admin_riesgo') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
-                <i class="bi bi-person-exclamation"></i> Riesgo
+                <i class="bi bi-person-exclamation"></i> Seguimiento de pacientes
             </a>
             {% endif %}
             <a href="{{ url_for('index') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
