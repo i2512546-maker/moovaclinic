@@ -472,6 +472,23 @@ def detalle_cita_basico(cita_id):
     return jsonify({"success": True, "cita": cita})
 
 
+def _limpiar_paciente_nuevo_si_huerfano(paciente_id, creado_ahora):
+    """Revierte el alta mínima si no se pudo crear la cita que la justificaba."""
+    if not creado_ahora or not paciente_id:
+        return
+    try:
+        _, status = pacientes_client.delete(f"/api/pacientes/min/{int(paciente_id)}")
+        if status not in (200, 404):
+            current_app.logger.warning(
+                "No se pudo limpiar paciente temporal %s (HTTP %s)", paciente_id, status
+            )
+    except Exception as exc:
+        current_app.logger.warning(
+            "No se pudo limpiar paciente temporal %s: %s: %s",
+            paciente_id, type(exc).__name__, exc,
+        )
+
+
 @citas_bp.route("/api/citas", methods=["POST"])
 def crear_cita():
     data = request.get_json() or {}
@@ -609,13 +626,14 @@ def crear_cita():
             return jsonify({"error": "No se pudo validar el servicio seleccionado."}), 502
     anticipo = round(costo / 2, 2) if costo > 0 else 0.0
 
-    # Resolver/crear el paciente mediante el modulo interno de pacientes.
+    # Resolver/crear el paciente solo al confirmar el paso 6.
+    # Si se acaba de crear y la reserva pierde una carrera de concurrencia,
+    # se elimina únicamente si sigue sin citas ni evaluaciones asociadas.
+    paciente_creado_ahora = False
     try:
         pac_data, pac_status = pacientes_client.get(f"/api/pacientes/dni/{data['dni']}")
         if pac_status == 200:
             paciente_id = pac_data.get("id")
-            # El expediente existente es la fuente de verdad: ignorar cualquier
-            # modificación enviada desde el navegador para nombre, apellido o teléfono.
             paciente_existente = (pac_data or {}).get("paciente") or {}
             if paciente_existente:
                 data["nombre"] = paciente_existente.get("nombre") or data["nombre"]
@@ -631,6 +649,7 @@ def crear_cita():
                     "error": (creado or {}).get("error") or "No se pudo registrar al paciente.",
                 }), creado_status if creado_status in (400, 409) else 400
             paciente_id = (creado or {}).get("id")
+            paciente_creado_ahora = bool(paciente_id)
     except Exception as exc:
         current_app.logger.error(
             "[crear_cita] Error HTTP a pacientes_service (resolver/crear paciente): %s: %s",
@@ -644,6 +663,7 @@ def crear_cita():
     if es_evaluacion_inicial:
         existente = call_proc_one("sp_existe_evaluacion_inicial", (paciente_id,)) or {}
         if existente.get("existe"):
+            _limpiar_paciente_nuevo_si_huerfano(paciente_id, paciente_creado_ahora)
             return jsonify({
                 "error": "Este DNI ya tiene una evaluación inicial registrada. Puedes elegir una sesión de tratamiento."
             }), 409
@@ -655,6 +675,7 @@ def crear_cita():
         if evaluaciones_status != 200:
             return jsonify({"error": "No se pudo verificar el historial de evaluaciones."}), 502
         if (evaluaciones_data or {}).get("evaluaciones"):
+            _limpiar_paciente_nuevo_si_huerfano(paciente_id, paciente_creado_ahora)
             return jsonify({
                 "error": "Este DNI ya tiene una evaluación inicial registrada. Puedes elegir una sesión de tratamiento."
             }), 409
@@ -680,6 +701,7 @@ def crear_cita():
         # simultáneas del mismo terapeuta, fecha y hora. Puede activarse
         # aunque la consulta previa de disponibilidad haya mostrado el slot libre.
         if getattr(exc, "errno", None) == 1062:
+            _limpiar_paciente_nuevo_si_huerfano(paciente_id, paciente_creado_ahora)
             if (
                 es_evaluacion_inicial
                 and "uq_evaluacion_inicial_paciente" in str(exc)
@@ -695,12 +717,14 @@ def crear_cita():
                 "error": "Ese horario acaba de ser reservado por otra persona. "
                          "Selecciona otra hora disponible e inténtalo nuevamente."
             }), 409
+        _limpiar_paciente_nuevo_si_huerfano(paciente_id, paciente_creado_ahora)
         current_app.logger.error(
             "[crear_cita] Error en BD (%s): %s: %s",
             procedimiento_creacion, type(exc).__name__, exc,
         )
         return jsonify({"error": "No se pudo procesar la solicitud, intenta de nuevo"}), 500
     except Exception as exc:
+        _limpiar_paciente_nuevo_si_huerfano(paciente_id, paciente_creado_ahora)
         current_app.logger.error(
             "[crear_cita] Error inesperado en sp_crear_cita: %s: %s",
             type(exc).__name__, exc,
