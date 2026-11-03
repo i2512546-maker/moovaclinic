@@ -551,6 +551,17 @@ def crear_cita():
             return jsonify({
                 "error": "Este DNI ya tiene una evaluación inicial registrada. Puedes elegir una sesión de tratamiento."
             }), 409
+        # Tambien se consideran evaluaciones clinicas ya registradas en
+        # pacientes_service, aunque sean anteriores a esta nueva reserva.
+        evaluaciones_data, evaluaciones_status = pacientes_client.get(
+            f"/api/pacientes/{paciente_id}/evaluaciones"
+        )
+        if evaluaciones_status != 200:
+            return jsonify({"error": "No se pudo verificar el historial de evaluaciones."}), 502
+        if (evaluaciones_data or {}).get("evaluaciones"):
+            return jsonify({
+                "error": "Este DNI ya tiene una evaluación inicial registrada. Puedes elegir una sesión de tratamiento."
+            }), 409
 
     # Si hay anticipo, la cita queda oculta como pendiente de pago hasta
     # que la pasarela confirme. Así no aparece en la agenda ni en reportes
