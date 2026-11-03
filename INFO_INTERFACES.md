@@ -145,9 +145,9 @@
 ### 7. Tratamiento
 - **Archivo/ruta:** `templates/tratamiento.html`, ruta `/tratamiento`
 - **Rol:** Staff (requiere sesión; flujo de continuidad para paciente con paquete activo)
-- **Función:** Continuar tratamiento: verificación OTP, seleccionar paquete activo y agendar siguiente sesión sin repetir datos.
-- **Objetivo:** Permitir al paciente recurrente agenda la siguiente sesión usando su paquete de sesiones vigente.
-- **Pre-requisitos:** Paciente debe tener al menos un paquete activo con sesiones disponibles.
+- **Función:** Continuar tratamiento: verificación OTP, consulta de paquetes activos e historial de citas/evaluaciones; permite agendar la siguiente sesión si existe un paquete vigente y muestra un cronograma propuesto cuando aún no lo hay.
+- **Objetivo:** Permitir al paciente recurrente retomar su atención y consultar sus etapas de seguimiento sin confundir propuestas con citas confirmadas.
+- **Pre-requisitos:** DNI asociado a un paciente con al menos una cita, evaluación registrada o paquete activo. Para agendar sesiones con paquete, este debe tener sesiones disponibles.
 - **Datos a mostrar:** 
   - Paso 1: formulario DNI (máx 8 dígitos).
   - Paso 2 (verificar OTP): muestra tel_mask y, si paquetes activos, navega a `paso=menu` con listado de paquetes (servicio, sesiones usadas/restantes, fecha vencimiento); si no hay paquetes → `paso="sin_paquetes"`.
