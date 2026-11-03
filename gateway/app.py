@@ -258,18 +258,25 @@ def _datos_seguimiento_dni(dni):
     paciente, paquetes = _paquetes_activos_dni(dni)
     if not paciente:
         return paciente, paquetes, [], []
-    try:
-        (cdata, cstatus), (edata, estatus) = _llamadas_paralelas(
-            lambda: citas_client.get(f"/api/citas/paciente/{paciente['id']}"),
-            lambda: pacientes_client.get(
+    def _consultar_citas():
+        try:
+            return citas_client.get(f"/api/citas/paciente/{paciente['id']}")
+        except Exception:
+            return None, 503
+
+    def _consultar_evaluaciones():
+        try:
+            return pacientes_client.get(
                 f"/api/pacientes/{paciente['id']}/evaluaciones"
-            ),
-            max_workers=2,
-        )
-        citas = (cdata or {}).get("citas") or [] if cstatus == 200 else []
-        evaluaciones = (edata or {}).get("evaluaciones") or [] if estatus == 200 else []
-    except Exception:
-        citas, evaluaciones = [], []
+            )
+        except Exception:
+            return None, 503
+
+    (cdata, cstatus), (edata, estatus) = _llamadas_paralelas(
+        _consultar_citas, _consultar_evaluaciones, max_workers=2
+    )
+    citas = (cdata or {}).get("citas") or [] if cstatus == 200 else []
+    evaluaciones = (edata or {}).get("evaluaciones") or [] if estatus == 200 else []
     return paciente, paquetes, citas, evaluaciones
 
 
