@@ -157,12 +157,8 @@ class ListarCitasTest(unittest.TestCase):
         fecha = date(2026, 11, 10)
 
         def fake_call_proc(nombre, params=(), **kwargs):
-            if nombre != "sp_listar_citas":
-                return []
-            estado = params[0]
-            if estado == "programada":
+            if nombre == "sp_disponibilidad_citas_rango":
                 return [{"fecha_cita": fecha, "hora_cita": timedelta(hours=10)}]
-            # Canceladas y no_asistio no se consultan como ocupadas.
             return []
 
         with patch("services.citas_service.routes.call_proc", side_effect=fake_call_proc) as proc:
@@ -175,10 +171,9 @@ class ListarCitasTest(unittest.TestCase):
         body = response.get_json()
         self.assertEqual(body["horas_ocupadas"], {"2026-11-10": ["10:00"]})
         self.assertEqual(body["fechas"], [])
-        estados_consultados = [
-            llamada.args[1][0] for llamada in proc.call_args_list
-        ]
-        self.assertEqual(set(estados_consultados), {"programada", "confirmada", "pendiente_pago"})
+        proc.assert_called_once_with(
+            "sp_disponibilidad_citas_rango", (20, "2026-11-10", "2026-11-20")
+        )
 
 
 if __name__ == "__main__":
