@@ -191,17 +191,22 @@
                         <input type="hidden" name="servicio_id" id="servicio_id" value="">
                         <div class="row g-3" id="servicios-lista">
                             {% for s in servicios %}
-                            <div class="col-12 col-md-6">
-                                <button type="button" class="servicio-card card h-100 w-100 text-start border rounded-3 bg-white p-3" data-servicio-id="{{ s.id }}">
+                            <div class="col-12 col-md-6 servicio-contenedor">
+                                <button type="button" class="servicio-card card h-100 w-100 text-start border rounded-3 bg-white p-3"
+                                        data-servicio-id="{{ s.id }}"
+                                        data-precio="{{ s.precio or 0 }}"
+                                        data-evaluacion-inicial="{{ 'true' if s.nombre|lower in ['evaluacion inicial', 'evaluación inicial'] else 'false' }}">
                                     <span class="h6 text-success mb-2">{{ s.nombre }}</span>
                                     <span class="small text-muted">{{ s.descripcion or 'Atención personalizada según tus necesidades.' }}</span>
                                     <span class="small mt-3"><i class="fas fa-clock me-1"></i>{{ s.duracion_min }} min</span>
+                                    <span class="small fw-semibold text-success mt-1">S/ {{ '%.2f'|format(s.precio|float) }}</span>
                                 </button>
                             </div>
                             {% else %}
                             <div class="col-12"><p class="text-muted mb-0">No hay tratamientos disponibles.</p></div>
                             {% endfor %}
                         </div>
+                        <div id="evaluacion-inicial-aviso" class="alert alert-info py-2 mt-3 mb-0" style="display:none;" role="status" aria-live="polite"></div>
                         <div class="d-flex justify-content-between mt-4">
                             <button type="button" class="btn btn-moova-outline" id="btnBack2"><i class="fas fa-arrow-left me-2"></i>Atrás</button>
                             <button type="button" class="btn btn-moova" id="btnNext2">Siguiente <i class="fas fa-arrow-right ms-2"></i></button>
@@ -646,6 +651,39 @@
             }
         });
 
+        async function actualizarDisponibilidadEvaluacionInicial(dni) {
+            var tarjeta = document.querySelector('.servicio-card[data-evaluacion-inicial="true"]');
+            var aviso = document.getElementById('evaluacion-inicial-aviso');
+            if (!tarjeta) return;
+            try {
+                var response = await fetch('/api/evaluacion-inicial/estado?dni=' + encodeURIComponent(dni), {
+                    credentials: 'same-origin'
+                });
+                var data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'No se pudo comprobar la evaluación inicial.');
+                }
+                tarjeta.closest('.servicio-contenedor').style.display = data.disponible ? '' : 'none';
+                if (data.disponible) {
+                    aviso.textContent = 'La evaluación inicial está disponible para este DNI.';
+                    aviso.className = 'alert alert-success py-2 mt-3 mb-0';
+                    aviso.style.display = '';
+                } else {
+                    aviso.textContent = 'Este DNI ya tiene una evaluación inicial registrada. Puedes elegir cualquiera de las sesiones de tratamiento.';
+                    aviso.className = 'alert alert-info py-2 mt-3 mb-0';
+                    aviso.style.display = '';
+                    if (tarjeta.classList.contains('selected')) {
+                        tarjeta.classList.remove('selected');
+                        document.getElementById('servicio_id').value = '';
+                    }
+                }
+            } catch (error) {
+                aviso.textContent = error.message || 'No se pudo comprobar la evaluación inicial. El servidor volverá a validarlo al reservar.';
+                aviso.className = 'alert alert-warning py-2 mt-3 mb-0';
+                aviso.style.display = '';
+            }
+        }
+
         btnConfirmarIdentidad.addEventListener('click', async function () {
             var dni = dniInput.value.trim();
             if (!/^\d{8}$/.test(dni) || dni !== dniValidado) {
@@ -663,6 +701,7 @@
                 });
                 var data = await response.json();
                 if (!response.ok || !data.success) throw new Error(data.error || 'No se pudo confirmar la identidad.');
+                await actualizarDisponibilidadEvaluacionInicial(dni);
                 dniVerificado = true;
                 document.getElementById('telefono-container').style.display = '';
                 telefonoInput.disabled = false;
@@ -723,7 +762,11 @@
                 card.setAttribute('aria-pressed', 'true');
                 document.getElementById('medico_id').value = card.dataset.medicoId;
                 document.getElementById('resumen-medico').textContent = card.dataset.nombre;
-                var precio = Number(card.dataset.precio) || 0;
+                var servicioSeleccionado = document.querySelector('.servicio-card.selected');
+                var precio = servicioSeleccionado &&
+                    servicioSeleccionado.dataset.evaluacionInicial === 'true'
+                    ? (Number(servicioSeleccionado.dataset.precio) || 55)
+                    : (Number(card.dataset.precio) || 0);
                 document.getElementById('costo-cita').textContent = 'S/ ' + precio.toFixed(2);
                 document.getElementById('anticipo-cita').textContent = 'S/ ' + (precio / 2).toFixed(2);
                 limpiarFecha();
