@@ -512,16 +512,22 @@
             sinDisponibilidad.style.display = horas.length ? 'none' : '';
         }
 
+        function selectorHoraAnterior() {
+            return document.getElementById('hora_cita').value;
+        }
+
         function seleccionarHora(hora) {
-            document.getElementById('hora_cita').value = hora;
+            var selector = document.getElementById('hora_cita');
+            var seleccionAnterior = selector.value;
+            selector.value = hora;
             document.getElementById('hora-elegida-texto').textContent = hora;
             document.getElementById('hora-elegida-panel').style.display = '';
             document.getElementById('resumen-hora').textContent = hora;
             var fecha = document.getElementById('fecha_cita').value;
             var ocupadas = horasOcupadasPorFecha[fecha] || [];
-            var restantes = Array.from(document.querySelectorAll('.hora-opcion[data-hora]'))
-                .map(function (boton) { return boton.dataset.hora; })
-                .filter(function (otraHora) { return otraHora !== hora && !ocupadas.includes(otraHora); });
+            var restantes = horariosBase.filter(function (otraHora) {
+                return otraHora !== hora && otraHora !== seleccionAnterior && !ocupadas.includes(otraHora);
+            });
             dibujarHorarios(restantes);
         }
 
