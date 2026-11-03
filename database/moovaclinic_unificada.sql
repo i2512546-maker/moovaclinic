@@ -228,22 +228,6 @@ BEGIN
     SELECT LAST_INSERT_ID() AS id;
 END//
 
-DROP PROCEDURE IF EXISTS `sp_listar_consentimientos`//
-CREATE PROCEDURE `sp_listar_consentimientos`(IN p_paciente_id INT)
-BEGIN
-    SELECT * FROM consentimientos WHERE paciente_id = p_paciente_id ORDER BY aceptado_en DESC;
-END//
-
-DROP PROCEDURE IF EXISTS `sp_crear_consentimiento`//
-CREATE PROCEDURE `sp_crear_consentimiento`(
-    IN p_paciente_id INT, IN p_tipo VARCHAR(50), IN p_texto_version VARCHAR(50), IN p_ip_origen VARCHAR(45)
-)
-BEGIN
-    INSERT INTO consentimientos (paciente_id, tipo, texto_version, ip_origen)
-    VALUES (p_paciente_id, p_tipo, p_texto_version, p_ip_origen);
-    SELECT LAST_INSERT_ID() AS id;
-END//
-
 -- --------------------------------------------------------
 -- Procedimientos de gestion (gateway/admin) sobre tablas de moovacloud_pacientes
 -- --------------------------------------------------------
