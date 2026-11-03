@@ -25,6 +25,10 @@ BEGIN
     DELETE FROM pacientes
     WHERE id = p_paciente_id
       AND NOT EXISTS (
+          SELECT 1 FROM historial_citas h
+          WHERE h.paciente_id = p_paciente_id
+      )
+      AND NOT EXISTS (
           SELECT 1 FROM evaluaciones_iniciales e
           WHERE e.paciente_id = p_paciente_id
       );
