@@ -592,6 +592,10 @@
             dniStatus.className = 'text-muted d-block mt-2';
             dniStatus.textContent = 'Ingresa tu DNI para consultar tus datos.';
             document.getElementById('servicio_id').value = '';
+            var tarjetaEvaluacion = document.querySelector('.servicio-card[data-evaluacion-inicial="true"]');
+            if (tarjetaEvaluacion) tarjetaEvaluacion.closest('.servicio-contenedor').style.display = '';
+            var avisoEvaluacion = document.getElementById('evaluacion-inicial-aviso');
+            if (avisoEvaluacion) avisoEvaluacion.style.display = 'none';
             document.querySelectorAll('.servicio-card.selected, .terapeuta-card.selected').forEach(function (card) {
                 card.classList.remove('selected');
                 card.setAttribute('aria-pressed', 'false');
