@@ -293,10 +293,14 @@ def agenda_dia():
     if not citas:
         return jsonify({"success": True, "total": 0, "citas": []})
 
-    resumen = {
-        fila["paciente_id"]: fila["total"]
-        for fila in (call_proc("sp_resumen_pacientes") or [])
-    }
+    try:
+        filas_resumen = call_proc("sp_resumen_pacientes_agenda", (fecha,)) or []
+    except mysql.connector.Error as exc:
+        if getattr(exc, "errno", None) != 1305:
+            raise
+        current_app.logger.warning("Falta sp_resumen_pacientes_agenda; usando resumen general")
+        filas_resumen = call_proc("sp_resumen_pacientes") or []
+    resumen = {fila["paciente_id"]: fila["total"] for fila in filas_resumen}
     pacientes = _mapa_pacientes()
     terapeutas = _mapa_terapeutas()
 
