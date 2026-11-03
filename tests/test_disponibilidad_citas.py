@@ -17,7 +17,7 @@ class FechasOcupadasServiceTest(unittest.TestCase):
         self.client = internal_test_client(self.app)
         self.headers = {"X-Api-Key": API_KEY} if API_KEY else {}
 
-    def test_solo_devuelve_fechas_unicas_programadas_y_confirmadas(self):
+    def test_devuelve_horas_ocupadas_incluyendo_pendientes_de_pago(self):
         def fake_call_proc(nombre, parametros):
             estado, dni, desde, medico = parametros
             self.assertEqual(nombre, "sp_listar_citas")
@@ -27,14 +27,20 @@ class FechasOcupadasServiceTest(unittest.TestCase):
             if estado == "programada":
                 return [
                     {"fecha_cita": date(2026, 10, 8), "dni": "12345678",
-                     "nombre": "Paciente"},
-                    {"fecha_cita": date(2026, 10, 4), "telefono": "999999999"},
+                     "nombre": "Paciente", "hora_cita": "09:00:00"},
+                    {"fecha_cita": date(2026, 10, 4), "telefono": "999999999",
+                     "hora_cita": "10:00:00"},
                     {"fecha_cita": date(2026, 11, 1)},
                 ]
             if estado == "confirmada":
                 return [
-                    {"fecha_cita": date(2026, 10, 8), "apellido": "Apellido"},
-                    {"fecha_cita": date(2026, 10, 6)},
+                    {"fecha_cita": date(2026, 10, 8), "apellido": "Apellido",
+                     "hora_cita": "11:00:00"},
+                    {"fecha_cita": date(2026, 10, 6), "hora_cita": "09:00:00"},
+                ]
+            if estado == "pendiente_pago":
+                return [
+                    {"fecha_cita": date(2026, 10, 8), "hora_cita": "10:00:00"},
                 ]
             self.fail(f"Estado no esperado: {estado}")
 
@@ -50,7 +56,14 @@ class FechasOcupadasServiceTest(unittest.TestCase):
         self.assertEqual(respuesta.status_code, 200)
         self.assertEqual(
             respuesta.get_json(),
-            {"fechas": ["2026-10-04", "2026-10-06", "2026-10-08"]},
+            {
+                "fechas": [],
+                "horas_ocupadas": {
+                    "2026-10-04": ["10:00"],
+                    "2026-10-06": ["09:00"],
+                    "2026-10-08": ["09:00", "10:00", "11:00"],
+                },
+            },
         )
         call_proc.assert_has_calls([
             unittest.mock.call(
@@ -58,6 +71,9 @@ class FechasOcupadasServiceTest(unittest.TestCase):
             ),
             unittest.mock.call(
                 "sp_listar_citas", ("confirmada", None, "2026-10-01", "12")
+            ),
+            unittest.mock.call(
+                "sp_listar_citas", ("pendiente_pago", None, "2026-10-01", "12")
             ),
         ])
         contenido = respuesta.get_data(as_text=True).lower()
@@ -97,13 +113,13 @@ class DisponibilidadGatewayTest(unittest.TestCase):
         with patch.object(
             ga.citas_client,
             "get",
-            return_value=({"fechas": ["2026-10-08"]}, 200),
+            return_value=({"fechas": [], "horas_ocupadas": {"2026-10-08": ["10:00"]}}, 200),
         ) as consultar:
             respuesta = self.client.get(
                 "/api/disponibilidad/12?desde=2026-10-01&hasta=2026-10-31"
             )
         self.assertEqual(respuesta.status_code, 200)
-        self.assertEqual(respuesta.get_json(), {"fechas": ["2026-10-08"]})
+        self.assertEqual(respuesta.get_json(), {"fechas": [], "horas_ocupadas": {"2026-10-08": ["10:00"]}})
         consultar.assert_called_once_with(
             "/api/citas/ocupadas",
             params={
@@ -115,7 +131,7 @@ class DisponibilidadGatewayTest(unittest.TestCase):
 
     def test_limita_consultas_por_ip(self):
         with patch.object(
-            ga.citas_client, "get", return_value=({"fechas": []}, 200)
+            ga.citas_client, "get", return_value=({"fechas": [], "horas_ocupadas": {}}, 200)
         ) as consultar:
             for _ in range(15):
                 respuesta = self.client.get("/api/disponibilidad/12")
