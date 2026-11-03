@@ -146,13 +146,6 @@
                         <p>Años de Experiencia</p>
                     </div>
                 </div>
-                <div class="col-6 col-md-3">
-                    <div class="stat-item text-center h-100 p-4 rounded-4 border" style="background:var(--moova-sky); border-color:#e2e8f0;">
-                        <i class="fas fa-clinic-medical"></i>
-                        <h3 id="stat-exito">---</h3>
-                        <p>Tasa de Éxito</p>
-                    </div>
-                </div>
             </div>
         </div>
     </section>
@@ -184,7 +177,7 @@
                 </div>
                 <div class="col">
                     <div class="card h-100 rounded-4 shadow-sm position-relative overflow-hidden featured" style="border:1px solid var(--sky-light);">
-                        <span class="badge position-absolute top-0 end-0 m-3 rounded-pill text-white" style="background:var(--sky);">Popular</span>
+                        <span class="badge position-absolute top-0 end-0 m-3 rounded-pill text-white" style="background:var(--moova-peri-dark);">Popular</span>
                         <div class="card-body d-flex flex-column p-4">
                             <div class="card-icon d-flex align-items-center justify-content-center rounded-3 mb-3" style="width:58px; height:58px; background:var(--moova-sky); border:1px solid var(--sky-light);"><i class="fas fa-brain"></i></div>
                             <h3 class="h5 fw-semibold mb-2" style="font-family:'Quicksand',sans-serif;">Rehabilitación Neurológica</h3>
@@ -358,7 +351,7 @@
             <div class="row g-4">
                 <!-- VIDEO -->
                 <div class="col-12 col-lg-6 galeria-item">
-                    <video controls class="w-100 rounded-3">
+                    <video controls preload="none" poster="{{ url_for('static', filename='cccc.png') }}" class="w-100 rounded-3" style="aspect-ratio:4/5; object-fit:cover;">
                         <source src="{{ url_for('static', filename='video.mp4') }}" type="video/mp4">
                         Tu navegador no soporta video.
                     </video>
@@ -369,14 +362,14 @@
                 <div class="col-12 col-md-6 col-lg-3 galeria-item">
                     <img src="{{ url_for('static', filename='cccc.png') }}"
                          alt="Sala de fisioterapia"
-                         class="img-fluid rounded-3">
+                         class="img-fluid rounded-3" style="aspect-ratio:4/5; object-fit:cover; width:100%; height:100%;">
                     <span>Sala de fisioterapia</span>
                 </div>
 
                 <div class="col-12 col-md-6 col-lg-3 galeria-item">
                     <img src="{{ url_for('static', filename='pp.png') }}"
-                         alt="Sala de fisioterapia"
-                         class="img-fluid rounded-3">
+                         alt="Área de hidroterapia"
+                         class="img-fluid rounded-3" style="aspect-ratio:4/5; object-fit:cover; width:100%; height:100%;">
                     <span>Área de hidroterapia</span>
                 </div>
 
@@ -394,7 +387,7 @@
     </section>
 
     <!-- PROCESO / NOSOTROS -->
-    <section id="nosotros" class="proceso py-5">
+    <section id="nosotros" class="proceso py-5" style="background: linear-gradient(135deg, #1B2F4A 0%, #5A7BB5 100%);">
         <div class="section-title text-center mb-5 px-3">
             <span class="subtitle badge rounded-pill text-uppercase mb-3" style="background:var(--moova-sky); color:var(--sky); border:1px solid var(--sky-light); letter-spacing:1.5px; font-weight:600; font-size:0.85rem; padding:0.5rem 1rem;">¿Cómo trabajamos?</span>
             <h2 class="display-6 fw-semibold" style="font-family:'Quicksand',sans-serif; color:#fff;">Nuestro Proceso de Rehabilitación</h2>
@@ -406,7 +399,7 @@
                         <div class="step-number rounded-circle d-flex align-items-center justify-content-center mx-auto mb-4 border border-white"
                              style="width:78px; height:78px; background:linear-gradient(135deg, var(--sky), var(--moova-navy)); color:#fff; font-family:'Quicksand',sans-serif; font-size:2rem; font-weight:600; box-shadow:0 8px 24px rgba(34,113,179,0.3);">1</div>
                         <h3 class="h5 fw-semibold" style="font-family:'Quicksand',sans-serif;">Evaluación Inicial</h3>
-                        <p class="text-muted mb-0">Diagnóstico completo de tu condición física y objetivos de recuperación.</p>
+                        <p class="mb-0" style="color:rgba(255,255,255,.85);">Diagnóstico completo de tu condición física y objetivos de recuperación.</p>
                     </div>
                 </div>
                 <div class="col">
@@ -414,7 +407,7 @@
                         <div class="step-number rounded-circle d-flex align-items-center justify-content-center mx-auto mb-4 border border-white"
                              style="width:78px; height:78px; background:linear-gradient(135deg, var(--sky), var(--moova-navy)); color:#fff; font-family:'Quicksand',sans-serif; font-size:2rem; font-weight:600; box-shadow:0 8px 24px rgba(34,113,179,0.3);">2</div>
                         <h3 class="h5 fw-semibold" style="font-family:'Quicksand',sans-serif;">Plan Personalizado</h3>
-                        <p class="text-muted mb-0">Diseñamos un programa de rehabilitación adaptado a tus necesidades específicas.</p>
+                        <p class="mb-0" style="color:rgba(255,255,255,.85);">Diseñamos un programa de rehabilitación adaptado a tus necesidades específicas.</p>
                     </div>
                 </div>
                 <div class="col">
@@ -422,7 +415,7 @@
                         <div class="step-number rounded-circle d-flex align-items-center justify-content-center mx-auto mb-4 border border-white"
                              style="width:78px; height:78px; background:linear-gradient(135deg, var(--sky), var(--moova-navy)); color:#fff; font-family:'Quicksand',sans-serif; font-size:2rem; font-weight:600; box-shadow:0 8px 24px rgba(34,113,179,0.3);">3</div>
                         <h3 class="h5 fw-semibold" style="font-family:'Quicksand',sans-serif;">Tratamiento Activo</h3>
-                        <p class="text-muted mb-0">Sesiones de terapia con seguimiento continuo y ajustes según tu progreso.</p>
+                        <p class="mb-0" style="color:rgba(255,255,255,.85);">Sesiones de terapia con seguimiento continuo y ajustes según tu progreso.</p>
                     </div>
                 </div>
                 <div class="col">
@@ -430,7 +423,7 @@
                         <div class="step-number rounded-circle d-flex align-items-center justify-content-center mx-auto mb-4 border border-white"
                              style="width:78px; height:78px; background:linear-gradient(135deg, var(--sky), var(--moova-navy)); color:#fff; font-family:'Quicksand',sans-serif; font-size:2rem; font-weight:600; box-shadow:0 8px 24px rgba(34,113,179,0.3);">4</div>
                         <h3 class="h5 fw-semibold" style="font-family:'Quicksand',sans-serif;">Alta y Seguimiento</h3>
-                        <p class="text-muted mb-0">Programa de mantenimiento y recomendaciones para prevenir recaídas.</p>
+                        <p class="mb-0" style="color:rgba(255,255,255,.85);">Programa de mantenimiento y recomendaciones para prevenir recaídas.</p>
                     </div>
                 </div>
             </div>
@@ -481,7 +474,6 @@
                     <h3 class="text-white fw-semibold mb-3" style="font-family:'Quicksand',sans-serif; font-size:1rem;">Contacto</h3>
                     <div class="contact-info">
                         <p class="d-flex align-items-start gap-2 mb-2" style="color:#8fb3cc; font-size:0.85rem;"><i class="fas fa-map-marker-alt mt-1" style="color:var(--sky-light);"></i> Jr. Federico Gálvez Duran #235., Ciudad</p>
-                        <p class="d-flex align-items-start gap-2 mb-2" style="color:#8fb3cc; font-size:0.85rem;"><i class="fas fa-phone mt-1" style="color:var(--sky-light);"></i> +----------</p>
                         <p class="d-flex align-items-start gap-2 mb-2" style="color:#8fb3cc; font-size:0.85rem;"><i class="fas fa-envelope mt-1" style="color:var(--sky-light);"></i> info@moovaclinic.com</p>
                         <p class="d-flex align-items-start gap-2 mb-2" style="color:#8fb3cc; font-size:0.85rem;"><i class="fas fa-clock mt-1" style="color:var(--sky-light);"></i> Lun - Vie: 9:00 - 5:00</p>
                         <p class="d-flex align-items-start gap-2 mb-2" style="color:#8fb3cc; font-size:0.85rem;"><i class="fas fa-clock mt-1" style="color:var(--sky-light);"></i> Sáb: 9:30 - 14:00</p>
@@ -491,7 +483,7 @@
             </div>
         </div>
         <div class="footer-bottom border-top text-center py-3" style="border-color:rgba(255,255,255,0.07) !important;">
-            <p class="mb-0" style="color:#5f84a8; font-size:0.83rem;">© 2025 MOOVA Clinic - Centro de Rehabilitación. Todos los derechos reservados.</p>
+            <p class="mb-0" style="color:#5f84a8; font-size:0.83rem;">© 2026 MOOVA Clinic - Centro de Rehabilitación. Todos los derechos reservados.</p>
         </div>
         <a href="{{ url_for('login') }}" class="btn-login-footer btn btn-light shadow-sm rounded-pill"
            style="position:fixed; bottom:28px; right:28px; z-index:999; color:var(--sky); font-family:'Quicksand',sans-serif; font-weight:500;">🔑 Acceso médicos</a>
@@ -512,14 +504,11 @@ fetch('/api/estadisticas')
         var anios = data.anios_experiencia || 0;
         document.getElementById('stat-anios').textContent = anios;
 
-        var exito = data.tasa_exito || 0;
-        document.getElementById('stat-exito').textContent = exito + '%';
     })
     .catch(function() {
         document.getElementById('stat-recuperados').textContent = '000';
         document.getElementById('stat-especialistas').textContent = '0';
         document.getElementById('stat-anios').textContent = '0';
-        document.getElementById('stat-exito').textContent = '0%';
     });
 
 // Datos de especialidades

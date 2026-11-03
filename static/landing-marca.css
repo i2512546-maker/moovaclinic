@@ -91,3 +91,11 @@ section[id], footer[id] { scroll-margin-top: 80px; }
     color: var(--moova-navy);
     background: var(--moova-peri-light);
 }
+
+
+/* Galeria uniforme */
+#galeria .row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+#galeria .galeria-item { aspect-ratio: 4/5; overflow: hidden; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,.06); }
+#galeria .galeria-item img, #galeria .galeria-item video { width: 100%; height: 100%; object-fit: cover; display: block; }
+@media (max-width: 991.98px) { #galeria .row { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 575.98px) { #galeria .row { grid-template-columns: 1fr; } }
