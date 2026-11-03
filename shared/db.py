@@ -125,6 +125,9 @@ def get_connection(db_name=None):
             pass
         return conn
     except Exception:
+        if cursor is not None:
+            cursor.close()
+            cursor = None
         conn.close()
         raise
     finally:
