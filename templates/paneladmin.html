@@ -36,9 +36,6 @@
             <a href="{{ url_for('panel_admin_auditoria') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
                 <i class="bi bi-journal-text"></i> Auditoría
             </a>
-            <a href="{{ url_for('panel_admin_riesgo') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
-                <i class="bi bi-person-exclamation"></i> Seguimiento de pacientes
-            </a>
             {% endif %}
             <a href="{{ url_for('index') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
                 <i class="bi bi-house"></i> Inicio
@@ -54,7 +51,7 @@
 
     <div class="mb-4">
         <h1 class="h3 d-flex align-items-center gap-2">
-            <i class="bi bi-person-gear"></i> Gestión de Personal Médico
+            <i class="bi bi-person-gear"></i> Panel de administración
         </h1>
     </div>
 
@@ -108,10 +105,10 @@
     <div class="card card-moova shadow-sm mb-4">
         <div class="card-body d-flex align-items-center justify-content-between flex-wrap gap-2">
             <div>
-                <h2 class="h5 mb-1"><i class="bi bi-person-x me-2"></i>Canceladas y no asistidas (últimos 30 días)</h2>
-                <p class="mb-0 text-muted small">Canceladas: {{ tarjeta_canceladas|default(0) }} · No asistidas: {{ tarjeta_no_asistidos|default(0) }}</p>
+                <h2 class="h5 mb-1"><i class="bi bi-person-x me-2"></i>Seguimiento semanal de citas</h2>
+                <p class="mb-0 text-muted small">Consulta las citas canceladas y las inasistencias por semana del mes.</p>
             </div>
-            <a href="{{ url_for('panel_admin_seguimiento') }}" class="btn btn-moova btn-sm">Ver seguimiento</a>
+            <a href="{{ url_for('panel_admin_seguimiento') }}" class="btn btn-moova btn-sm">Ver semana</a>
         </div>
     </div>
 
@@ -142,6 +139,128 @@
                     <p class="text-2xl font-bold text-slate-900 mb-0">10-18</p>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Proximas citas -->
+    <div class="card card-moova shadow-sm mt-4">
+        <div class="card-header panel-header d-flex align-items-center gap-2">
+            <i class="bi bi-calendar3"></i>
+            <h2 class="h5 mb-0">Citas de hoy</h2>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover table-striped align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Fecha y hora</th>
+                        <th>Paciente</th>
+                        <th>DNI</th>
+                        <th>Teléfono</th>
+                        <th>Especialista</th>
+                        <th>Estado</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if proximas_citas %}
+                        {% for c in proximas_citas %}
+                        <tr>
+                            <td><strong>{{ c.fecha_cita }}</strong><div class="small text-muted">{{ c.hora_cita or '—' }}</div></td>
+                            <td>{{ c.nombre }} {{ c.apellido }}</td>
+                            <td>{{ c.dni }}</td>
+                            <td>{{ c.telefono }}</td>
+                            <td><span class="badge text-bg-light">{{ c.terapeuta }}</span></td>
+                            <td>
+                                {% if c.estado == 'programada' %}
+                                <span class="badge badge-programada">Programada</span>
+                                {% elif c.estado == 'confirmada' %}
+                                <span class="badge text-bg-primary">Confirmada</span>
+                                {% elif c.estado == 'pendiente_pago' %}
+                                <span class="badge text-bg-warning">Pendiente de pago</span>
+                                {% elif c.estado == 'cancelada' %}
+                                <span class="badge badge-cancelada">Cancelada</span>
+                                {% elif c.estado == 'no_asistio' %}
+                                <span class="badge text-bg-danger">No asistió</span>
+                                {% else %}
+                                <span class="badge badge-completada">Completada</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if c.estado in ('programada', 'confirmada') %}
+                                <form method="POST" action="{{ url_for('admin_cancelar_cita', cita_id=c.id) }}"
+                                    onsubmit="return confirm('¿Cancelar la cita de {{ c.nombre }}?')">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
+                                    <button type="submit" class="btn btn-icon" title="Cancelar cita">
+                                        <i class="bi bi-ban"></i>
+                                    </button>
+                                </form>
+                                {% else %}
+                                <span class="text-secondary">—</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr><td colspan="7" class="text-center text-muted py-4">No hay citas registradas para hoy.</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+<!-- Usuarios del sistema -->
+    <div class="card card-moova shadow-sm mt-4">
+        <div class="card-header panel-header d-flex align-items-center gap-2">
+            <i class="bi bi-person-shield"></i>
+            <h2 class="h5 mb-0">Usuarios del Sistema</h2>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover table-striped align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Correo</th>
+                        <th>Teléfono</th>
+                        <th>Rol</th>
+                        <th>Estado</th>
+                        <th>Ultimo acceso</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if usuarios %}
+                        {% for u in usuarios %}
+                        <tr>
+                            <td>{{ u.nombre }}</td>
+                            <td>{{ u.correo }}</td>
+                            <td>
+                                <form method="POST" class="d-flex align-items-center gap-1">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
+                                    <input type="hidden" name="accion" value="actualizar_telefono">
+                                    <input type="hidden" name="usuario_id" value="{{ u.id }}">
+                                    <input type="tel" name="telefono" value="{{ u.telefono or '' }}"
+                                        placeholder="987654321" maxlength="9" pattern="9[0-9]{8}"
+                                        title="9 digitos que empiezan por 9. Vacio para borrar."
+                                        class="form-control form-control-sm" style="width:110px;">
+                                    <button type="submit" class="btn btn-icon" title="Guardar teléfono">
+                                        <i class="bi bi-save"></i>
+                                    </button>
+                                </form>
+                            </td>
+                            <td><span class="badge text-bg-light">{{ u.rol|capitalize }}</span></td>
+                            <td>
+                                {% if u.activo %}
+                                <span class="badge badge-activo">Activo</span>
+                                {% else %}
+                                <span class="badge badge-inactivo">Inactivo</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ u.ultimo_acceso|fechahora if u.ultimo_acceso else 'Nunca' }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr><td colspan="6" class="text-center text-muted py-4">No hay usuarios registrados.</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
         </div>
     </div>
 
@@ -290,123 +409,7 @@
 
     </div>
 
-    <!-- Usuarios del sistema -->
-    <div class="card card-moova shadow-sm mt-4">
-        <div class="card-header panel-header d-flex align-items-center gap-2">
-            <i class="bi bi-person-shield"></i>
-            <h2 class="h5 mb-0">Usuarios del Sistema</h2>
-        </div>
-        <div class="table-responsive">
-            <table class="table table-hover table-striped align-middle mb-0">
-                <thead>
-                    <tr>
-                        <th>Nombre</th>
-                        <th>Correo</th>
-                        <th>Teléfono</th>
-                        <th>Rol</th>
-                        <th>Estado</th>
-                        <th>Ultimo acceso</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% if usuarios %}
-                        {% for u in usuarios %}
-                        <tr>
-                            <td>{{ u.nombre }}</td>
-                            <td>{{ u.correo }}</td>
-                            <td>
-                                <form method="POST" class="d-flex align-items-center gap-1">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
-                                    <input type="hidden" name="accion" value="actualizar_telefono">
-                                    <input type="hidden" name="usuario_id" value="{{ u.id }}">
-                                    <input type="tel" name="telefono" value="{{ u.telefono or '' }}"
-                                        placeholder="987654321" maxlength="9" pattern="9[0-9]{8}"
-                                        title="9 digitos que empiezan por 9. Vacio para borrar."
-                                        class="form-control form-control-sm" style="width:110px;">
-                                    <button type="submit" class="btn btn-icon" title="Guardar teléfono">
-                                        <i class="bi bi-save"></i>
-                                    </button>
-                                </form>
-                            </td>
-                            <td><span class="badge text-bg-light">{{ u.rol|capitalize }}</span></td>
-                            <td>
-                                {% if u.activo %}
-                                <span class="badge badge-activo">Activo</span>
-                                {% else %}
-                                <span class="badge badge-inactivo">Inactivo</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ u.ultimo_acceso|fechahora if u.ultimo_acceso else 'Nunca' }}</td>
-                        </tr>
-                        {% endfor %}
-                    {% else %}
-                        <tr><td colspan="6" class="text-center text-muted py-4">No hay usuarios registrados.</td></tr>
-                    {% endif %}
-                </tbody>
-            </table>
-        </div>
     </div>
-
-    <!-- Proximas citas -->
-    <div class="card card-moova shadow-sm mt-4">
-        <div class="card-header panel-header d-flex align-items-center gap-2">
-            <i class="bi bi-calendar3"></i>
-            <h2 class="h5 mb-0">Próximas Citas Programadas</h2>
-        </div>
-        <div class="table-responsive">
-            <table class="table table-hover table-striped align-middle mb-0">
-                <thead>
-                    <tr>
-                        <th>Fecha</th>
-                        <th>Paciente</th>
-                        <th>DNI</th>
-                        <th>Teléfono</th>
-                        <th>Especialista</th>
-                        <th>Estado</th>
-                        <th>Acción</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% if proximas_citas %}
-                        {% for c in proximas_citas %}
-                        <tr>
-                            <td><strong>{{ c.fecha_cita }}</strong></td>
-                            <td>{{ c.nombre }} {{ c.apellido }}</td>
-                            <td>{{ c.dni }}</td>
-                            <td>{{ c.telefono }}</td>
-                            <td><span class="badge text-bg-light">{{ c.terapeuta }}</span></td>
-                            <td>
-                                {% if c.estado == 'programada' %}
-                                <span class="badge badge-programada">Programada</span>
-                                {% elif c.estado == 'cancelada' %}
-                                <span class="badge badge-cancelada">Cancelada</span>
-                                {% else %}
-                                <span class="badge badge-completada">Completada</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if c.estado == 'programada' %}
-                                <form method="POST" action="{{ url_for('admin_cancelar_cita', cita_id=c.id) }}"
-                                    onsubmit="return confirm('¿Cancelar la cita de {{ c.nombre }}?')">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
-                                    <button type="submit" class="btn btn-icon" title="Cancelar cita">
-                                        <i class="bi bi-ban"></i>
-                                    </button>
-                                </form>
-                                {% else %}
-                                <span class="text-secondary">—</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    {% else %}
-                        <tr><td colspan="7" class="text-center text-muted py-4">No hay citas próximas.</td></tr>
-                    {% endif %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
 
 <!-- Modal cambiar contraseña -->
 <div class="modal fade" id="modal" tabindex="-1" aria-hidden="true">
