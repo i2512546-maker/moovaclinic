@@ -199,10 +199,13 @@ def _paciente_propio(dni):
         terapeuta_id = _terapeuta_id_actual()
         if not terapeuta_id:
             return False
-        data, status = citas_client.get("/api/citas", params={
-            "dni": dni, "medico_id": terapeuta_id, "estado": "programada",
-        })
-        return status == 200 and bool((data or {}).get("citas"))
+        for estado in ("programada", "confirmada", "completada", "no_asistio"):
+            data, status = citas_client.get("/api/citas", params={
+                "dni": dni, "medico_id": terapeuta_id, "estado": estado,
+            })
+            if status == 200 and (data or {}).get("citas"):
+                return True
+        return False
     return False
 
 
@@ -345,6 +348,12 @@ def crear_cita():
         return _error(400, "JSON_REQUERIDO", "Se requiere un objeto JSON.")
     if request.identidad_movil["rol"] == "paciente" and request.identidad_movil["sub"] != str(data.get("dni") or "").strip():
         return _error(403, "PACIENTE_NO_AUTORIZADO", "Solo puedes agendar para tu propio DNI.")
+    if request.identidad_movil["rol"] == "terapeuta":
+        terapeuta_id = _terapeuta_id_actual()
+        if not terapeuta_id:
+            return _error(403, "TERAPEUTA_NO_VINCULADO", "No se pudo vincular el usuario con su perfil de terapeuta.")
+        if str(data.get("medico_id")) != str(terapeuta_id):
+            return _error(403, "TERAPEUTA_NO_AUTORIZADO", "Solo puedes agendar citas para tu propia agenda.")
     respuesta = _proxy(citas_client, "post", "/api/citas", data)
     return _auditar_exito(respuesta, "crear_cita", "historial_citas")
 

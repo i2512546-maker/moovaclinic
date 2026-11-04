@@ -330,9 +330,18 @@ def create_app():
     if os.getenv("FLASK_ENV") == "production":
         app.config["SESSION_COOKIE_SECURE"] = True
     jwt_secret = os.getenv("JWT_SECRET")
-    if os.getenv("FLASK_ENV") == "production":
-        if not jwt_secret or jwt_secret == secret_key:
-            raise RuntimeError("En producción JWT_SECRET es obligatoria y debe ser distinta de SECRET_KEY.")
+    entorno_produccion = (
+        os.getenv("FLASK_ENV", "").strip().lower() == "production"
+        or os.getenv("ENVIRONMENT", "").strip().lower() == "production"
+        or os.getenv("RENDER", "").strip().lower() == "true"
+    )
+    if entorno_produccion and (
+        not jwt_secret or jwt_secret == secret_key or len(jwt_secret) < 32
+    ):
+        raise RuntimeError(
+            "En producción JWT_SECRET es obligatoria, debe tener al menos 32 caracteres "
+            "y ser distinta de SECRET_KEY."
+        )
     app.config["JWT_SECRET"] = jwt_secret or (secret_key + "-solo-desarrollo-jwt")
     csrf.init_app(app)
     Compress(app)
