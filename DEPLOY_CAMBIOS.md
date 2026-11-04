@@ -15,7 +15,7 @@ sobre la base configurada en `DB_NAME`, antes de desplegar el código:
 |---|---|
 | `db_split/migraciones/2026-11-03_optimizar_agenda_panel.sql` | Índice y procedimientos para agenda y resumen diario |
 | `db_split/migraciones/2026-11-03_disponibilidad_citas_rango.sql` | Consulta de disponibilidad por terapeuta y rango en una sola llamada |
-| `db_split/migraciones/2026-11-04_indices_rendimiento.sql` | Índice compuesto `(terapeuta_id, fecha_cita)` y garantía del índice `pagos.fecha_pago` |
+| `db_split/migraciones/2026-11-04_indices_rendimiento.sql` | Índices compuestos para agenda por terapeuta/fecha y pacientes por terapeuta/estado, más índice `pagos.fecha_pago` |
 | `db_split/migraciones/2026-11-04_consultas_citas_agrupadas.sql` | Procedimientos para seguimiento semanal y pacientes por terapeuta en una consulta |
 | `db_split/migraciones/2026-11-04_kpis_fecha_pago_sargable.sql` | Filtros de fecha de pago compatibles con el índice `idx_fecha` |
 
