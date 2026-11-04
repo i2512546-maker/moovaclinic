@@ -3,9 +3,10 @@
 # MOOVA Clinic - Backup diario automatico de TODAS las bases
 # HOSTING: Alwaysdata (Linux). Se ejecuta via Cron Job del panel.
 #
-# IMPORTANTE: el monolito modular conserva siete esquemas MySQL
-# separados en el mismo servidor. Hay que respaldarlos todos; el
-# script los recorre uno por uno.
+# El runtime actual usa DB_NAME (un esquema compartido). Para una
+# instalacion antigua de siete esquemas, define DB_LIST en el cron.
+# DB_LIST tiene prioridad sobre DB_NAME. Si no se define ninguno,
+# se conserva la lista historica de siete esquemas.
 #
 # CONFIGURAR EN EL PANEL ALWAYSDATA:
 #   1. Entra a alwaysdata.net > tu sitio moovacloud
@@ -19,8 +20,8 @@
 # ALTERNATIVA (backup nativo del hosting):
 #   Alwaysdata ofrece "Backups / Restauracion" en la seccion de
 #   bases de datos del panel. Puedes activar backups automaticos
-#   ahi mismo sin script. Cubre las 7 bases de una vez y es lo MAS
-#   SIMPLE si tu plan lo incluye.
+#   ahi mismo sin script. Selecciona todos los esquemas activos del
+#   proyecto si tu plan lo incluye.
 #
 # RETENCION: conserva los ultimos N dias (7 = una semana).
 # ============================================================
@@ -33,12 +34,19 @@ DB_USER="${DB_USER:-moovacloud}"
 # Define esta variable en la tarea cron del panel o en ~/.my.cnf
 DB_PASSWORD="${DB_PASSWORD:?Define DB_PASSWORD como variable de entorno}"
 
-# Las 7 bases del proyecto (6 servicios + kpis de solo lectura).
-DB_LIST="moovacloud_auth moovacloud_pacientes moovacloud_citas moovacloud_pagos moovacloud_notas moovacloud_auditoria moovacloud_kpis"
+# Prioridad: DB_LIST explicito (instalacion split) > DB_NAME (actual)
+# > lista historica de siete esquemas.
+if [ -z "${DB_LIST:-}" ]; then
+    if [ -n "${DB_NAME:-}" ]; then
+        DB_LIST="${DB_NAME}"
+    else
+        DB_LIST="moovacloud_auth moovacloud_pacientes moovacloud_citas moovacloud_pagos moovacloud_notas moovacloud_auditoria moovacloud_kpis"
+    fi
+fi
 
-# Directorio destino dentro de tu cuenta de alwaysdata
-BACKUP_DIR="${HOME}/backups"
-RETENTION_DAYS=7
+# Directorio destino dentro de tu cuenta de Alwaysdata.
+BACKUP_DIR="${BACKUP_DIR:-${HOME}/backups}"
+RETENTION_DAYS="${RETENTION_DAYS:-7}"
 
 mkdir -p "${BACKUP_DIR}"
 
@@ -75,10 +83,11 @@ for db in ${DB_LIST}; do
 
     echo "OK backup ${db}: ${OUT} (${tam} bytes)"
     exitos=$((exitos + 1))
-done
 
-# Eliminar backups de hace mas de RETENTION_DAYS dias (solo los exitosos)
-find "${BACKUP_DIR}" -name "moovacloud_*.sql.gz" -mtime +"${RETENTION_DAYS}" -delete
+    # Retencion acotada al esquema actual; no borra respaldos de otros DB_LIST.
+    find "${BACKUP_DIR}" -maxdepth 1 -type f -name "${db}_*.sql.gz" \
+        -mtime +"${RETENTION_DAYS}" -delete
+done
 
 echo "Resumen: ${exitos} respaldos correctos, ${fallos} fallidos"
 
