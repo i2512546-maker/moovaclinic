@@ -4,14 +4,6 @@ from unittest.mock import Mock, patch
 
 os.environ.setdefault("SECRET_KEY", "clave-de-pruebas")
 
-from shared.config import (
-    AUDIT_DB_NAME,
-    AUTH_DB_NAME,
-    CITAS_DB_NAME,
-    NOTAS_DB_NAME,
-    PACIENTES_DB_NAME,
-    PAGOS_DB_NAME,
-)
 from shared.db import DB_NAME, dominio, get_connection
 
 
