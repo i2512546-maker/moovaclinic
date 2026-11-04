@@ -48,17 +48,24 @@ def _mapa_terapeutas(usuarios=None, especialidades=None):
 def listar_pacientes():
     pacientes = call_proc("sp_listar_pacientes")
 
+    # Las pantallas de administración necesitan el resumen de citas.
+    # Los módulos que solo enriquecen una agenda necesitan el catálogo
+    # básico y no deben disparar otra consulta agregada de citas.
+    incluir_resumen = request.args.get("incluir_resumen", "1").strip().lower() not in {
+        "0", "false", "no",
+    }
     resumen = {}
-    try:
-        data, _ = citas_client.get("/api/citas/resumen_pacientes")
-        resumen = {r["paciente_id"]: r for r in (data.get("resumen") or [])}
-    except Exception as exc:
-        # El listado se devuelve igual; lo que se pierde son las
-        # columnas de citas por paciente.
-        current_app.logger.warning(
-            "No se pudo cargar el resumen de citas para el listado: %s: %s",
-            type(exc).__name__, exc,
-        )
+    if incluir_resumen:
+        try:
+            data, _ = citas_client.get("/api/citas/resumen_pacientes")
+            resumen = {r["paciente_id"]: r for r in (data.get("resumen") or [])}
+        except Exception as exc:
+            # El listado se devuelve igual; lo que se pierde son las
+            # columnas de citas por paciente.
+            current_app.logger.warning(
+                "No se pudo cargar el resumen de citas para el listado: %s: %s",
+                type(exc).__name__, exc,
+            )
 
     for p in pacientes:
         info = resumen.get(p["id"]) or {}
