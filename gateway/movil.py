@@ -80,9 +80,9 @@ def _identidad():
     if verificacion:
         try:
             payload = _verificacion_serializer().loads(verificacion, max_age=900)
-            if payload.get("accion") != "consultar" or not _DNI.fullmatch(str(payload.get("dni", ""))):
+            if payload.get("accion") not in {"consultar", "agendar", "modificar", "cancelar"} or not _DNI.fullmatch(str(payload.get("dni", ""))):
                 return None, "VERIFICACION_INVALIDA"
-            return {"tipo": "paciente", "sub": payload["dni"], "rol": "paciente"}
+            return {"tipo": "paciente", "sub": payload["dni"], "rol": "paciente", "accion": payload["accion"]}
         except SignatureExpired:
             return None, "VERIFICACION_EXPIRADA"
         except BadSignature:
@@ -127,6 +127,43 @@ def _proxy(cliente, metodo, ruta, cuerpo=None, params=None):
     if status >= 400:
         return _error(status, "OPERACION_RECHAZADA", (data or {}).get("error", "La operación fue rechazada."))
     return _ok(data)
+
+
+def requiere_otp(accion, validar_dni_cuerpo=False):
+    """Exige un sello X-Verificacion de la acción y, al crear, del DNI del cuerpo."""
+    def decorador(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            sello = request.headers.get("X-Verificacion", "").strip()
+            if not sello:
+                return _error(403, "OTP_REQUERIDO", "Debes verificar el código OTP para esta operación.")
+            try:
+                payload = _verificacion_serializer().loads(sello, max_age=900)
+            except (BadSignature, SignatureExpired):
+                return _error(403, "OTP_INVALIDO", "La verificación OTP no es válida o venció.")
+            if payload.get("accion") != accion:
+                return _error(403, "OTP_ACCION_INCORRECTA", "El código OTP no autoriza esta operación.")
+            if validar_dni_cuerpo:
+                data = request.get_json(silent=True) or {}
+                if str(data.get("dni") or "").strip() != str(payload.get("dni")):
+                    return _error(403, "OTP_DNI_INCORRECTO", "El OTP no corresponde al DNI enviado.")
+            request.verificacion_otp = payload
+            return func(*args, **kwargs)
+        return wrapper
+    return decorador
+
+
+def _terapeuta_id_actual():
+    identidad = request.identidad_movil
+    if identidad["rol"] != "terapeuta":
+        return None
+    datos, status = pacientes_client.get("/api/terapeutas")
+    if status != 200:
+        return None
+    for item in (datos or {}).get("terapeutas", []):
+        if str(item.get("usuario_id")) == identidad["sub"]:
+            return item.get("ID") or item.get("id")
+    return None
 
 
 def _paciente_propio(dni):
@@ -177,7 +214,7 @@ def solicitar_otp_paciente():
         return _error(status, "OTP_NO_ENVIADO", (resultado or {}).get("error", "No se pudo enviar el código."))
     _OTP_LIMIT.registrar_exito(claves)
     return _ok({"telefono_enmascarado": (resultado or {}).get("tel_mask"),
-                "vigencia_minutos": 10}, "Código enviado al teléfono registrado.")
+                "vigencia_minutos": 10, "accion": accion}, "Código enviado al teléfono registrado.")
 
 
 @movil_bp.post("/auth/otp/verificar")
@@ -188,10 +225,10 @@ def verificar_otp_paciente():
     if not _DNI.fullmatch(dni) or not re.fullmatch(r"\\d{6}", otp):
         return _error(400, "DATOS_INVALIDOS", "DNI y código de seis dígitos son obligatorios.")
     resultado, status = citas_client.post("/api/citas/otp/verificar",
-                                          {"dni": dni, "otp": otp, "accion": "consultar"})
+                                          {"dni": dni, "otp": otp, "accion": str(data.get("accion") or "consultar").strip().lower()})
     if status >= 400 or (resultado or {}).get("resultado") != "ok":
         return _error(401, "OTP_INVALIDO", "El código es incorrecto, venció o no existe.")
-    verificacion = _verificacion_serializer().dumps({"dni": dni, "accion": "consultar"})
+    accion = str(data.get("accion") or "consultar").strip().lower()\n    if accion not in {"consultar", "agendar", "modificar", "cancelar"}:\n        return _error(400, "ACCION_INVALIDA", "Acción OTP no permitida.")\n    verificacion = _verificacion_serializer().dumps({"dni": dni, "accion": accion})
     return _ok({"tipo": "Verificacion", "verificacion": verificacion, "expires_in": 900},
                "Identidad verificada durante 15 minutos.")
 
