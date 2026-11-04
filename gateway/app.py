@@ -337,7 +337,11 @@ def create_app():
     from services.notas_service import notas_bp
     from services.pacientes_service import pacientes_bp
     from services.pagos_service import pagos_bp
-    from shared.config import AUTO_CIERRE_CITAS_ENABLED, LIBERAR_VENCIDOS_ENABLED, RECORDATORIOS_ENABLED
+    from shared.config import (
+        AUTO_CIERRE_CITAS_ENABLED,
+        LIBERAR_VENCIDOS_ENABLED,
+        RECORDATORIOS_ENABLED,
+    )
     from shared.db import dominio
     from shared.service_auth import proteger_api_interna
 
