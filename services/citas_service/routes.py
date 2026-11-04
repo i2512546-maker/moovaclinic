@@ -1327,6 +1327,7 @@ def solicitar_otp():
         # que ya tienen citas registradas pero aun no cuentan con un paquete
         # de sesiones. La pantalla mostrara su historial y un cronograma
         # propuesto (sin presentarlo como citas ya confirmadas).
+        paquetes_paciente = []
         try:
             paq_data, _ = pagos_client.get(f"/api/pagos/pacientes/{paciente['id']}/paquetes")
             paquetes_paciente = (paq_data or {}).get("paquetes") or []
