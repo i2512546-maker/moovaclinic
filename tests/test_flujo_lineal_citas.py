@@ -70,6 +70,14 @@ class FlujoLinealCitasTest(unittest.TestCase):
         ):
             return self.cliente.get("/citas")
 
+    def _verificar_identidad(self):
+        with self.cliente.session_transaction() as session:
+            session["cita_identidad_verificada"] = {
+                "dni": "12345678",
+                "nombre": "ana",
+                "apellido": "perez",
+            }
+
     def test_citas_sin_sesion_muestra_el_formulario_sin_aviso(self):
         response = self._get_citas()
         self.assertEqual(response.status_code, 200)
@@ -126,6 +134,7 @@ class FlujoLinealCitasTest(unittest.TestCase):
             "metodo_pago": "yape",
             "servicio_id": "2",
         }
+        self._verificar_identidad()
         with patch.object(ga, "_validar_datos_cita_rapida", return_value=None), \
                 patch.object(
                     ga.citas_client,
