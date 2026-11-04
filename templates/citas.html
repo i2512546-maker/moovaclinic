@@ -217,7 +217,6 @@
                                     <span class="h6 text-success mb-2">{{ s.nombre }}</span>
                                     <span class="small text-muted">{{ s.descripcion or 'Atención personalizada según tus necesidades.' }}</span>
                                     <span class="small mt-3"><i class="fas fa-clock me-1"></i>{{ s.duracion_min }} min</span>
-                                    <span class="small fw-semibold text-success mt-1">S/ {{ '%.2f'|format(s.precio|float) }}</span>
                                 </button>
                             </div>
                             {% else %}
