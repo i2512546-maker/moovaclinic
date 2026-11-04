@@ -110,7 +110,6 @@ def _terapeuta_id_de_sesion():
         if str(terapeuta.get("usuario_id")) == str(usuario_id):
             session["terapeuta_id"] = terapeuta.get("ID")
             return terapeuta.get("ID")
-    session["terapeuta_id"] = None
     return None
 
 
@@ -615,14 +614,15 @@ def create_app():
             if status == 200 and data.get("success"):
                 limite.registrar_exito(claves)
                 u = data["usuario"]
+                rol_usuario = str(u.get("rol") or "").strip().lower()
+                session.clear()
                 session.permanent = False
-                session.pop("login_tab_nonce", None)
                 session["tab_session_id"] = nonce_pestana
                 session["usuario_id"] = u["id"]
                 session["usuario_nombre"] = u["nombre"]
-                session["rol"] = u["rol"]
+                session["rol"] = rol_usuario
                 session["correo"] = u["correo"]
-                if u["rol"] == "admin":
+                if rol_usuario == "admin":
                     return redirect(url_for("panel_admin"))
                 return redirect(url_for("interfaz"))
             else:
@@ -689,10 +689,14 @@ def create_app():
     @app.route("/guardar_descripcion", methods=["POST"])
     def guardar_descripcion():
         if "usuario_id" not in session:
+            if _is_ajax():
+                return jsonify({"success": False, "error": "La sesión expiró. Inicia sesión nuevamente."}), 401
             return redirect(url_for("login"))
         historial_id = request.form.get("historial_id")
         descripcion = request.form.get("descripcion", "").strip()
         fecha = request.form.get("fecha", hoy_lima().strftime("%Y-%m-%d"))
+        if not historial_id or not str(historial_id).isdigit():
+            abort(400, description="Identificador de cita inválido.")
 
         if session.get("rol") != "admin":
             data, status = citas_client.get(f"/api/citas/{historial_id}")
@@ -709,19 +713,23 @@ def create_app():
                 terapeuta_id is None
                 or str(cita.get("terapeuta_id")) != str(terapeuta_id)
             ):
+                if _is_ajax():
+                    return jsonify({"success": False, "error": "No tienes permiso para editar estas notas."}), 403
                 return redirect(url_for("interfaz"))
 
-        # Completar la cita es responsabilidad del modulo interno de citas.
-        citas_client.put(f"/api/citas/{historial_id}/completar", {"descripcion": descripcion})
-        log_accion(
-            usuario_id=session.get("usuario_id"),
-            accion="completar_cita",
-            tabla_afectada="historial_citas",
-            registro_id=historial_id,
-            detalle="Cita marcada como completada",
+        resultado, status = citas_client.put(
+            f"/api/citas/{historial_id}/descripcion",
+            {"descripcion": descripcion},
         )
+        if status not in (200, 201) or not (resultado or {}).get("success"):
+            if _is_ajax():
+                return jsonify({"success": False, "error": (resultado or {}).get("error", "No se pudo actualizar la descripción.")}), 502
+            flash("No se pudo actualizar la descripción. Inténtalo nuevamente.")
+            return redirect(url_for("interfaz", fecha=fecha))
+
         if _is_ajax():
-            return jsonify({"success": True})
+            return jsonify({"success": True, "guardada": True})
+        flash("Descripción actualizada.")
         return redirect(url_for("interfaz", fecha=fecha))
 
     @app.route("/citas/<int:cita_id>/no_asistio", methods=["POST"])
