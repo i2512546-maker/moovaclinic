@@ -73,7 +73,17 @@ mysql -u USUARIO -p < db_split/audit_db.sql
 mysql -u USUARIO -p < db_split/kpis_db.sql
 ```
 
-Después de aplicar cambios en los `.sql`, hay que volver a importarlos:
+Después de crear las siete bases, aplica también la migración de disponibilidad optimizada:
+
+```bash
+mysql -u USUARIO -p moovacloud_citas < db_split/migraciones/2026-11-03_disponibilidad_citas_rango.sql
+```
+
+Esta migración crea `sp_disponibilidad_citas_rango`, que consulta en una sola llamada
+las horas ocupadas de un terapeuta dentro de un rango de fechas. Es necesaria para
+la ruta de disponibilidad de citas en bases nuevas y existentes.
+
+Después de aplicar cambios en los `.sql`, hay que ejecutar la migración correspondiente;
 el proyecto usa procedimientos almacenados, no un ORM con migraciones.
 
 ### 3. Variables de entorno
