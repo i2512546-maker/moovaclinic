@@ -147,6 +147,20 @@ def requiere_otp(accion, validar_dni_cuerpo=False):
                 data = request.get_json(silent=True) or {}
                 if str(data.get("dni") or "").strip() != str(payload.get("dni")):
                     return _error(403, "OTP_DNI_INCORRECTO", "El OTP no corresponde al DNI enviado.")
+            if "cita_id" in kwargs:
+                cita_data, cita_status = citas_client.get(f"/api/citas/{kwargs['cita_id']}/basico")
+                cita = (cita_data or {}).get("cita") or {}
+                if cita_status != 200 or not cita.get("paciente_id"):
+                    return _error(404, "CITA_NO_ENCONTRADA", "No se encontró la cita.")
+                paciente_data, paciente_status = pacientes_client.get(f"/api/pacientes")
+                pacientes = (paciente_data or {}).get("pacientes") or []
+                paciente = next((p for p in pacientes if str(p.get("id")) == str(cita["paciente_id"])), None)
+                if paciente_status != 200 or not paciente or str(paciente.get("dni")) != str(payload.get("dni")):
+                    return _error(403, "OTP_DNI_INCORRECTO", "El OTP no corresponde al paciente de esta cita.")
+                if request.headers.get("Authorization", "").startswith("Bearer ") and request.identidad_movil["rol"] == "terapeuta":
+                    terapeuta_id = _terapeuta_id_actual()
+                    if not terapeuta_id or str(cita.get("terapeuta_id")) != str(terapeuta_id):
+                        return _error(403, "CITA_NO_AUTORIZADA", "Solo puedes modificar tus propias citas.")
             request.verificacion_otp = payload
             return func(*args, **kwargs)
         return wrapper
@@ -202,13 +216,16 @@ def login():
 def solicitar_otp_paciente():
     data = request.get_json(silent=True) or {}
     dni = str(data.get("dni") or "").strip()
+    accion = str(data.get("accion") or "consultar").strip().lower()
+    if accion not in {"consultar", "agendar", "modificar", "cancelar"}:
+        return _error(400, "ACCION_INVALIDA", "Acción OTP no permitida.")
     ip = ip_del_request(request)
     claves = (f"ip:{ip}", f"dni:{dni}")
     if not _DNI.fullmatch(dni):
         return _error(400, "DNI_INVALIDO", "El DNI debe contener ocho dígitos.")
     if _OTP_LIMIT.bloqueado(claves)[0]:
         return _error(429, "DEMASIADOS_INTENTOS", "Demasiadas solicitudes OTP.")
-    resultado, status = citas_client.post("/api/citas/otp/solicitar", {"dni": dni, "accion": "consultar"})
+    resultado, status = citas_client.post("/api/citas/otp/solicitar", {"dni": dni, "accion": accion})
     if status >= 400:
         _OTP_LIMIT.registrar_fallo(claves)
         return _error(status, "OTP_NO_ENVIADO", (resultado or {}).get("error", "No se pudo enviar el código."))
@@ -224,11 +241,14 @@ def verificar_otp_paciente():
     otp = str(data.get("otp") or "").strip()
     if not _DNI.fullmatch(dni) or not re.fullmatch(r"\\d{6}", otp):
         return _error(400, "DATOS_INVALIDOS", "DNI y código de seis dígitos son obligatorios.")
+    accion = str(data.get("accion") or "consultar").strip().lower()
+    if accion not in {"consultar", "agendar", "modificar", "cancelar"}:
+        return _error(400, "ACCION_INVALIDA", "Acción OTP no permitida.")
     resultado, status = citas_client.post("/api/citas/otp/verificar",
-                                          {"dni": dni, "otp": otp, "accion": str(data.get("accion") or "consultar").strip().lower()})
+                                          {"dni": dni, "otp": otp, "accion": accion})
     if status >= 400 or (resultado or {}).get("resultado") != "ok":
         return _error(401, "OTP_INVALIDO", "El código es incorrecto, venció o no existe.")
-    accion = str(data.get("accion") or "consultar").strip().lower()\n    if accion not in {"consultar", "agendar", "modificar", "cancelar"}:\n        return _error(400, "ACCION_INVALIDA", "Acción OTP no permitida.")\n    verificacion = _verificacion_serializer().dumps({"dni": dni, "accion": accion})
+    verificacion = _verificacion_serializer().dumps({"dni": dni, "accion": accion})
     return _ok({"tipo": "Verificacion", "verificacion": verificacion, "expires_in": 900},
                "Identidad verificada durante 15 minutos.")
 
