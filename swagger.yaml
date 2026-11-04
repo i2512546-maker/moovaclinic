@@ -1645,3 +1645,65 @@ paths:
       summary: Confirmar un pago en modo demostración
       responses:
         "200": { description: Pago de demostración confirmado }
+
+  /api/citas/agenda:
+    get:
+      tags: [citas]
+      summary: Obtener la agenda de un día
+      parameters:
+        - name: fecha
+          in: query
+          required: true
+          type: string
+          format: date
+      responses:
+        "200": { description: Agenda diaria }
+        "400": { description: Fecha inválida }
+  /api/citas/resumen-panel:
+    get:
+      tags: [citas]
+      summary: Obtener el resumen optimizado del panel administrador
+      parameters:
+        - name: fecha
+          in: query
+          required: true
+          type: string
+          format: date
+        - name: desde
+          in: query
+          required: true
+          type: string
+          format: date
+      responses:
+        "200": { description: Resumen y próximas citas }
+        "400": { description: Fechas inválidas }
+  /api/citas/seguimiento:
+    get:
+      tags: [citas]
+      summary: Consultar citas canceladas e inasistencias por rango
+      parameters:
+        - name: desde
+          in: query
+          required: true
+          type: string
+          format: date
+        - name: hasta
+          in: query
+          required: true
+          type: string
+          format: date
+      responses:
+        "200": { description: Citas del rango solicitado }
+        "400": { description: Rango inválido }
+  /api/pacientes/min/{paciente_id}:
+    delete:
+      tags: [pacientes]
+      summary: Eliminar un paciente temporal si no tiene historial
+      parameters:
+        - name: paciente_id
+          in: path
+          required: true
+          type: integer
+      responses:
+        "200": { description: Resultado de la limpieza }
+        "500": { description: No se pudo verificar si puede eliminarse }
