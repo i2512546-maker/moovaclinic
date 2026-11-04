@@ -262,10 +262,15 @@ def verificar_otp_paciente():
     accion = str(data.get("accion") or "consultar").strip().lower()
     if accion not in {"consultar", "agendar", "modificar", "cancelar"}:
         return _error(400, "ACCION_INVALIDA", "Acción OTP no permitida.")
+    claves = (f"ip:{ip_del_request(request)}", f"dni:{dni}")
+    if _OTP_LIMIT.bloqueado(claves)[0]:
+        return _error(429, "DEMASIADOS_INTENTOS", "Demasiados intentos de verificación OTP.")
     resultado, status = citas_client.post("/api/citas/otp/verificar",
                                           {"dni": dni, "otp": otp, "accion": accion})
     if status >= 400 or (resultado or {}).get("resultado") != "ok":
+        _OTP_LIMIT.registrar_fallo(claves)
         return _error(401, "OTP_INVALIDO", "El código es incorrecto, venció o no existe.")
+    _OTP_LIMIT.registrar_exito(claves)
     verificacion = _verificacion_serializer().dumps({"dni": dni, "accion": accion})
     return _ok({"tipo": "Verificacion", "verificacion": verificacion, "expires_in": 900},
                "Identidad verificada durante 15 minutos.")
