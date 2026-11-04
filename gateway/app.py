@@ -730,7 +730,7 @@ def create_app():
             return redirect(url_for("login"))
         fecha = request.form.get("fecha", hoy_lima().strftime("%Y-%m-%d"))
         es_admin = session.get("rol") == "admin"
-        url_retorno = url_for("panel_admin") if es_admin else url_retorno
+        url_retorno = url_for("panel_admin") if es_admin else url_for("interfaz", fecha=fecha)
         data, status = citas_client.get(f"/api/citas/{cita_id}/basico")
         if status == 404:
             abort(404)
