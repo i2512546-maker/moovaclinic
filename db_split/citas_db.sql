@@ -617,6 +617,24 @@ BEGIN
     ORDER BY dias_desde_ultima DESC, faltas DESC;
 END$$
 
+-- Consulta de disponibilidad por terapeuta y rango de fechas.
+-- Usa el indice existente que empieza por (terapeuta_id, fecha_cita)
+-- para evitar recorrer citas de otros terapeutas o fechas.
+DROP PROCEDURE IF EXISTS `sp_disponibilidad_citas_rango`$
+CREATE PROCEDURE `sp_disponibilidad_citas_rango`(
+    IN p_terapeuta_id INT,
+    IN p_desde DATE,
+    IN p_hasta DATE
+)
+BEGIN
+    SELECT fecha_cita, hora_cita
+    FROM historial_citas
+    WHERE terapeuta_id = p_terapeuta_id
+      AND fecha_cita BETWEEN p_desde AND p_hasta
+      AND estado IN ('pendiente_pago', 'programada', 'confirmada')
+    ORDER BY fecha_cita, hora_cita;
+END$
+
 DELIMITER ;
 
 -- ============================================================
