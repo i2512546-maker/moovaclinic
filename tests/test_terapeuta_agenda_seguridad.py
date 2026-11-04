@@ -219,5 +219,38 @@ class TerapeutaAgendaSeguridadTest(unittest.TestCase):
         obtener_notas.assert_called_once_with("/api/notas/9")
 
 
+    def test_login_terapeuta_normaliza_rol_y_limpia_identidad_anterior(self):
+        with self.client.session_transaction() as sesion:
+            sesion["login_tab_nonce"] = "nonce-prueba"
+            sesion["terapeuta_id"] = 999
+            sesion["rol"] = "admin"
+
+        usuario = {
+            "id": 10,
+            "nombre": "Terapeuta",
+            "correo": "terapeuta@moova.test",
+            "rol": "Terapeuta",
+        }
+        with patch(
+            "gateway.app.auth_client.post",
+            return_value=({"success": True, "usuario": usuario}, 200),
+        ):
+            respuesta = self.client.post(
+                "/login",
+                data={
+                    "correo": "terapeuta@moova.test",
+                    "clave": "clave-prueba",
+                    "nonce_pestana": "nonce-prueba",
+                },
+            )
+
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertEqual(respuesta.headers["Location"], "/interfaz")
+        with self.client.session_transaction() as sesion:
+            self.assertEqual(sesion["rol"], "terapeuta")
+            self.assertEqual(sesion["usuario_id"], 10)
+            self.assertNotIn("terapeuta_id", sesion)
+
+
 if __name__ == "__main__":
     unittest.main()
