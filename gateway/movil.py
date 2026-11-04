@@ -181,9 +181,28 @@ def _terapeuta_id_actual():
 
 def _paciente_propio(dni):
     identidad = request.identidad_movil
-    return identidad["rol"] == "admin" or (
-        identidad["rol"] == "paciente" and identidad["sub"] == dni
-    )
+    if identidad["rol"] == "admin":
+        return True
+    if identidad["rol"] == "paciente":
+        return identidad["sub"] == dni
+    if identidad["rol"] == "terapeuta":
+        terapeuta_id = _terapeuta_id_actual()
+        if not terapeuta_id:
+            return False
+        data, status = citas_client.get("/api/citas", params={
+            "dni": dni, "medico_id": terapeuta_id, "estado": "programada",
+        })
+        return status == 200 and bool((data or {}).get("citas"))
+    return False
+
+
+def _cita_propia_terapeuta(cita_id):
+    if request.identidad_movil["rol"] != "terapeuta":
+        return True
+    terapeuta_id = _terapeuta_id_actual()
+    data, status = citas_client.get(f"/api/citas/{cita_id}/basico")
+    cita = (data or {}).get("cita") or {}
+    return status == 200 and bool(terapeuta_id) and str(cita.get("terapeuta_id")) == str(terapeuta_id)
 
 
 @movil_bp.post("/auth/login")
@@ -392,6 +411,8 @@ def historial_evaluaciones(dni):
 @movil_bp.post("/pacientes/<dni>/evaluaciones")
 @requiere_auth("admin", "terapeuta")
 def crear_evaluacion(dni):
+    if not _paciente_propio(dni):
+        return _error(403, "PACIENTE_NO_AUTORIZADO", "No puedes modificar este paciente.")
     paciente_data, status = pacientes_client.get(f"/api/pacientes/{dni}")
     paciente = (paciente_data or {}).get("paciente") or {}
     if status != 200 or not paciente.get("id"):
@@ -403,6 +424,8 @@ def crear_evaluacion(dni):
 @movil_bp.get("/pagos/<int:cita_id>")
 @requiere_auth("admin", "terapeuta")
 def estado_pago(cita_id):
+    if not _cita_propia_terapeuta(cita_id):
+        return _error(403, "CITA_NO_AUTORIZADA", "Solo puedes consultar pagos de tus propias citas.")
     return _proxy(pagos_client, "get", f"/api/pagos/{cita_id}")
 
 
@@ -427,10 +450,14 @@ def estadisticas():
 @movil_bp.get("/notas/<int:cita_id>")
 @requiere_auth("admin", "terapeuta")
 def notas_cita(cita_id):
+    if not _cita_propia_terapeuta(cita_id):
+        return _error(403, "CITA_NO_AUTORIZADA", "Solo puedes consultar notas de tus propias citas.")
     return _proxy(notas_client, "get", f"/api/notas/{cita_id}")
 
 
 @movil_bp.post("/notas/<int:cita_id>")
 @requiere_auth("admin", "terapeuta")
 def crear_nota(cita_id):
+    if not _cita_propia_terapeuta(cita_id):
+        return _error(403, "CITA_NO_AUTORIZADA", "Solo puedes registrar notas de tus propias citas.")
     return _proxy(notas_client, "post", f"/api/notas/{cita_id}", request.get_json(silent=True))
