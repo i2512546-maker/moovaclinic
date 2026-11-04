@@ -188,6 +188,7 @@ class FlujoLinealCitasTest(unittest.TestCase):
             "metodo_pago": "yape",
             "servicio_id": "2",
         }
+        self._verificar_identidad()
         with patch.object(ga, "_validar_datos_cita_rapida", return_value=None), \
                 patch.object(
                     ga.citas_client,
