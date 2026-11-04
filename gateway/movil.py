@@ -4,7 +4,6 @@ La API pública móvil nunca acepta cookies de sesión. El personal usa JWT
 Bearer; los pacientes usan una credencial efímera X-Verificacion tras OTP.
 """
 from functools import wraps
-import os
 import re
 import time
 
@@ -20,7 +19,7 @@ from shared.service_client import (
 
 movil_bp = Blueprint("movil", __name__, url_prefix="/api/movil")
 _ROLES = {"admin", "terapeuta"}
-_DNI = re.compile(r"^\\d{8}$")
+_DNI = re.compile(r"^\d{8}$")
 _OTP_LIMIT = LimitadorIntentos(5, 15, 15)
 _LOGIN_LIMIT = LimitadorIntentos(5, 10, 30)
 
@@ -239,7 +238,7 @@ def verificar_otp_paciente():
     data = request.get_json(silent=True) or {}
     dni = str(data.get("dni") or "").strip()
     otp = str(data.get("otp") or "").strip()
-    if not _DNI.fullmatch(dni) or not re.fullmatch(r"\\d{6}", otp):
+    if not _DNI.fullmatch(dni) or not re.fullmatch(r"\d{6}", otp):
         return _error(400, "DATOS_INVALIDOS", "DNI y código de seis dígitos son obligatorios.")
     accion = str(data.get("accion") or "consultar").strip().lower()
     if accion not in {"consultar", "agendar", "modificar", "cancelar"}:
