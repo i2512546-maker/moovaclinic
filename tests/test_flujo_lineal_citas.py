@@ -131,6 +131,7 @@ class FlujoLinealCitasTest(unittest.TestCase):
             "telefono": "999999999",
             "medico_id": "3",
             "fecha_cita": "2026-10-24",
+            "hora_cita": "09:00",
             "metodo_pago": "yape",
             "servicio_id": "2",
         }
@@ -185,6 +186,7 @@ class FlujoLinealCitasTest(unittest.TestCase):
             "telefono": "999999999",
             "medico_id": "3",
             "fecha_cita": "2026-10-24",
+            "hora_cita": "09:00",
             "metodo_pago": "yape",
             "servicio_id": "2",
         }
