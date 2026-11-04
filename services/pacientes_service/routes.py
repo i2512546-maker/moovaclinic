@@ -1,4 +1,5 @@
 import requests
+from concurrent.futures import ThreadPoolExecutor
 from flask import current_app, jsonify, request
 
 from services.pacientes_service import pacientes_bp
@@ -142,32 +143,41 @@ def detalle_paciente(dni):
 
     paciente_id = paciente["id"]
 
-    historial = []
-    try:
-        citas_data, _ = citas_client.get(f"/api/citas/paciente/{paciente_id}")
-        historial = citas_data.get("citas") or []
-    except Exception as exc:
-        # La ficha se responde igual; solo se pierde el historial.
-        current_app.logger.warning(
-            "No se pudo cargar el historial de citas del paciente %s: %s: %s",
-            paciente_id, type(exc).__name__, exc,
-        )
+    # Historial, pagos y catálogo de terapeutas son independientes.
+    # Ejecutarlos en paralelo evita sumar sus latencias a la apertura de ficha.
+    def _cargar_historial():
+        try:
+            data, _ = citas_client.get(f"/api/citas/paciente/{paciente_id}")
+            return data.get("citas") or []
+        except Exception as exc:
+            current_app.logger.warning(
+                "No se pudo cargar el historial de citas del paciente %s: %s: %s",
+                paciente_id, type(exc).__name__, exc,
+            )
+            return []
 
-    pagos = {}
-    try:
-        pagos_data, _ = pagos_client.get(f"/api/pagos/pacientes/{paciente_id}")
-        for pg in (pagos_data.get("pagos") or []):
-            if pg.get("cita_id") not in pagos:
-                pagos[pg["cita_id"]] = pg
-    except Exception as exc:
-        # Mismo criterio que arriba: la ficha no depende de los pagos
-        # para abrirse, solo para enriquecer el historial.
-        current_app.logger.warning(
-            "No se pudo cargar los pagos del paciente %s: %s: %s",
-            paciente_id, type(exc).__name__, exc,
-        )
+    def _cargar_pagos():
+        try:
+            data, _ = pagos_client.get(f"/api/pagos/pacientes/{paciente_id}")
+            resultado = {}
+            for pg in (data.get("pagos") or []):
+                if pg.get("cita_id") not in resultado:
+                    resultado[pg["cita_id"]] = pg
+            return resultado
+        except Exception as exc:
+            current_app.logger.warning(
+                "No se pudo cargar los pagos del paciente %s: %s: %s",
+                paciente_id, type(exc).__name__, exc,
+            )
+            return {}
 
-    mapa = _mapa_terapeutas()
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        futuro_historial = executor.submit(_cargar_historial)
+        futuro_pagos = executor.submit(_cargar_pagos)
+        futuro_terapeutas = executor.submit(_mapa_terapeutas)
+        historial = futuro_historial.result()
+        pagos = futuro_pagos.result()
+        mapa = futuro_terapeutas.result()
     for c in historial:
         te = mapa.get(c.get("terapeuta_id")) or {}
         c["terapeuta"] = te.get("terapeuta_nombre")
