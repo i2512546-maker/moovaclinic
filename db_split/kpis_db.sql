@@ -51,7 +51,7 @@ BEGIN
            COALESCE((
                SELECT SUM(monto) FROM moovacloud_pagos.pagos
                 WHERE estado_pago = 'pagado'
-                  AND DATE(fecha_pago) BETWEEN p_desde AND p_hasta
+                  AND fecha_pago >= p_desde AND fecha_pago < DATE_ADD(p_hasta, INTERVAL 1 DAY)
            ), 0) AS ingresos_confirmados,
            COALESCE((
                SELECT SUM(monto) FROM moovacloud_pagos.pagos
@@ -92,7 +92,7 @@ BEGIN
                          FROM moovacloud_pagos.pagos pg
                          JOIN moovacloud_citas.historial_citas hc ON hc.id = pg.cita_id
                         WHERE pg.estado_pago = 'pagado'
-                          AND DATE(pg.fecha_pago) BETWEEN p_desde AND p_hasta
+                          AND pg.fecha_pago >= p_desde AND pg.fecha_pago < DATE_ADD(p_hasta, INTERVAL 1 DAY)
                           AND hc.terapeuta_id = h.terapeuta_id
                    ), 0) AS ingresos
               FROM moovacloud_citas.historial_citas h
