@@ -192,17 +192,20 @@ document.addEventListener('DOMContentLoaded', function () {
             guardando = true;
             estado.textContent = 'Guardando cambios...';
             estado.classList.remove('text-danger', 'text-success');
+            var valorEnviado = textarea.value;
             try {
+                var datos = new FormData(form);
+                datos.set('descripcion', valorEnviado);
                 var respuesta = await fetch(form.action, {
                     method: 'POST',
-                    body: new FormData(form),
+                    body: datos,
                     headers: { 'X-Requested-With': 'XMLHttpRequest' }
                 });
                 var resultado = await respuesta.json();
                 if (!respuesta.ok || !resultado.success) {
                     throw new Error(resultado.error || 'No se pudo guardar');
                 }
-                ultimaGuardada = textarea.value;
+                ultimaGuardada = valorEnviado;
                 estado.textContent = 'Descripción guardada automáticamente';
                 estado.classList.add('text-success');
             } catch (error) {
@@ -210,6 +213,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 estado.classList.add('text-danger');
             } finally {
                 guardando = false;
+                if (textarea.value !== ultimaGuardada) {
+                    clearTimeout(temporizador);
+                    temporizador = setTimeout(guardar, 700);
+                }
             }
         }
 
