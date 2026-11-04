@@ -69,6 +69,38 @@ class ApiMovilTest(unittest.TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.get_json()["codigo"], "OTP_REQUERIDO")
 
+    def test_otp_no_autoriza_otra_accion(self):
+        from gateway.movil import _verificacion_serializer
+        sello = _verificacion_serializer().dumps({"dni": "12345678", "accion": "consultar"})
+        response = self.client.post(
+            "/api/movil/citas", json={"dni": "12345678"},
+            headers={"Authorization": f"Bearer {self.token()}",
+                     "X-Verificacion": sello},
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.get_json()["codigo"], "OTP_ACCION_INCORRECTA")
+
+    def test_paciente_no_puede_consultar_otro_dni(self):
+        from gateway.movil import _verificacion_serializer
+        sello = _verificacion_serializer().dumps({"dni": "12345678", "accion": "consultar"})
+        response = self.client.get(
+            "/api/movil/pacientes/87654321",
+            headers={"X-Verificacion": sello},
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.get_json()["codigo"], "PACIENTE_NO_AUTORIZADO")
+
+    def test_otp_solicitud_reenvia_accion_y_telefono(self):
+        with patch("gateway.movil.citas_client.post",
+                   return_value=({"success": True, "tel_mask": "987***321"}, 200)) as llamada:
+            response = self.client.post(
+                "/api/movil/auth/otp/solicitar",
+                json={"dni": "12345678", "accion": "agendar", "telefono": "987654321"},
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(llamada.call_args.args[1]["accion"], "agendar")
+        self.assertEqual(llamada.call_args.args[1]["telefono"], "987654321")
+
     def test_otp_verificacion_genera_sello_de_accion(self):
         with patch("gateway.movil.citas_client.post",
                    return_value=({"resultado": "ok"}, 200)):
