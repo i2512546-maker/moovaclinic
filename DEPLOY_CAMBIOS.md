@@ -15,6 +15,7 @@ sobre la base configurada en `DB_NAME`, antes de desplegar el código:
 |---|---|
 | `db_split/migraciones/2026-11-03_optimizar_agenda_panel.sql` | Índice y procedimientos para agenda y resumen diario |
 | `db_split/migraciones/2026-11-03_disponibilidad_citas_rango.sql` | Consulta de disponibilidad por terapeuta y rango en una sola llamada |
+| `db_split/migraciones/2026-11-04_indices_rendimiento.sql` | Índice compuesto `(terapeuta_id, fecha_cita)` y garantía del índice `pagos.fecha_pago` |
 | `db_split/migraciones/2026-11-04_kpis_fecha_pago_sargable.sql` | Filtros de fecha de pago compatibles con el índice `idx_fecha` |
 
 Ejemplo (reemplaza el nombre por el valor real de `DB_NAME`):
@@ -22,6 +23,7 @@ Ejemplo (reemplaza el nombre por el valor real de `DB_NAME`):
 ```bash
 mysql -u USUARIO -p moovacloud_database < db_split/migraciones/2026-11-03_optimizar_agenda_panel.sql
 mysql -u USUARIO -p moovacloud_database < db_split/migraciones/2026-11-03_disponibilidad_citas_rango.sql
+mysql -u USUARIO -p moovacloud_database < db_split/migraciones/2026-11-04_indices_rendimiento.sql
 mysql -u USUARIO -p moovacloud_database < db_split/migraciones/2026-11-04_kpis_fecha_pago_sargable.sql
 ```
 
