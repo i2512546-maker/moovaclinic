@@ -20,15 +20,16 @@ class DbDomainContextTest(unittest.TestCase):
         self.connection = Mock()
 
     def _database_used(self, db_name=None):
-        with patch(
-            "shared.db.mysql.connector.connect", return_value=self.connection
-        ) as connect:
+        pool = Mock()
+        pool.get_connection.return_value = self.connection
+        with patch("shared.db._pool_para", return_value=pool) as pool_para:
             get_connection(db_name=db_name)
-        return connect.call_args.kwargs["database"]
+        pool_para.assert_called_once_with(db_name or DB_NAME)
+        return pool_para.call_args.args[0]
 
     def test_contexto_selecciona_base_del_dominio(self):
         with dominio("citas"):
-            self.assertEqual(self._database_used(), "moovacloud_citas")
+            self.assertEqual(self._database_used(), DB_NAME)
 
     def test_argumento_explicito_prevalece_sobre_dominio(self):
         with dominio("citas"):
@@ -38,7 +39,7 @@ class DbDomainContextTest(unittest.TestCase):
 
     def test_contexto_se_restaura_al_salir(self):
         with dominio("pagos"):
-            self.assertEqual(self._database_used(), "moovacloud_pagos")
+            self.assertEqual(self._database_used(), DB_NAME)
         self.assertEqual(self._database_used(), DB_NAME)
 
     def test_rechaza_dominio_desconocido(self):
@@ -57,12 +58,12 @@ class DbDomainContextTest(unittest.TestCase):
 
         app = create_app()
         blueprints = (
-            (auth_bp, "auth", AUTH_DB_NAME),
-            (pacientes_bp, "pacientes", PACIENTES_DB_NAME),
-            (citas_bp, "citas", CITAS_DB_NAME),
-            (pagos_bp, "pagos", PAGOS_DB_NAME),
-            (notas_bp, "notas", NOTAS_DB_NAME),
-            (audit_bp, "audit", AUDIT_DB_NAME),
+            (auth_bp, "auth", DB_NAME),
+            (pacientes_bp, "pacientes", DB_NAME),
+            (citas_bp, "citas", DB_NAME),
+            (pagos_bp, "pagos", DB_NAME),
+            (notas_bp, "notas", DB_NAME),
+            (audit_bp, "audit", DB_NAME),
         )
 
         for blueprint, nombre, esperado in blueprints:
@@ -89,16 +90,14 @@ class DbDomainContextTest(unittest.TestCase):
         with app.test_request_context("/_internal/citas"):
             citas_bp.before_request_funcs[None][0]()
             try:
-                self.assertEqual(self._database_used(), CITAS_DB_NAME)
+                self.assertEqual(self._database_used(), DB_NAME)
                 with app.test_request_context("/_internal/pacientes"):
                     pacientes_bp.before_request_funcs[None][0]()
                     try:
-                        self.assertEqual(
-                            self._database_used(), PACIENTES_DB_NAME
-                        )
+                        self.assertEqual(self._database_used(), DB_NAME)
                     finally:
                         pacientes_bp.teardown_request_funcs[None][0](None)
-                self.assertEqual(self._database_used(), CITAS_DB_NAME)
+                self.assertEqual(self._database_used(), DB_NAME)
             finally:
                 citas_bp.teardown_request_funcs[None][0](None)
 
