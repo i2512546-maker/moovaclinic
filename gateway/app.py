@@ -338,7 +338,7 @@ def create_app():
     from services.notas_service import notas_bp
     from services.pacientes_service import pacientes_bp
     from services.pagos_service import pagos_bp
-    from shared.config import LIBERAR_VENCIDOS_ENABLED, RECORDATORIOS_ENABLED
+    from shared.config import AUTO_CIERRE_CITAS_ENABLED, LIBERAR_VENCIDOS_ENABLED, RECORDATORIOS_ENABLED
     from shared.db import dominio
     from shared.service_auth import proteger_api_interna
 
@@ -358,7 +358,7 @@ def create_app():
     proteger_api_interna(app, prefijo="/_internal")
     set_internal_app(app)
 
-    if RECORDATORIOS_ENABLED == "1" or LIBERAR_VENCIDOS_ENABLED:
+    if RECORDATORIOS_ENABLED == "1" or LIBERAR_VENCIDOS_ENABLED or AUTO_CIERRE_CITAS_ENABLED:
         try:
             from services.citas_service.scheduler import iniciar_scheduler
 
