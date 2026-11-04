@@ -165,6 +165,8 @@ pip install -r requirements.txt
 python -m unittest discover -s tests -p "test_api_movil.py" -v
 python -m unittest discover -s tests -p "test_otp_agendar.py" -v
 ruff check gateway/movil.py gateway/app.py tests/test_api_movil.py tests/test_otp_agendar.py
+python -m pip install pip-audit
+pip-audit -r requirements.txt
 ```
 
 Los tests cubren rechazo de cookie, ausencia de Bearer, JWT vencido,

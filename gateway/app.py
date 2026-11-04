@@ -336,7 +336,7 @@ def create_app():
         or os.getenv("RENDER", "").strip().lower() == "true"
     )
     if entorno_produccion and (
-        not jwt_secret or jwt_secret == secret_key or len(jwt_secret) < 32
+        not jwt_secret or jwt_secret == secret_key or len(jwt_secret.encode("utf-8")) < 32
     ):
         raise RuntimeError(
             "En producción JWT_SECRET es obligatoria, debe tener al menos 32 caracteres "
