@@ -1322,17 +1322,18 @@ def solicitar_otp():
     if not pac_data or not paciente:
         return jsonify({"error": "No se encontraron citas programadas para ese DNI."}), 404
 
-    if accion == "tratamiento":
+    if accion in ("tratamiento", "consultar"):
         # Continuar tratamiento tambien debe estar disponible para pacientes
         # que ya tienen citas registradas pero aun no cuentan con un paquete
         # de sesiones. La pantalla mostrara su historial y un cronograma
         # propuesto (sin presentarlo como citas ya confirmadas).
         try:
             paq_data, _ = pagos_client.get(f"/api/pagos/pacientes/{paciente['id']}/paquetes")
+            paquetes_paciente = (paq_data or {}).get("paquetes") or []
             tiene_paquete_activo = any(
                 p.get("estado") == "activo"
                 and int(p.get("sesiones_usadas") or 0) < int(p.get("total_sesiones") or 0)
-                for p in ((paq_data or {}).get("paquetes") or [])
+                for p in paquetes_paciente
             )
         except Exception:
             tiene_paquete_activo = False
@@ -1347,9 +1348,16 @@ def solicitar_otp():
             evaluaciones = (eval_data or {}).get("evaluaciones") or [] if eval_status == 200 else []
         except Exception:
             evaluaciones = []
-        if not (tiene_paquete_activo or citas_paciente or evaluaciones):
+        tiene_historial = bool(paquetes_paciente or citas_paciente or evaluaciones)
+        if accion == "tratamiento" and not (
+            tiene_paquete_activo or citas_paciente or evaluaciones
+        ):
             return jsonify({
                 "error": "No encontramos citas, evaluaciones ni tratamientos asociados a ese DNI."
+            }), 404
+        if accion == "consultar" and not tiene_historial:
+            return jsonify({
+                "error": "No encontramos citas ni tratamientos asociados a ese DNI."
             }), 404
     else:
         if not call_proc_one("sp_existe_cita_programada_paciente", (paciente["id"],)):
@@ -1369,6 +1377,7 @@ def solicitar_otp():
         "modificar": "modificar tu cita",
         "cancelar": "cancelar tu cita",
         "tratamiento": "continuar tu tratamiento",
+        "consultar": "consultar tu historial de citas",
     }.get(accion, "continuar tu tratamiento")
     mensaje = f"MOOVA Clinic: Tu codigo para {verbo} es {codigo}. Valido por {OTP_EXPIRA_MIN} min."
     enviado = _enviar_sms(paciente["telefono"], mensaje)
