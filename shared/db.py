@@ -4,7 +4,6 @@ import threading
 from contextlib import contextmanager
 from contextvars import ContextVar
 
-import mysql.connector
 from flask import request
 from mysql.connector.pooling import MySQLConnectionPool
 
