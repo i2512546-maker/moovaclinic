@@ -121,14 +121,17 @@
                             </td>
                             <td>
                                 {% if p.estado not in ('cancelada', 'no_asistio') %}
-                                <form method="POST" action="{{ url_for('guardar_descripcion') }}" class="d-flex align-items-start gap-2">
+                                <form method="POST" action="{{ url_for('guardar_descripcion') }}" class="d-flex flex-column gap-2 nota-sesion-form" data-autosave-form>
                                     <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
                                     <input type="hidden" name="historial_id" value="{{ p.historial_id }}">
                                     <input type="hidden" name="fecha" value="{{ fecha_actual }}">
-                                    <textarea name="descripcion" placeholder="Notas..." rows="2" class="form-control form-control-sm">{{ p.descripcion or '' }}</textarea>
-                                    <button type="submit" class="btn btn-moova btn-sm d-inline-flex align-items-center gap-1">
-                                        <i class="bi bi-save"></i> Guardar
-                                    </button>
+                                    <textarea name="descripcion" placeholder="Escribe aquí las notas de la sesión..." rows="3" class="form-control form-control-sm" data-autosave-textarea>{{ p.descripcion or '' }}</textarea>
+                                    <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                                        <small class="text-muted nota-estado" aria-live="polite">Guardado automático activado</small>
+                                        <button type="submit" class="btn btn-moova btn-sm d-inline-flex align-items-center gap-1">
+                                            <i class="bi bi-pencil-square"></i> Actualizar descripción
+                                        </button>
+                                    </div>
                                 </form>
                                 {% if es_hoy or es_pasado %}
                                 <form method="POST" action="{{ url_for('marcar_no_asistio_gateway', cita_id=p.historial_id) }}" class="mt-2">
@@ -163,17 +166,73 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     var toggle = document.getElementById('toggleCanceladas');
-    if (!toggle) return;
-    function aplicar() {
-        document.querySelectorAll('tr.cita-row').forEach(function (tr) {
-            var est = tr.getAttribute('data-estado');
-            if (est === 'cancelada' || est === 'no_asistio') {
-                tr.style.display = toggle.checked ? '' : 'none';
-            }
-        });
+    if (toggle) {
+        function aplicar() {
+            document.querySelectorAll('tr.cita-row').forEach(function (tr) {
+                var est = tr.getAttribute('data-estado');
+                if (est === 'cancelada' || est === 'no_asistio') {
+                    tr.style.display = toggle.checked ? '' : 'none';
+                }
+            });
+        }
+        toggle.addEventListener('change', aplicar);
+        aplicar();
     }
-    toggle.addEventListener('change', aplicar);
-    aplicar();
+
+    document.querySelectorAll('[data-autosave-form]').forEach(function (form) {
+        var textarea = form.querySelector('[data-autosave-textarea]');
+        var estado = form.querySelector('.nota-estado');
+        var boton = form.querySelector('button[type="submit"]');
+        var temporizador = null;
+        var ultimaGuardada = textarea.value;
+        var guardando = false;
+
+        async function guardar() {
+            if (guardando || textarea.value === ultimaGuardada) return;
+            guardando = true;
+            estado.textContent = 'Guardando cambios...';
+            estado.classList.remove('text-danger', 'text-success');
+            try {
+                var respuesta = await fetch(form.action, {
+                    method: 'POST',
+                    body: new FormData(form),
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                var resultado = await respuesta.json();
+                if (!respuesta.ok || !resultado.success) {
+                    throw new Error(resultado.error || 'No se pudo guardar');
+                }
+                ultimaGuardada = textarea.value;
+                estado.textContent = 'Descripción guardada automáticamente';
+                estado.classList.add('text-success');
+            } catch (error) {
+                estado.textContent = 'No se pudo guardar. Pulsa «Actualizar descripción» para reintentar.';
+                estado.classList.add('text-danger');
+            } finally {
+                guardando = false;
+            }
+        }
+
+        textarea.addEventListener('input', function () {
+            estado.textContent = 'Cambios pendientes...';
+            estado.classList.remove('text-danger', 'text-success');
+            clearTimeout(temporizador);
+            temporizador = setTimeout(guardar, 700);
+        });
+
+        form.addEventListener('submit', async function (event) {
+            event.preventDefault();
+            clearTimeout(temporizador);
+            if (guardando) return;
+            if (textarea.value === ultimaGuardada) {
+                estado.textContent = 'La descripción ya está actualizada';
+                return;
+            }
+            boton.disabled = true;
+            await guardar();
+            boton.disabled = false;
+        });
+    });
 });
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
