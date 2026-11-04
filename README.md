@@ -28,10 +28,12 @@ separados.
                        + esquema moovacloud_kpis
 ```
 
-Cada módulo conserva su propio esquema MySQL. Son siete esquemas en total,
-incluido el esquema de KPIs. `shared/service_client.py` mantiene la interfaz
-de cliente entre módulos, pero despacha todas las llamadas dentro del mismo
-proceso, sin peticiones de red internas.
+Los módulos están separados por responsabilidad, pero el runtime actual
+conecta todos los dominios al esquema indicado por `DB_NAME` (por defecto
+`moovacloud_database`). `shared/service_client.py` despacha las llamadas
+entre módulos dentro del mismo proceso, sin peticiones de red internas.
+Los archivos `db_split/*.sql` conservan el diseño histórico de esquemas
+separados; no se deben importar en la instalación unificada actual.
 
 `services/*/` contiene los módulos de dominio y sus blueprints; `shared/`
 contiene configuración, acceso a BD por procedimientos, auditoría,
@@ -42,7 +44,7 @@ validación, fechas y el cliente interno.
 ## Requisitos
 
 - Python 3.11 (probado también en 3.12)
-- MySQL 8 con las 7 bases creadas desde `db_split/`
+- MySQL 8 con el esquema configurado en `DB_NAME` (por defecto `moovacloud_database`)
 - Docker, solo si se quiere levantar con `docker compose`
 
 ---
@@ -60,31 +62,33 @@ pip install -r requirements.txt
 
 ### 2. Bases de datos
 
-Cada `db_split/*.sql` crea su base y sus procedimientos. Son independientes,
-así que el orden no importa:
+El runtime actual usa un único esquema MySQL compartido por los módulos,
+configurado con `DB_NAME` (por defecto `moovacloud_database`). Las tablas
+deben estar previamente creadas en ese esquema. El archivo
+`database/moovaclinic_unificada.sql` instala procedimientos almacenados;
+**no crea tablas ni importa datos**.
+
+> **Importante:** `db_split/*.sql` son scripts del diseño anterior con siete
+> esquemas separados. No los importes en la instalación unificada: cada
+> archivo selecciona su propia base y la aplicación actual consulta `DB_NAME`.
+
+Para aplicar las optimizaciones de agenda y KPIs en una base ya provisionada:
 
 ```bash
-mysql -u USUARIO -p < db_split/auth_db.sql
-mysql -u USUARIO -p < db_split/pacientes_db.sql
-mysql -u USUARIO -p < db_split/citas_db.sql
-mysql -u USUARIO -p < db_split/pagos_db.sql
-mysql -u USUARIO -p < db_split/notas_db.sql
-mysql -u USUARIO -p < db_split/audit_db.sql
-mysql -u USUARIO -p < db_split/kpis_db.sql
+mysql -u USUARIO -p DB_NAME < db_split/migraciones/2026-11-03_optimizar_agenda_panel.sql
+mysql -u USUARIO -p DB_NAME < db_split/migraciones/2026-11-03_disponibilidad_citas_rango.sql
+mysql -u USUARIO -p DB_NAME < db_split/migraciones/2026-11-04_kpis_fecha_pago_sargable.sql
 ```
 
-Después de crear las siete bases, aplica también la migración de disponibilidad optimizada:
+Sustituye `DB_NAME` por el valor real de la variable de entorno. La primera
+migración agrega procedimientos e índice para la agenda; la segunda consulta
+las horas ocupadas en una sola llamada; la tercera evita aplicar `DATE()`
+sobre la columna indexada `pagos.fecha_pago`, permitiendo que MySQL aproveche
+`idx_fecha`.
 
-```bash
-mysql -u USUARIO -p moovacloud_citas < db_split/migraciones/2026-11-03_disponibilidad_citas_rango.sql
-```
-
-Esta migración crea `sp_disponibilidad_citas_rango`, que consulta en una sola llamada
-las horas ocupadas de un terapeuta dentro de un rango de fechas. Es necesaria para
-la ruta de disponibilidad de citas en bases nuevas y existentes.
-
-Después de aplicar cambios en los `.sql`, hay que ejecutar la migración correspondiente;
-el proyecto usa procedimientos almacenados, no un ORM con migraciones.
+El repositorio no contiene un dump único de creación de todas las tablas para
+la instalación unificada. No ejecutes migraciones antiguas de `db_split/`
+sin comprobar antes su base destino y sus referencias entre esquemas.
 
 ### 3. Variables de entorno
 
