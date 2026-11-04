@@ -1,14 +1,13 @@
-# SQL del proyecto
+# Organización de SQL en MOOVA Clinic
 
-Esta carpeta centraliza los scripts SQL operativos del proyecto.
+## Fuentes vigentes
 
-## Estructura
+- `database/moovaclinic_unificada.sql`: definiciones de procedimientos para el esquema MySQL unificado. No crea tablas ni importa datos.
+- `db_split/migraciones/`: migraciones incrementales. Antes de ejecutarlas, confirma que la base destino coincide con la configuración `DB_NAME` y que el esquema ya contiene las tablas requeridas.
+- `db_split/*.sql`: scripts de bootstrap del diseño histórico de siete esquemas. No importarlos en la instalación unificada actual.
 
-- `core/` — scripts válidos y necesarios para el funcionamiento de la aplicación.
-- `legacy/` — scripts históricos, de migración o no activos; conservar solo como referencia.
+## Historial
 
-## Regla recomendada
-
-- Usar `core/` para entorno de desarrollo y producción.
-- Revisar `legacy/` solo si se necesita diagnosticar una migración antigua.
-- Evitar mezclar los scripts antiguos con la lógica viva de la app.
+Los scripts antiguos o destructivos se conservan en `legacy/` únicamente para
+consulta y recuperación de instalaciones anteriores. No son parte del flujo
+normal de despliegue.
