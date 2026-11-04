@@ -117,7 +117,7 @@ class TerapeutaAgendaSeguridadTest(unittest.TestCase):
         self.assertEqual(respuesta.status_code, 302)
         self.assertEqual(respuesta.headers["Location"], "/interfaz")
 
-    def test_terapeuta_puede_completar_su_cita(self):
+    def test_terapeuta_puede_actualizar_descripcion_sin_completar(self):
         self._sesion()
         cita = {"id": 5, "terapeuta_id": 101}
         with (
@@ -125,7 +125,7 @@ class TerapeutaAgendaSeguridadTest(unittest.TestCase):
                 "gateway.app.citas_client.get",
                 return_value=({"cita": cita}, 200),
             ),
-            patch("gateway.app.citas_client.put") as completar,
+            patch("gateway.app.citas_client.put") as actualizar,
             patch(
                 "gateway.app.pacientes_client.get",
                 side_effect=self._terapeutas,
@@ -134,25 +134,29 @@ class TerapeutaAgendaSeguridadTest(unittest.TestCase):
             respuesta = self.client.post(
                 "/guardar_descripcion",
                 data={"historial_id": "5", "descripcion": "Nota propia"},
+                headers={"X-Requested-With": "XMLHttpRequest"},
             )
 
-        self.assertEqual(respuesta.status_code, 302)
-        completar.assert_called_once_with(
-            "/api/citas/5/completar",
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.get_json(), {"success": True, "guardada": True})
+        actualizar.assert_called_once_with(
+            "/api/citas/5/descripcion",
             {"descripcion": "Nota propia"},
         )
 
-    def test_admin_puede_completar_cualquier_cita(self):
+    def test_admin_puede_actualizar_descripcion_sin_completar(self):
         self._sesion(rol="admin")
-        with patch("gateway.app.citas_client.put") as completar:
+        with patch("gateway.app.citas_client.put") as actualizar:
             respuesta = self.client.post(
                 "/guardar_descripcion",
                 data={"historial_id": "5", "descripcion": "Nota administrativa"},
+                headers={"X-Requested-With": "XMLHttpRequest"},
             )
 
-        self.assertEqual(respuesta.status_code, 302)
-        completar.assert_called_once_with(
-            "/api/citas/5/completar",
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.get_json(), {"success": True, "guardada": True})
+        actualizar.assert_called_once_with(
+            "/api/citas/5/descripcion",
             {"descripcion": "Nota administrativa"},
         )
 
