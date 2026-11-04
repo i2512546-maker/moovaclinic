@@ -329,8 +329,17 @@ def create_app():
     # Solo si se usa HTTPS en producción; en localhost http queda desactivado automaticamente
     if os.getenv("FLASK_ENV") == "production":
         app.config["SESSION_COOKIE_SECURE"] = True
+    jwt_secret = os.getenv("JWT_SECRET")
+    if os.getenv("FLASK_ENV") == "production":
+        if not jwt_secret or jwt_secret == secret_key:
+            raise RuntimeError("En producción JWT_SECRET es obligatoria y debe ser distinta de SECRET_KEY.")
+    app.config["JWT_SECRET"] = jwt_secret or (secret_key + "-solo-desarrollo-jwt")
     csrf.init_app(app)
     Compress(app)
+
+    from gateway.movil import movil_bp
+    csrf.exempt(movil_bp)
+    app.register_blueprint(movil_bp)
 
     from services.audit_service import audit_bp
     from services.auth_service import auth_bp
