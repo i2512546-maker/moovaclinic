@@ -191,9 +191,17 @@ class LoginRutaTest(unittest.TestCase):
         return falso
 
     def _intentar(self, correo="ana@moova.pe", clave="clave-mala", ip="203.0.113.5", **cabeceras):
+        # El gateway exige un nonce por pestaña emitido por GET /login.
+        self.client.get("/login")
+        with self.client.session_transaction() as sesion:
+            nonce = sesion.get("login_tab_nonce")
         return self.client.post(
             "/login",
-            data={"correo": correo, "clave": clave},
+            data={
+                "correo": correo,
+                "clave": clave,
+                "nonce_pestana": nonce,
+            },
             environ_base={"REMOTE_ADDR": ip},
             headers=cabeceras,
         )
