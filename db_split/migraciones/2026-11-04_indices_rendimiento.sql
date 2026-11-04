@@ -18,6 +18,22 @@ PREPARE stmt_idx_terapeuta_fecha FROM @sql_idx_terapeuta_fecha;
 EXECUTE stmt_idx_terapeuta_fecha;
 DEALLOCATE PREPARE stmt_idx_terapeuta_fecha;
 
+SET @existe_idx_terapeuta_estado_paciente = (
+    SELECT COUNT(*)
+    FROM information_schema.statistics
+    WHERE table_schema = DATABASE()
+      AND table_name = 'historial_citas'
+      AND index_name = 'idx_terapeuta_estado_paciente'
+);
+SET @sql_idx_terapeuta_estado_paciente = IF(
+    @existe_idx_terapeuta_estado_paciente = 0,
+    'ALTER TABLE historial_citas ADD INDEX idx_terapeuta_estado_paciente (terapeuta_id, estado, paciente_id)',
+    'SELECT 1'
+);
+PREPARE stmt_idx_terapeuta_estado_paciente FROM @sql_idx_terapeuta_estado_paciente;
+EXECUTE stmt_idx_terapeuta_estado_paciente;
+DEALLOCATE PREPARE stmt_idx_terapeuta_estado_paciente;
+
 SET @existe_idx_fecha_pago = (
     SELECT COUNT(*)
     FROM information_schema.statistics
