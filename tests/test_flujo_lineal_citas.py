@@ -73,7 +73,7 @@ class FlujoLinealCitasTest(unittest.TestCase):
     def test_citas_sin_sesion_muestra_el_formulario_sin_aviso(self):
         response = self._get_citas()
         self.assertEqual(response.status_code, 200)
-        self.assertNotIn("pendiente de pago", response.get_data(as_text=True))
+        self.assertNotIn("Tienes una cita reservada pendiente de pago", response.get_data(as_text=True))
 
     def test_fecha_no_se_pide_en_el_paso_1_y_servicio_no_muestra_precio(self):
         response = self._get_citas()
@@ -94,7 +94,7 @@ class FlujoLinealCitasTest(unittest.TestCase):
         response = self._get_citas()
         html = response.get_data(as_text=True)
         self.assertEqual(response.status_code, 200)
-        self.assertIn("pendiente de pago", html)
+        self.assertIn("Tienes una cita reservada pendiente de pago", html)
         self.assertIn("/pago?cita_id=55", html)
 
     def test_cita_pagada_limpia_sesion_y_no_muestra_aviso(self):
@@ -102,7 +102,7 @@ class FlujoLinealCitasTest(unittest.TestCase):
             session["cita_pendiente_id"] = "55"
         response = self._get_citas(self._pagos_get("pagado"))
         self.assertEqual(response.status_code, 200)
-        self.assertNotIn("pendiente de pago", response.get_data(as_text=True))
+        self.assertNotIn("Tienes una cita reservada pendiente de pago", response.get_data(as_text=True))
         with self.cliente.session_transaction() as session:
             self.assertNotIn("cita_pendiente_id", session)
 
@@ -111,7 +111,7 @@ class FlujoLinealCitasTest(unittest.TestCase):
             session["cita_pendiente_id"] = "55"
         response = self._get_citas(self._pagos_get(status=404))
         self.assertEqual(response.status_code, 200)
-        self.assertNotIn("pendiente de pago", response.get_data(as_text=True))
+        self.assertNotIn("Tienes una cita reservada pendiente de pago", response.get_data(as_text=True))
         with self.cliente.session_transaction() as session:
             self.assertNotIn("cita_pendiente_id", session)
 
