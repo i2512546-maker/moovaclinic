@@ -69,7 +69,9 @@ def _mapa_pacientes(timeout=None):
     encadenar esperas largas dentro de un DELETE/PUT."""
     try:
         kwargs = {"timeout": timeout} if timeout else {}
-        data, _ = pacientes_client.get("/api/pacientes", **kwargs)
+        data, _ = pacientes_client.get(
+            "/api/pacientes", params={"incluir_resumen": "0"}, **kwargs
+        )
         pacientes = data.get("pacientes") or []
         return {p["id"]: p for p in pacientes}
     except Exception:
