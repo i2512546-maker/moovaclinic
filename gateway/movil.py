@@ -331,17 +331,26 @@ def disponibilidad():
 @movil_bp.get("/citas")
 @requiere_auth("admin", "terapeuta")
 def listar_citas():
-    return _proxy(citas_client, "get", "/api/citas", params=request.args)
+    params = request.args.to_dict()
+    if request.identidad_movil["rol"] == "terapeuta":
+        terapeuta_id = _terapeuta_id_actual()
+        if not terapeuta_id:
+            return _error(403, "TERAPEUTA_NO_VINCULADO", "No se pudo vincular el usuario con su perfil de terapeuta.")
+        params["medico_id"] = terapeuta_id
+    return _proxy(citas_client, "get", "/api/citas", params=params)
 
 
 @movil_bp.get("/citas/<int:cita_id>")
 @requiere_auth("admin", "terapeuta")
 def detalle_cita(cita_id):
+    if not _cita_propia_terapeuta(cita_id):
+        return _error(403, "CITA_NO_AUTORIZADA", "Solo puedes consultar tus propias citas.")
     return _proxy(citas_client, "get", f"/api/citas/{cita_id}")
 
 
 @movil_bp.post("/citas")
-@requiere_auth("admin", "terapeuta")
+@requiere_auth("admin", "terapeuta", "paciente")
+@requiere_otp("agendar", validar_dni_cuerpo=True)
 def crear_cita():
     data = request.get_json(silent=True) or {}
     if not data:
@@ -359,14 +368,16 @@ def crear_cita():
 
 
 @movil_bp.put("/citas/<int:cita_id>")
-@requiere_auth("admin", "terapeuta")
+@requiere_auth("admin", "terapeuta", "paciente")
+@requiere_otp("modificar")
 def modificar_cita(cita_id):
     respuesta = _proxy(citas_client, "put", f"/api/citas/{cita_id}", request.get_json(silent=True))
     return _auditar_exito(respuesta, "modificar_cita_movil", "historial_citas", cita_id)
 
 
 @movil_bp.delete("/citas/<int:cita_id>")
-@requiere_auth("admin", "terapeuta")
+@requiere_auth("admin", "terapeuta", "paciente")
+@requiere_otp("cancelar")
 def cancelar_cita(cita_id):
     respuesta = _proxy(citas_client, "delete", f"/api/citas/{cita_id}")
     return _auditar_exito(respuesta, "cancelar_cita_movil", "historial_citas", cita_id)
@@ -467,7 +478,19 @@ def crear_anticipo():
 @movil_bp.get("/agenda")
 @requiere_auth("admin", "terapeuta")
 def agenda():
-    return _proxy(citas_client, "get", "/api/citas/agenda", params=request.args)
+    params = request.args.to_dict()
+    terapeuta_id = None
+    if request.identidad_movil["rol"] == "terapeuta":
+        terapeuta_id = _terapeuta_id_actual()
+        if not terapeuta_id:
+            return _error(403, "TERAPEUTA_NO_VINCULADO", "No se pudo vincular el usuario con su perfil de terapeuta.")
+    data, status = citas_client.get("/api/citas/agenda", params=params)
+    if status >= 400:
+        return _error(status, "AGENDA_NO_DISPONIBLE", (data or {}).get("error", "No se pudo consultar la agenda."))
+    citas = (data or {}).get("citas") or []
+    if terapeuta_id:
+        citas = [cita for cita in citas if str(cita.get("terapeuta_id")) == str(terapeuta_id)]
+    return _ok({**(data or {}), "citas": citas, "total": len(citas)})
 
 
 @movil_bp.get("/estadisticas")
