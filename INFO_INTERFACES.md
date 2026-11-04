@@ -143,14 +143,6 @@
   - `DELETE /api/citas/{cita_id}` (citas_service.cancelar_cita) → `sp_cancelar_cita(cita_id)`; POST a `/api/pagos/{cita_id}/cancelar` (pagos_service) para cancelar pago pendiente; log `cancelar_cita`.
 
 
-### 8. Consultar citas e historial del paciente
-- **Archivo/ruta:** `templates/consultar_citas.html`, ruta `/consultar-citas`.
-- **Rol:** Paciente sin cuenta de usuario; requiere DNI y confirmación por OTP enviado al teléfono registrado.
-- **Función:** Permite consultar citas históricas y próximas, estado y detalle de pago, paquetes/tratamientos adquiridos y evaluaciones registradas.
-- **Seguridad:** Cada consulta requiere un OTP de acción `consultar`; el sello de verificación queda asociado al DNI y vence según `OTP_SESION_MIN`. Sin verificación vigente, el endpoint no consulta ni renderiza datos personales.
-- **Interacciones:** Ingresar DNI de 8 dígitos, solicitar código SMS, confirmar el código de 6 dígitos y visualizar el historial. El acceso aparece en el desplegable Citas como «Consultar mis citas e historial».
-- **Servicios/endpoints:** `POST /api/citas/otp/solicitar` y `POST /api/citas/otp/verificar` con `accion=consultar`; `GET /api/pacientes/{dni}`; consulta de paquetes y evaluaciones por ID de paciente.
-
 ### 7. Tratamiento
 - **Archivo/ruta:** `templates/tratamiento.html`, ruta `/tratamiento`
 - **Rol:** Staff (requiere sesión; flujo de continuidad para paciente con paquete activo)
@@ -172,6 +164,15 @@
   - `POST /api/citas/otp/verificar (accion=tratamiento)` → mismo flujo que otros OTPs.
   - `POST /api/citas` (crear cita) → misma validación que agendar nueva cita, usando datos del paciente (nombre, apellido, dni, telefono) traídos de `session.tratamiento_paciente`.
   - `POST /api/pagos/paquetes/{paquete_id}/usar` (pagos_service.usar_sesion_paquete) → `sp_usar_sesion_paquete(paquete_id, cita_id)`; incrementa `sesiones_usadas` y registra log `usar_sesion_paquete`.
+
+### 8. Consultar citas e historial del paciente
+- **Archivo/ruta:** `templates/consultar_citas.html`, ruta `/consultar-citas`.
+- **Rol:** Paciente sin cuenta de usuario; requiere DNI y confirmación por OTP enviado al teléfono registrado.
+- **Función:** Permite consultar citas históricas y próximas, estado y detalle de pago, paquetes/tratamientos adquiridos y evaluaciones registradas.
+- **Seguridad:** Cada consulta requiere un OTP de acción `consultar`; el sello de verificación queda asociado al DNI y vence según `OTP_SESION_MIN`. Sin verificación vigente, el endpoint no consulta ni renderiza datos personales.
+- **Interacciones:** Ingresar DNI de 8 dígitos, solicitar código SMS, confirmar el código de 6 dígitos y visualizar el historial. El acceso aparece en el desplegable Citas como «Consultar mis citas e historial».
+- **Servicios/endpoints:** `POST /api/citas/otp/solicitar` y `POST /api/citas/otp/verificar` con `accion=consultar`; `GET /api/pacientes/{dni}`; consulta de paquetes y evaluaciones por ID de paciente.
+
 
 ### 8. Pago
 - **Archivo/ruta:** `templates/pago.html`, ruta `/pago?cita_id=X`
