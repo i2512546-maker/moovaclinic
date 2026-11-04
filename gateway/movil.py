@@ -297,7 +297,7 @@ def me():
                 "nombre": identidad.get("nombre")})
 
 
-# 20 operaciones de negocio expuestas con contrato JSON estable.
+# 22 operaciones de negocio expuestas con contrato JSON estable.
 @movil_bp.get("/catalogo/servicios")
 @requiere_auth("admin", "terapeuta", "paciente")
 def servicios():

@@ -69,6 +69,34 @@ class ApiMovilTest(unittest.TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.get_json()["codigo"], "OTP_REQUERIDO")
 
+    def test_modificar_cita_exige_otp(self):
+        response = self.client.put(
+            "/api/movil/citas/12", json={"fecha_cita": "2026-11-10"},
+            headers={"Authorization": f"Bearer {self.token()}"},
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.get_json()["codigo"], "OTP_REQUERIDO")
+
+    def test_cancelar_cita_exige_otp(self):
+        response = self.client.delete(
+            "/api/movil/citas/12",
+            headers={"Authorization": f"Bearer {self.token()}"},
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.get_json()["codigo"], "OTP_REQUERIDO")
+
+    def test_terapeuta_no_consulta_cita_ajena(self):
+        headers = {"Authorization": f"Bearer {self.token('terapeuta')}"}
+        with (
+            patch("gateway.movil.pacientes_client.get",
+                  return_value=({"terapeutas": [{"ID": 99, "usuario_id": 7}]}, 200)),
+            patch("gateway.movil.citas_client.get",
+                  return_value=({"cita": {"terapeuta_id": 100}}, 200)),
+        ):
+            response = self.client.get("/api/movil/citas/12", headers=headers)
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.get_json()["codigo"], "CITA_NO_AUTORIZADA")
+
     def test_otp_no_autoriza_otra_accion(self):
         from gateway.movil import _verificacion_serializer
         sello = _verificacion_serializer().dumps({"dni": "12345678", "accion": "consultar"})
