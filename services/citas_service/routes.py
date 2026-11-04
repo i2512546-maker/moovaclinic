@@ -303,33 +303,41 @@ def seguimiento_citas():
     if desde_dt > hasta_dt:
         return jsonify({"success": False, "error": "La fecha inicial no puede ser posterior a la final"}), 400
 
-    pacientes, terapeutas = _mapas_enriquecimiento()
-    citas = []
-    vistos = set()
-    for estado in ("cancelada", "no_asistio"):
-        filas = call_proc("sp_listar_citas", (estado, None, desde, None)) or []
-        for cita in filas:
-            _fmt_fecha(cita)
-            fecha = str(cita.get("fecha_cita") or "")[:10]
-            if not (desde <= fecha <= hasta):
-                continue
-            cita_id = cita.get("id") or cita.get("historial_id") or cita.get("cita_id")
-            clave = str(cita_id) if cita_id is not None else None
-            if clave is not None and clave in vistos:
-                continue
-            _enriquecer_cita(cita, pacientes, terapeutas)
-            cita["estado"] = estado
-            citas.append(cita)
-            if clave is not None:
-                vistos.add(clave)
+    try:
+        citas = call_proc("sp_listar_citas_seguimiento", (desde, hasta)) or []
+    except mysql.connector.Error as exc:
+        if getattr(exc, "errno", None) != 1305:
+            raise
+        # Compatibilidad temporal hasta aplicar la migración agrupada.
+        citas = []
+        for estado in ("cancelada", "no_asistio"):
+            filas = call_proc("sp_listar_citas", (estado, None, desde, None)) or []
+            citas.extend(
+                cita for cita in filas
+                if desde <= str(cita.get("fecha_cita") or "")[:10] <= hasta
+            )
 
-    citas.sort(key=lambda c: (str(c.get("fecha_cita") or ""), str(c.get("hora_cita") or "")))
+    pacientes, terapeutas = _mapas_enriquecimiento() if citas else ({}, {})
+    resultado = []
+    vistos = set()
+    for cita in citas:
+        _fmt_fecha(cita)
+        cita_id = cita.get("id") or cita.get("historial_id") or cita.get("cita_id")
+        clave = str(cita_id) if cita_id is not None else None
+        if clave is not None and clave in vistos:
+            continue
+        _enriquecer_cita(cita, pacientes, terapeutas)
+        if clave is not None:
+            vistos.add(clave)
+        resultado.append(cita)
+
+    resultado.sort(key=lambda c: (str(c.get("fecha_cita") or ""), str(c.get("hora_cita") or "")))
     return jsonify({
         "success": True,
-        "total": len(citas),
-        "canceladas": sum(1 for c in citas if c.get("estado") == "cancelada"),
-        "no_asistidos": sum(1 for c in citas if c.get("estado") == "no_asistio"),
-        "citas": citas,
+        "total": len(resultado),
+        "canceladas": sum(1 for c in resultado if c.get("estado") == "cancelada"),
+        "no_asistidos": sum(1 for c in resultado if c.get("estado") == "no_asistio"),
+        "citas": resultado,
     })
 
 
@@ -459,15 +467,22 @@ def listar_citas_paciente(paciente_id):
 @citas_bp.route("/api/citas/terapeuta/<int:terapeuta_id>/pacientes", methods=["GET"])
 def listar_pacientes_de_terapeuta(terapeuta_id):
     """IDs únicos de pacientes con historial asignado al terapeuta."""
-    estados = ("programada", "confirmada", "completada", "cancelada", "no_asistio")
-    paciente_ids = set()
-    for estado in estados:
-        filas = call_proc("sp_listar_citas", (estado, None, None, terapeuta_id)) or []
-        paciente_ids.update(
-            int(fila["paciente_id"])
-            for fila in filas
-            if fila.get("paciente_id") is not None
-        )
+    try:
+        filas = call_proc("sp_pacientes_ids_por_terapeuta", (terapeuta_id,)) or []
+    except mysql.connector.Error as exc:
+        if getattr(exc, "errno", None) != 1305:
+            raise
+        # Compatibilidad temporal hasta aplicar la migración agrupada.
+        filas = []
+        for estado in ("programada", "confirmada", "completada", "cancelada", "no_asistio"):
+            filas.extend(
+                call_proc("sp_listar_citas", (estado, None, None, terapeuta_id)) or []
+            )
+    paciente_ids = {
+        int(fila["paciente_id"])
+        for fila in filas
+        if fila.get("paciente_id") is not None
+    }
     return jsonify({"success": True, "paciente_ids": sorted(paciente_ids)})
 
 
