@@ -673,11 +673,14 @@ def create_app():
 
         if not es_admin:
             terapeuta_id = _terapeuta_id_de_sesion()
-            pacientes = [
-                cita for cita in pacientes
-                if terapeuta_id is not None
-                and str(cita.get("terapeuta_id")) == str(terapeuta_id)
-            ]
+            if terapeuta_id is None:
+                flash("Tu acceso fue reconocido, pero esta cuenta aún no está vinculada a una ficha de terapeuta. Solicita al administrador que revise el registro del médico.")
+                pacientes = []
+            else:
+                pacientes = [
+                    cita for cita in pacientes
+                    if str(cita.get("terapeuta_id")) == str(terapeuta_id)
+                ]
 
         return render_template(
             "interfaz.html", pacientes=pacientes,
