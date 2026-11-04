@@ -1406,3 +1406,65 @@ textarea::placeholder { color: #a8c2d6; }
         padding-inline: 24px;
     }
 }
+
+/* Panel admin: tabla de citas de hoy con contraste alto y legible. */
+.panel-citas-hoy .table {
+    --bs-table-color: #172b4d;
+    --bs-table-bg: #ffffff;
+    --bs-table-striped-color: #172b4d;
+    --bs-table-hover-color: #10243d;
+    color: #172b4d;
+}
+.panel-citas-hoy .table thead th {
+    color: #ffffff !important;
+    background: #1a3a5c !important;
+    font-weight: 700;
+}
+.panel-citas-hoy .table tbody td {
+    color: #172b4d !important;
+    background-color: #ffffff;
+    font-weight: 600;
+}
+.panel-citas-hoy .table-striped > tbody > tr:nth-of-type(odd) > * {
+    color: #172b4d !important;
+    --bs-table-striped-bg: #eef5fc;
+}
+.panel-citas-hoy .table tbody td .text-muted,
+.panel-citas-hoy .table tbody td .text-secondary {
+    color: #52677d !important;
+}
+.panel-citas-hoy .badge {
+    font-weight: 700;
+}
+.panel-citas-hoy .badge.text-bg-primary {
+    color: #ffffff !important;
+    background-color: #1456a0 !important;
+}
+.panel-citas-hoy .badge.text-bg-warning {
+    color: #382400 !important;
+    background-color: #ffdf75 !important;
+}
+.panel-citas-hoy .badge.text-bg-danger {
+    color: #ffffff !important;
+    background-color: #b42318 !important;
+}
+.panel-citas-hoy .btn-outline-danger {
+    color: #a61b1b !important;
+    border-color: #b42318 !important;
+    background: #ffffff;
+    font-weight: 700;
+}
+.panel-citas-hoy .btn-outline-danger:hover {
+    color: #ffffff !important;
+    background: #b42318 !important;
+}
+.panel-citas-hoy .btn-outline-secondary {
+    color: #34465a !important;
+    border-color: #64748b !important;
+    background: #ffffff;
+    font-weight: 700;
+}
+.panel-citas-hoy .btn-outline-secondary:hover {
+    color: #ffffff !important;
+    background: #34465a !important;
+}
