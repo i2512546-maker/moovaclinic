@@ -7,7 +7,7 @@
 - **Stack:** Flask 3.1.3, Python, seis módulos internos (auth, pacientes, citas, pagos, notas y auditoría), MySQL 8.0, mysql-connector-python 9.1.0, Bootstrap 5.3.3, HTML5, CSS3, JavaScript y plantillas Jinja2
 - **Arquitectura:** monolito modular; un solo proceso Flask en el gateway registra la interfaz web y los seis blueprints de dominio. Los módulos se llaman dentro del proceso bajo `/_internal`, no por HTTP entre procesos.
 - **Roles:** admin, terapeuta (personal staff), sin rol (público)
-- **Base de datos:** siete esquemas MySQL, uno por módulo/dominio (`moovacloud_auth`, `moovacloud_pacientes`, `moovacloud_citas`, `moovacloud_pagos`, `moovacloud_notas`, `moovacloud_auditoria` y `moovacloud_kpis`)
+- **Base de datos en el runtime actual:** un esquema MySQL compartido, configurado por `DB_NAME` (por defecto `moovacloud_database`). Los archivos `db_split/` conservan scripts del diseño anterior de siete esquemas y no describen la configuración activa.
 - **Endpoints API principal:** 24 rutas públicas y protegidas (`/api/auth/*`, `/api/citas/*`, `/api/pacientes/*`, `/api/pagos/*`, `/api/terapeutas/*`, `/api/servicios/*`, `/api/estadisticas`, `/api/kpis`, `/api/auditoria`, `/api/notas/*`, `/api/verificar_dni`)
 - **15 pantallas `.html`** definidas en `templates/`, con rutas Flask correspondientes en `gateway/app.py`
 
