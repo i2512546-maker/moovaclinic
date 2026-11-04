@@ -1367,39 +1367,52 @@ def create_app():
                 precio = request.form.get("precio", "").strip()
 
                 if nombre and especialidad and correo and clave:
-                    # Las consultas a auth y pacientes se despachan en
-                    # proceso. El hash de la clave lo hace el modulo auth.
                     existente, estatus = auth_client.get(f"/api/auth/usuarios/por-nombre/{nombre}")
                     if estatus == 200:
                         flash("Ya existe un terapeuta con ese nombre.")
                     else:
-                        try:
-                            precio_num = float(precio) if precio else None
-                        except ValueError:
-                            precio_num = None
-                        telefono = request.form.get("telefono", "").strip()
-
-                        creado, cstatus = auth_client.post("/api/auth/usuarios", {
-                            "nombre": nombre, "correo": correo,
-                            "clave": clave, "rol": "terapeuta", "telefono": telefono or None,
-                        })
-                        if cstatus not in (200, 201):
-                            flash(creado.get("error", "No se pudo crear el usuario."))
+                        # Verificar la especialidad ANTES de crear el usuario:
+                        # evita cuentas activas que luego no tienen ficha médica.
+                        esp, esp_status = pacientes_client.get(
+                            f"/api/especialidades/por-nombre/{especialidad}"
+                        )
+                        esp_id = (esp or {}).get("id") if esp_status == 200 else None
+                        if not esp_id:
+                            flash("No se encontró la especialidad. No se creó la cuenta del terapeuta.")
                         else:
-                            usuario_id = (creado or {}).get("usuario_id")
-                            esp, estatus = pacientes_client.get(f"/api/especialidades/por-nombre/{especialidad}")
-                            esp_id = (esp or {}).get("id") if estatus == 200 else None
-                            pacientes_client.post("/api/terapeutas", {
-                                "usuario_id": usuario_id, "especialidad_id": esp_id, "precio": precio_num,
+                            try:
+                                precio_num = float(precio) if precio else None
+                            except ValueError:
+                                precio_num = None
+                            telefono = request.form.get("telefono", "").strip()
+                            creado, cstatus = auth_client.post("/api/auth/usuarios", {
+                                "nombre": nombre, "correo": correo,
+                                "clave": clave, "rol": "terapeuta", "telefono": telefono or None,
                             })
-                            log_accion(
-                                usuario_id=session.get("usuario_id"),
-                                accion="crear_usuario",
-                                tabla_afectada="usuarios",
-                                registro_id=usuario_id,
-                                detalle=f"Terapeuta creado: nombre={nombre}, correo={correo}",
-                            )
-                            flash("exito:Terapeuta registrado correctamente.")
+                            if cstatus not in (200, 201):
+                                flash((creado or {}).get("error", "No se pudo crear el usuario."))
+                            else:
+                                usuario_id = (creado or {}).get("usuario_id")
+                                vinculado, vstatus = pacientes_client.post("/api/terapeutas", {
+                                    "usuario_id": usuario_id,
+                                    "especialidad_id": esp_id,
+                                    "precio": precio_num,
+                                })
+                                if vstatus not in (200, 201) or not (vinculado or {}).get("success"):
+                                    app.logger.error(
+                                        "Se creó el usuario terapeuta %s pero falló su ficha médica (HTTP %s): %s",
+                                        usuario_id, vstatus, (vinculado or {}).get("error"),
+                                    )
+                                    flash("La cuenta se creó, pero no se pudo vincular a su ficha médica. No podrá ver su agenda hasta corregir el vínculo.")
+                                else:
+                                    log_accion(
+                                        usuario_id=session.get("usuario_id"),
+                                        accion="crear_usuario",
+                                        tabla_afectada="usuarios",
+                                        registro_id=usuario_id,
+                                        detalle=f"Terapeuta creado: nombre={nombre}, correo={correo}",
+                                    )
+                                    flash("exito:Terapeuta registrado correctamente.")
                 else:
                     flash("Completa todos los campos.")
 
