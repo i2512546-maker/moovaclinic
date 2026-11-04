@@ -17,7 +17,7 @@ sobre la base configurada en `DB_NAME`, antes de desplegar el código:
 | `db_split/migraciones/2026-11-03_disponibilidad_citas_rango.sql` | Consulta de disponibilidad por terapeuta y rango en una sola llamada |
 | `db_split/migraciones/2026-11-04_indices_rendimiento.sql` | Índices compuestos para agenda por terapeuta/fecha y pacientes por terapeuta/estado, más índice `pagos.fecha_pago` |
 | `db_split/migraciones/2026-11-04_consultas_citas_agrupadas.sql` | Procedimientos para seguimiento semanal y pacientes por terapeuta en una consulta |
-| `db_split/migraciones/2026-11-04_kpis_fecha_pago_sargable.sql` | Filtros de fecha de pago compatibles con el índice `idx_fecha` |
+| `db_split/migraciones/2026-11-04_kpis_fecha_pago_sargable.sql` | Filtros de fecha de pago compatibles con el índice `idx_fecha` |\n| `db_split/migraciones/2026-11-04_autoguardado_notas_citas.sql` | Guardado independiente de notas y cierre automático diario de citas con descripción |
 
 Ejemplo (reemplaza el nombre por el valor real de `DB_NAME`):
 
@@ -26,7 +26,7 @@ mysql -u USUARIO -p moovacloud_database < db_split/migraciones/2026-11-03_optimi
 mysql -u USUARIO -p moovacloud_database < db_split/migraciones/2026-11-03_disponibilidad_citas_rango.sql
 mysql -u USUARIO -p moovacloud_database < db_split/migraciones/2026-11-04_indices_rendimiento.sql
 mysql -u USUARIO -p moovacloud_database < db_split/migraciones/2026-11-04_consultas_citas_agrupadas.sql
-mysql -u USUARIO -p moovacloud_database < db_split/migraciones/2026-11-04_kpis_fecha_pago_sargable.sql
+mysql -u USUARIO -p moovacloud_database < db_split/migraciones/2026-11-04_kpis_fecha_pago_sargable.sql\nmysql -u USUARIO -p moovacloud_database < db_split/migraciones/2026-11-04_autoguardado_notas_citas.sql
 ```
 
 El archivo `database/moovaclinic_unificada.sql` contiene definiciones de
@@ -96,7 +96,7 @@ con la nota `pago vencido` y reintenta si la llamada al servicio de citas
 falla. El script `scripts/liberar_pagos_vencidos.py` se conserva para
 ejecuciones manuales o instalaciones con un cron externo.
 
-## 4. Guardado automático de notas y cierre diario
+## 5. Guardado automático de notas y cierre diario
 
 Las notas de sesión se guardan como borrador mientras el terapeuta escribe;
 este guardado no cambia el estado de la cita. A las **23:59 (America/Lima)**
@@ -114,7 +114,7 @@ Mantén `AUTO_CIERRE_CITAS_ENABLED=1` en el entorno del gateway para activar
 el cierre diario. Si el scheduler no está ejecutándose, no se ejecutará el
 cierre automático.
 
-## 5. Frontend React
+## 6. Frontend React
 
 Los bundles compilados de `static/react/` están versionados; Render y Docker
 no necesitan Node para desplegar. Para modificar los paneles:
@@ -127,7 +127,7 @@ npm run build
 
 Después de recompilar, incluye los bundles actualizados en el cambio.
 
-## 6. Despliegue y verificación
+## 7. Despliegue y verificación
 
 1. Ejecuta las migraciones pendientes en sus respectivas bases.
 2. Despliega primero a un servicio de prueba con sus propias variables y
