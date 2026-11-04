@@ -56,6 +56,9 @@ Para responder “¿qué aportó técnicamente?”, explica el problema, la solu
 - **Automatización:** recordatorios y avisos por SMS cuando los servicios externos están configurados.
 - **Indicadores y reportes:** KPIs por rango de fechas, resumen por terapeuta y exportación de resultados.
 - **Mantenibilidad:** módulos separados por dominio, procedimientos almacenados, migraciones y pruebas automatizadas.
+- **Rendimiento de agenda:** consulta de disponibilidad en un solo procedimiento por terapeuta y rango, respaldada por el índice compuesto `(terapeuta_id, fecha_cita)`.
+- **Rendimiento de reportes:** filtros de pagos por intervalo semiabierto (`fecha_pago >= desde` y `fecha_pago < día_siguiente`) para permitir el uso del índice de fecha.
+- **Menos consultas internas:** el catálogo de pacientes puede omitirse el resumen agregado de citas cuando solo se usa para enriquecer una agenda.
 
 Menciona solo las funciones que estén activas y que puedas demostrar durante la sustentación. No afirmes mejoras porcentuales sin mediciones antes/después.
 
