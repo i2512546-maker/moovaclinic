@@ -82,9 +82,10 @@ mysql -u USUARIO -p DB_NAME < db_split/migraciones/2026-11-04_kpis_fecha_pago_sa
 ```
 
 Sustituye `DB_NAME` por el valor real de la variable de entorno. La primera
-migración agrega procedimientos e índice para la agenda; la segunda consulta
-las horas ocupadas en una sola llamada; la tercera evita aplicar `DATE()`
-sobre la columna indexada `pagos.fecha_pago`, permitiendo que MySQL aproveche
+migración agrega procedimientos e índice para el panel de agenda; la segunda
+consulta las horas ocupadas en una sola llamada; la tercera añade índices
+para agenda y pagos; la cuarta agrupa consultas de seguimiento; y la quinta
+evita aplicar `DATE()` sobre `pagos.fecha_pago`, para que MySQL pueda usar
 `idx_fecha`.
 
 El repositorio no contiene un dump único de creación de todas las tablas para
