@@ -159,6 +159,40 @@ class GuardiasDeLecturaTest(BaseOTP):
         paquetes.assert_not_called()
         self.assertFalse(self._pidio_datos_de(get, DNI_A))
 
+    def test_consultar_historial_sin_verificacion_no_muestra_datos(self):
+        with patch("gateway.app.pacientes_client.get") as get_paciente:
+            resp = self.client.get(
+                f"/consultar-citas?paso=historial&dni={DNI_A}"
+            )
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("/consultar-citas", resp.headers["Location"])
+        get_paciente.assert_not_called()
+
+    def test_consultar_historial_con_verificacion_muestra_citas(self):
+        self._sellar(DNI_A, "consultar")
+        with (
+            patch(
+                "gateway.app.pacientes_client.get",
+                return_value=({
+                    "paciente": {
+                        "id": 7, "dni": DNI_A,
+                        "nombre": "Paciente", "apellido": "Prueba",
+                    },
+                    "historial": [{
+                        "id": 11, "fecha_cita": "2026-11-03",
+                        "estado": "completada", "terapeuta": "Dra. Prueba",
+                    }],
+                }, 200),
+            ),
+            patch("gateway.app._cargar_anexos_paciente", return_value=([], [])),
+        ):
+            resp = self.client.get(
+                f"/consultar-citas?paso=historial&dni={DNI_A}"
+            )
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("Paciente Prueba", resp.get_data(as_text=True))
+        self.assertIn("Dra. Prueba", resp.get_data(as_text=True))
+
     def test_tratamiento_sin_paquetes_tambien_esta_protegido(self):
         ctx = self._contexto_citas()
         with ctx[0] as get, ctx[1], ctx[2], \
