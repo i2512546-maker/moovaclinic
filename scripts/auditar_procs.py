@@ -28,12 +28,16 @@ RE_LLAMADA = re.compile(r"""["'](sp_\w+)["']""")
 
 
 def procedimientos_definidos():
+    """Lee esquemas base y migraciones versionadas de db_split/."""
     definidos = set()
-    for f in sorted(os.listdir(DB_DIR)):
-        if not f.endswith(".sql"):
-            continue
-        txt = open(os.path.join(DB_DIR, f), encoding="utf-8", errors="replace").read()
-        definidos |= set(RE_DEFINE.findall(txt))
+    for root, dirs, files in os.walk(DB_DIR):
+        dirs.sort()
+        for nombre in sorted(files):
+            if not nombre.endswith(".sql"):
+                continue
+            ruta = os.path.join(root, nombre)
+            with open(ruta, encoding="utf-8", errors="replace") as archivo:
+                definidos |= set(RE_DEFINE.findall(archivo.read()))
     return definidos
 
 
