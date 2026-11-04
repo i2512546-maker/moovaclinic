@@ -124,6 +124,7 @@ ALTER TABLE `historial_citas`
   ADD KEY `persona_id` (`paciente_id`),
   ADD KEY `terapeuta_id` (`terapeuta_id`),
   ADD KEY `idx_fecha_cita` (`fecha_cita`),
+  ADD KEY `idx_terapeuta_fecha` (`terapeuta_id`,`fecha_cita`),
   ADD KEY `idx_estado_fecha_cita` (`estado`,`fecha_cita`),
   ADD KEY `fk_hc_servicio` (`servicio_id`);
 
