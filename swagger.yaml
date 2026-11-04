@@ -1262,6 +1262,26 @@ paths:
               success: { type: boolean, example: true }
               cita: { type: object }
 
+  /api/citas/{cita_id}/descripcion:
+    put:
+      tags: [citas]
+      summary: Guardar o actualizar notas de sesión sin completar la cita
+      parameters:
+        - name: cita_id
+          in: path
+          required: true
+          type: integer
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              descripcion: { type: string }
+      responses:
+        "200": { description: Descripción guardada sin cambiar el estado de la cita }
+        "404": { description: Cita no encontrada }
+
   /api/citas/{cita_id}/completar:
     put:
       tags: [citas]
