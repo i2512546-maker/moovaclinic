@@ -437,7 +437,12 @@ def estado_pago(cita_id):
 @movil_bp.post("/pagos/anticipo")
 @requiere_auth("admin", "terapeuta")
 def crear_anticipo():
-    return _proxy(pagos_client, "post", "/api/pagos/anticipo", request.get_json(silent=True))
+    data = request.get_json(silent=True) or {}
+    if request.identidad_movil["rol"] == "terapeuta":
+        cita_id = data.get("cita_id")
+        if not cita_id or not _cita_propia_terapeuta(cita_id):
+            return _error(403, "CITA_NO_AUTORIZADA", "Solo puedes gestionar anticipos de tus propias citas.")
+    return _proxy(pagos_client, "post", "/api/pagos/anticipo", data)
 
 
 @movil_bp.get("/agenda")
