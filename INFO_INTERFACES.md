@@ -277,8 +277,8 @@
   4. Enlace "Últimos 30 días" → autocompleta `desde = hoy - 30 días`, `hasta = hoy` y aplica.
 - **Navega a:** `/panel_admin`, `/panel_admin/auditoria`, `/logout`, `/index`
 - **Servicios/endpoints/tablas:** 
-  - `GET /api/kpis?desde=YYYY-MM-DD&hasta=YYYY-MM-DD` (citas_service.kpis_resumen) → valida formato y que `desde <= hasta`; llama a `call_proc_one("sp_kpis_resumen", (desde, hasta), db_name="moovacloud_kpis")` y `call_proc("sp_kpis_por_terapeuta", (desde, hasta), db_name="moovacloud_kpis")` o `[]`; devuelve `{"success":True,"resumen":{...},"por_terapeuta":[...]}`.
-  - SP `sp_kpis_resumen` y `sp_kpis_por_terapeuta` viven en `moovacloud_kpis` (`db_split/kpis_db.sql`) y son de reporte cross-DB: leen de las demás bases, no escriben.
+  - `GET /api/kpis?desde=YYYY-MM-DD&hasta=YYYY-MM-DD` (citas_service.kpis_resumen) → valida formato y que `desde <= hasta`; llama a `call_proc_one("sp_kpis_resumen", (desde, hasta), db_name=KPIS_DB_NAME (actualmente DB_NAME))` y `call_proc("sp_kpis_por_terapeuta", (desde, hasta), db_name=KPIS_DB_NAME (actualmente DB_NAME))` o `[]`; devuelve `{"success":True,"resumen":{...},"por_terapeuta":[...]}`.
+  - Los SP `sp_kpis_resumen` y `sp_kpis_por_terapeuta` viven en el esquema unificado configurado por `DB_NAME`; `db_split/kpis_db.sql` conserva la definición del diseño anterior.
 
 ### 13. Pacientes
 - **Archivo/ruta:** `templates/pacientes.html`, ruta `/pacientes`
@@ -334,13 +334,13 @@
   - Si no hay notas previas → mensaje "No hay notas clínicas registradas para esta cita."
 - **Interacciones del usuario:**
   1. **Crear nota:** POST `/api/notas/{cita_id}` con `{"nota": texto, "diagnostico": diag, "terapeuta_id": None, "paciente_id": cita.paciente_id}` (notas_service.crear_nota). Si éxito → flash `exito:Nota clínica guardada.` y vuelve a renderizar la lista.
-  2. **Listar notas previas:** GET `/api/notas/{cita_id}` (notas_service.listar_notas) → `call_proc("sp_listar_notas", (cita_id), db_name="moovacloud_notas")`; enriquece `autor` desde `_mapa_terapeutas()` (pacientes_service).
+  2. **Listar notas previas:** GET `/api/notas/{cita_id}` (notas_service.listar_notas) → `call_proc("sp_listar_notas", (cita_id), db_name=NOTAS_DB_NAME (actualmente DB_NAME))`; enriquece `autor` desde `_mapa_terapeutas()` (pacientes_service).
   3. Si el campo `nota` está vacío → error `La nota no puede estar vacia.` devuelto por `POST /api/notas/{cita_id}`.
 - **Navega a:** `/pacientes/{dni}`, `/index`, `/logout`
 - **Servicios/endpoints/tablas:** 
-  - `GET /api/notas/{cita_id}` (notas_service.listar_notas) → `call_proc("sp_listar_notas", (cita_id), db_name="moovacloud_notas")`; enriquece `autor` name from terapeutas.
-  - `POST /api/notas/{cita_id}` (notas_service.crear_nota) → `call_proc_one("sp_crear_nota", (cita_id, paciente_id, terapeuta_id, nota, diagnostico), db_name="moovacloud_notas")`; devuelve `nota_id`.
-  - `sp_listar_notas` y `sp_crear_nota` operan sobre la base `moovacloud_notas` (separada de las 7 DBs principales).
+  - `GET /api/notas/{cita_id}` (notas_service.listar_notas) → `call_proc("sp_listar_notas", (cita_id), db_name=NOTAS_DB_NAME (actualmente DB_NAME))`; enriquece `autor` name from terapeutas.
+  - `POST /api/notas/{cita_id}` (notas_service.crear_nota) → `call_proc_one("sp_crear_nota", (cita_id, paciente_id, terapeuta_id, nota, diagnostico), db_name=NOTAS_DB_NAME (actualmente DB_NAME))`; devuelve `nota_id`.
+  - `sp_listar_notas` y `sp_crear_nota` operan sobre el esquema compartido configurado por `DB_NAME`.
 
 ---
 
@@ -399,14 +399,14 @@ La aplicación se despliega como un único proceso Flask/Gunicorn. El gateway
 sirve las páginas y registra bajo `/_internal` los seis módulos de dominio:
 auth, pacientes, citas, pagos, notas y auditoría. Las rutas internas no se
 exponen directamente al público; el `ServiceClient` las despacha en proceso
-y cada módulo conserva sus propias rutas, lógica y esquema MySQL. El esquema
-`moovacloud_kpis` se mantiene para reportes.
+y cada módulo conserva sus propias rutas y lógica. Todos los dominios usan
+el esquema MySQL compartido indicado por `DB_NAME`.
 
 ---
 
 ## 5. Conclusión
 
-MOOVA Clinic es un monolito modular: un proceso Flask en el gateway registra seis módulos de dominio, cuyas rutas se invocan internamente bajo `/_internal`. Cada módulo conserva su lógica y su esquema MySQL; en total se usan siete esquemas, incluido el de KPIs. El flujo de usuario cubre el ciclo de vida de una cita, desde la página pública y la autenticación del personal hasta la agendación, el pago y la gestión administrativa. Las pantallas usan Bootstrap y JavaScript, y la lógica de datos opera mediante endpoints internos y procedimientos almacenados. Para producción se deben configurar las credenciales reales de APIPERU, TextBee y las pasarelas de pago.
+MOOVA Clinic es un monolito modular: un proceso Flask en el gateway registra seis módulos de dominio, cuyas rutas se invocan internamente bajo `/_internal`. Cada módulo conserva su lógica y usa el esquema MySQL compartido indicado por `DB_NAME`. El flujo de usuario cubre el ciclo de vida de una cita, desde la página pública y la autenticación del personal hasta la agendación, el pago y la gestión administrativa. Las pantallas usan Bootstrap y JavaScript, y la lógica de datos opera mediante endpoints internos y procedimientos almacenados. Para producción se deben configurar las credenciales reales de APIPERU, TextBee y las pasarelas de pago.
 
 ---
 
