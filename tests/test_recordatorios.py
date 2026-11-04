@@ -253,17 +253,27 @@ class SchedulerTest(unittest.TestCase):
         self.release_config_patch = patch(
             "shared.config.LIBERAR_VENCIDOS_ENABLED", False
         )
+        self.auto_close_config_patch = patch(
+            "shared.config.AUTO_CIERRE_CITAS_ENABLED", False
+        )
+        self.auto_close_scheduler_patch = patch.object(
+            sch, "AUTO_CIERRE_CITAS_ENABLED", False
+        )
         self.release_scheduler_patch = patch.object(
             sch, "LIBERAR_VENCIDOS_ENABLED", False
         )
         self.release_config_patch.start()
         self.release_scheduler_patch.start()
+        self.auto_close_config_patch.start()
+        self.auto_close_scheduler_patch.start()
         self.app = crear_gateway_app()
 
     def tearDown(self):
         sch.detener_scheduler()
         self.release_config_patch.stop()
         self.release_scheduler_patch.stop()
+        self.auto_close_config_patch.stop()
+        self.auto_close_scheduler_patch.stop()
 
     def test_create_app_no_inicia_el_planificador_por_defecto(self):
         # RECORDATORIOS_ENABLED=0 (default): no debe arrancar nada.
