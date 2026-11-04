@@ -224,7 +224,7 @@ def solicitar_otp_paciente():
         return _error(400, "DNI_INVALIDO", "El DNI debe contener ocho dígitos.")
     if _OTP_LIMIT.bloqueado(claves)[0]:
         return _error(429, "DEMASIADOS_INTENTOS", "Demasiadas solicitudes OTP.")
-    resultado, status = citas_client.post("/api/citas/otp/solicitar", {"dni": dni, "accion": accion})
+    resultado, status = citas_client.post("/api/citas/otp/solicitar", {"dni": dni, "accion": accion, "telefono": data.get("telefono")})
     if status >= 400:
         _OTP_LIMIT.registrar_fallo(claves)
         return _error(status, "OTP_NO_ENVIADO", (resultado or {}).get("error", "No se pudo enviar el código."))
@@ -309,6 +309,8 @@ def crear_cita():
     data = request.get_json(silent=True) or {}
     if not data:
         return _error(400, "JSON_REQUERIDO", "Se requiere un objeto JSON.")
+    if request.identidad_movil["rol"] == "paciente" and request.identidad_movil["sub"] != str(data.get("dni") or "").strip():
+        return _error(403, "PACIENTE_NO_AUTORIZADO", "Solo puedes agendar para tu propio DNI.")
     respuesta = _proxy(citas_client, "post", "/api/citas", data)
     if isinstance(respuesta, tuple) and respuesta[1] == 200:
         log_accion(usuario_id=request.identidad_movil["sub"], accion="crear_cita",
