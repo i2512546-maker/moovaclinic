@@ -69,6 +69,8 @@ RECORDATORIO_INTERVALO_MIN = int(os.getenv("RECORDATORIO_INTERVALO_MIN", 15))
 
 # Liberación automática de citas cuyos pagos vencieron. Se ejecuta en
 # el scheduler del gateway, también cuando los recordatorios están apagados.
+AUTO_CIERRE_CITAS_ENABLED = os.getenv("AUTO_CIERRE_CITAS_ENABLED", "1").strip().lower() in ("1", "true", "yes", "on")
+
 LIBERAR_VENCIDOS_ENABLED = (
     os.getenv("LIBERAR_VENCIDOS_ENABLED", "1").strip().lower()
     in ("1", "true", "yes", "on")
