@@ -14,15 +14,15 @@ import logging
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers.background import BackgroundScheduler\nfrom apscheduler.triggers.cron import CronTrigger
 
 from shared.config import (
-    LIBERAR_VENCIDOS_ENABLED,
+    AUTO_CIERRE_CITAS_ENABLED,\n    LIBERAR_VENCIDOS_ENABLED,
     RECORDATORIO_HORA,
     RECORDATORIO_INTERVALO_MIN,
     RECORDATORIOS_ENABLED,
 )
-from shared.db import dominio
+from shared.db import dominio\nfrom shared.proc import call_proc_execute
 
 ZONA = ZoneInfo("America/Lima")
 
@@ -79,6 +79,21 @@ def _job_liberar_pagos_vencidos(app):
         )
 
 
+
+def _job_cierre_citas_dia(app):
+    """Completa al cierre de Lima las citas del día que ya tienen notas."""
+    fecha = datetime.now(ZONA).date()
+    try:
+        with app.app_context(), dominio("citas"):
+            call_proc_execute("sp_completar_citas_con_notas_del_dia", (fecha,))
+        app.logger.info("[cierre citas] procesado el día %s", fecha)
+    except Exception as exc:
+        app.logger.error(
+            "[cierre citas] fallo el job: %s: %s",
+            type(exc).__name__, exc,
+        )
+
+
 def iniciar_scheduler(app):
     """Arranca APScheduler si esta habilitado.
 
@@ -87,7 +102,7 @@ def iniciar_scheduler(app):
     """
     global _scheduler
 
-    if RECORDATORIOS_ENABLED != "1" and not LIBERAR_VENCIDOS_ENABLED:
+    if RECORDATORIOS_ENABLED != "1" and not LIBERAR_VENCIDOS_ENABLED and not AUTO_CIERRE_CITAS_ENABLED:
         app.logger.info(
             "[scheduler] recordatorios y liberacion de vencidos deshabilitados"
         )
@@ -116,6 +131,16 @@ def iniciar_scheduler(app):
             hours=1,
             args=[app],
             id="liberar_pagos_vencidos",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
+    if AUTO_CIERRE_CITAS_ENABLED:
+        scheduler.add_job(
+            _job_cierre_citas_dia,
+            trigger=CronTrigger(hour=23, minute=59, timezone=ZONA),
+            args=[app],
+            id="cierre_citas_dia",
             replace_existing=True,
             max_instances=1,
             coalesce=True,
