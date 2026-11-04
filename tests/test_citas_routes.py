@@ -76,6 +76,13 @@ class ListarCitasTest(unittest.TestCase):
         ]
 
         def fake_call_proc(nombre, params=(), **kwargs):
+            if nombre == "sp_listar_citas_seguimiento":
+                desde, hasta = map(date.fromisoformat, params)
+                return [
+                    dict(f) for f in filas
+                    if f["estado"] in ("cancelada", "no_asistio")
+                    and desde <= f["fecha_cita"] <= hasta
+                ]
             if nombre == "sp_listar_citas":
                 estado, _, desde, _ = params
                 return [dict(f) for f in filas if f["estado"] == estado and f["fecha_cita"] >= date.fromisoformat(str(desde))]
