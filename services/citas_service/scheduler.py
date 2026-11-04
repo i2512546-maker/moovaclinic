@@ -151,8 +151,8 @@ def iniciar_scheduler(app):
     scheduler.start()
     _scheduler = scheduler
     app.logger.info(
-        "[scheduler] iniciado (recordatorios=%s, liberar_vencidos=%s)",
-        RECORDATORIOS_ENABLED == "1", LIBERAR_VENCIDOS_ENABLED,
+        "[scheduler] iniciado (recordatorios=%s, liberar_vencidos=%s, cierre_citas=%s)",
+        RECORDATORIOS_ENABLED == "1", LIBERAR_VENCIDOS_ENABLED, AUTO_CIERRE_CITAS_ENABLED,
     )
     return scheduler
 
