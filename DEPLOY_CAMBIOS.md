@@ -2,36 +2,46 @@
 
 MOOVA Clinic se despliega como un monolito modular: un único servicio web
 `moova-gateway` ejecuta Flask/Gunicorn y registra los seis módulos internos
-bajo `/_internal`. Render también ejecuta un cron separado para liberar pagos
-vencidos. Las siete bases MySQL siguen siendo independientes; no se deben
-recrear ni combinar durante este despliegue.
+bajo `/_internal`. El runtime actual conecta todos los dominios al esquema
+MySQL indicado por `DB_NAME` (en `render.yaml`, `moovacloud_database`).
+Render también puede ejecutar tareas programadas para liberar pagos vencidos.
 
 ## 1. Migraciones de base de datos
 
-| Archivo de `db_split/migraciones/` | Base donde se ejecuta | Qué agrega |
-|---|---|---|
-| `2026-11-03_disponibilidad_citas_rango.sql` | `moovacloud_citas` | Consulta única e indexada de disponibilidad por terapeuta y rango de fechas |
+Para la instalación unificada actual, ejecuta las siguientes migraciones
+sobre la base configurada en `DB_NAME`, antes de desplegar el código:
 
+| Archivo | Qué agrega |
+|---|---|
+| `db_split/migraciones/2026-11-03_optimizar_agenda_panel.sql` | Índice y procedimientos para agenda y resumen diario |
+| `db_split/migraciones/2026-11-03_disponibilidad_citas_rango.sql` | Consulta de disponibilidad por terapeuta y rango en una sola llamada |
+| `db_split/migraciones/2026-11-04_kpis_fecha_pago_sargable.sql` | Filtros de fecha de pago compatibles con el índice `idx_fecha` |
 
-Ejecuta cada archivo en la base indicada, antes de desplegar el código. Estas
-migraciones actualizan procedimientos almacenados y no sustituyen la
-importación inicial de las bases.
+Ejemplo (reemplaza el nombre por el valor real de `DB_NAME`):
 
-| Archivo de `db_split/migraciones/` | Base donde se ejecuta | Qué agrega |
-|---|---|---|
-| `2026-10-18_recordatorios_citas.sql` | `moovacloud_citas` | Procedimientos de recordatorios SMS |
-| `2026-10-18_pacientes_en_riesgo.sql` | `moovacloud_citas` | Reporte de pacientes en riesgo |
-| `2026-10-18_telefono_usuarios.sql` | `moovacloud_auth` | Consulta y actualización del teléfono del usuario |
-| `2026-10-19_pagos_guardar_referencia.sql` | `moovacloud_pagos` | Guardado de referencia de pago pendiente |
-| `2026-10-26_liberar_pagos_y_cancelar_citas.sql` | `moovacloud_pagos` y `moovacloud_citas` | Expiración reintentable de pagos y cancelación de la cita programada |
+```bash
+mysql -u USUARIO -p moovacloud_database < db_split/migraciones/2026-11-03_optimizar_agenda_panel.sql
+mysql -u USUARIO -p moovacloud_database < db_split/migraciones/2026-11-03_disponibilidad_citas_rango.sql
+mysql -u USUARIO -p moovacloud_database < db_split/migraciones/2026-11-04_kpis_fecha_pago_sargable.sql
+```
 
-Para cada archivo: abre la base correspondiente en phpMyAdmin, entra a
-**SQL**, pega el contenido y ejecuta. No importes nuevamente todos los
-`db_split/*.sql` en una base existente. Comprueba el resultado con:
-`SHOW PROCEDURE STATUS WHERE Db = DATABASE();`.
+El archivo `database/moovaclinic_unificada.sql` contiene definiciones de
+procedimientos almacenados para el esquema unificado; no crea tablas ni
+importa datos. El repositorio no incluye un dump unificado completo de DDL,
+por lo que la base debe estar previamente provisionada.
 
-Las migraciones por base siguen igual aunque la aplicación se ejecute en un
-solo proceso: cada módulo mantiene su esquema y sus procedimientos.
+**No importes `db_split/*.sql` en la instalación unificada.** Esos archivos
+conservan el diseño anterior de siete esquemas independientes y contienen
+sentencias `CREATE DATABASE` / `USE`. Las migraciones antiguas que hacen
+referencia explícita a `moovacloud_auth`, `moovacloud_pagos` u otros esquemas
+solo corresponden a instalaciones que ya mantienen esa estructura; no las
+ejecutes contra `DB_NAME` sin adaptar y revisar sus referencias.
+
+Comprueba los procedimientos instalados con:
+
+```sql
+SHOW PROCEDURE STATUS WHERE Db = DATABASE();
+```
 
 ## 2. Servicio web, variables y recordatorios
 
