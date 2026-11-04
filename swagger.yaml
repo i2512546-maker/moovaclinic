@@ -617,7 +617,7 @@ paths:
   /api/citas/otp/solicitar:
     post:
       tags: [citas]
-      summary: Solicitar codigo OTP por SMS para modificar/cancelar
+      summary: Solicitar código OTP por SMS para modificar, cancelar, continuar tratamiento o consultar historial
       parameters:
         - name: body
           in: body
@@ -626,7 +626,7 @@ paths:
             type: object
             properties:
               dni: { type: string, example: "12345678" }
-              accion: { type: string, enum: ["modificar", "cancelar"], default: "modificar" }
+              accion: { type: string, enum: ["modificar", "cancelar", "tratamiento", "consultar"], default: "modificar" }
       responses:
         "200":
           description: OTP enviado
