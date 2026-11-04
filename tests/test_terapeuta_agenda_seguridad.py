@@ -125,7 +125,7 @@ class TerapeutaAgendaSeguridadTest(unittest.TestCase):
                 "gateway.app.citas_client.get",
                 return_value=({"cita": cita}, 200),
             ),
-            patch("gateway.app.citas_client.put") as actualizar,
+            patch("gateway.app.citas_client.put", return_value=({"success": True}, 200)) as actualizar,
             patch(
                 "gateway.app.pacientes_client.get",
                 side_effect=self._terapeutas,
@@ -146,7 +146,7 @@ class TerapeutaAgendaSeguridadTest(unittest.TestCase):
 
     def test_admin_puede_actualizar_descripcion_sin_completar(self):
         self._sesion(rol="admin")
-        with patch("gateway.app.citas_client.put") as actualizar:
+        with patch("gateway.app.citas_client.put", return_value=({"success": True}, 200)) as actualizar:
             respuesta = self.client.post(
                 "/guardar_descripcion",
                 data={"historial_id": "5", "descripcion": "Nota administrativa"},
