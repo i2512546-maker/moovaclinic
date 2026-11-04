@@ -96,6 +96,24 @@ con la nota `pago vencido` y reintenta si la llamada al servicio de citas
 falla. El script `scripts/liberar_pagos_vencidos.py` se conserva para
 ejecuciones manuales o instalaciones con un cron externo.
 
+## 4. Guardado automático de notas y cierre diario
+
+Las notas de sesión se guardan como borrador mientras el terapeuta escribe;
+este guardado no cambia el estado de la cita. A las **23:59 (America/Lima)**
+el scheduler marca como completadas las citas del día que tengan una
+descripción no vacía. Las citas sin notas, canceladas o no asistidas no se
+completan automáticamente.
+
+En instalaciones existentes, ejecutar una vez sobre `DB_NAME`:
+
+```bash
+mysql -u USUARIO -p DB_NAME < db_split/migraciones/2026-11-04_autoguardado_notas_citas.sql
+```
+
+Mantén `AUTO_CIERRE_CITAS_ENABLED=1` en el entorno del gateway para activar
+el cierre diario. Si el scheduler no está ejecutándose, no se ejecutará el
+cierre automático.
+
 ## 5. Frontend React
 
 Los bundles compilados de `static/react/` están versionados; Render y Docker
