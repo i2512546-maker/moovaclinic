@@ -114,7 +114,17 @@ class VerificarDniPublicoTest(unittest.TestCase):
         self.assertEqual(consulta.call_count, 5)
 
     def test_consulta_16_desde_la_misma_ip_devuelve_429(self):
-        respuesta_servicio = ({"success": True, "data": {}}, 200)
+        respuesta_servicio = (
+            {
+                "success": True,
+                "data": {
+                    "nombres": "JUAN",
+                    "apellido_paterno": "PEREZ",
+                    "apellido_materno": "RAMOS",
+                },
+            },
+            200,
+        )
         with patch(
             "gateway.app.pacientes_client.post",
             return_value=respuesta_servicio,
