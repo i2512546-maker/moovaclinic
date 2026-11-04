@@ -186,7 +186,10 @@ class PanelYDescripcionTest(unittest.TestCase):
                 patch.object(ga.citas_client, "get", side_effect=_citas):
             self.cliente.get("/panel_admin")
         # El dia 19 en Lima, no el 20 que es "hoy" en el servidor UTC.
-        self.assertEqual(pedidos, ["/api/citas?fecha=2026-10-19&estado=programada", "/api/citas?estado=cancelada", "/api/citas?estado=no_asistio"])
+        self.assertEqual(
+            pedidos,
+            ["/api/citas/resumen-panel?fecha=2026-10-19&desde=2026-09-19"],
+        )
 
     def test_guardar_descripcion_vuelve_al_dia_de_lima(self):
         self._entrar("admin")
