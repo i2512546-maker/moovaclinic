@@ -23,7 +23,7 @@ class VerificarDniPublicoTest(unittest.TestCase):
     def test_sin_sesion_devuelve_json_sin_redireccion(self):
         with patch(
             "gateway.app.pacientes_client.post",
-            return_value=({"success": True, "data": {"nombres": "JUAN"}}, 200),
+            return_value=({"success": True, "data": {"nombres": "JUAN", "apellido_paterno": "PEREZ", "apellido_materno": "RAMOS"}}, 200),
         ):
             respuesta = self._post(self.app.test_client())
 
@@ -47,8 +47,10 @@ class VerificarDniPublicoTest(unittest.TestCase):
             respuesta = self._post(self.app.test_client())
 
         self.assertEqual(respuesta.status_code, 200)
-        self.assertEqual(respuesta.get_json(), respuesta_servicio)
-        self.assertEqual(respuesta.get_json()["data"]["nombres"], "JUAN")
+        self.assertEqual(
+            respuesta.get_json(),
+            {"success": True, "nombres": "JUAN", "apellidos": "PEREZ RAMOS"},
+        )
 
     def test_refleja_respuesta_404_del_servicio(self):
         respuesta_servicio = {"success": False, "error": "DNI no encontrado"}
@@ -72,7 +74,10 @@ class VerificarDniPublicoTest(unittest.TestCase):
         self.assertEqual(respuesta.status_code, 502)
         self.assertEqual(
             respuesta.get_json(),
-            {"success": False, "error": "No se pudo consultar el DNI"},
+            {
+                "success": False,
+                "error": "No se pudo consultar APIPerú. Inténtalo nuevamente.",
+            },
         )
 
     def test_dni_invalido_devuelve_400_sin_consultar_servicio(self):
@@ -85,7 +90,17 @@ class VerificarDniPublicoTest(unittest.TestCase):
 
     def test_conserva_limite_de_cinco_consultas_por_sesion(self):
         cliente = self.app.test_client()
-        respuesta_servicio = ({"success": True, "data": {}}, 200)
+        respuesta_servicio = (
+            {
+                "success": True,
+                "data": {
+                    "nombres": "JUAN",
+                    "apellido_paterno": "PEREZ",
+                    "apellido_materno": "RAMOS",
+                },
+            },
+            200,
+        )
         with patch(
             "gateway.app.pacientes_client.post",
             return_value=respuesta_servicio,
