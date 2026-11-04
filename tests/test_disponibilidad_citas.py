@@ -18,34 +18,18 @@ class FechasOcupadasServiceTest(unittest.TestCase):
         self.headers = {"X-Api-Key": API_KEY} if API_KEY else {}
 
     def test_devuelve_horas_ocupadas_incluyendo_pendientes_de_pago(self):
-        def fake_call_proc(nombre, parametros):
-            estado, dni, desde, medico = parametros
-            self.assertEqual(nombre, "sp_listar_citas")
-            self.assertIsNone(dni)
-            self.assertEqual(desde, "2026-10-01")
-            self.assertEqual(medico, "12")
-            if estado == "programada":
-                return [
-                    {"fecha_cita": date(2026, 10, 8), "dni": "12345678",
-                     "nombre": "Paciente", "hora_cita": "09:00:00"},
-                    {"fecha_cita": date(2026, 10, 4), "telefono": "999999999",
-                     "hora_cita": "10:00:00"},
-                    {"fecha_cita": date(2026, 11, 1)},
-                ]
-            if estado == "confirmada":
-                return [
-                    {"fecha_cita": date(2026, 10, 8), "apellido": "Apellido",
-                     "hora_cita": "11:00:00"},
-                    {"fecha_cita": date(2026, 10, 6), "hora_cita": "09:00:00"},
-                ]
-            if estado == "pendiente_pago":
-                return [
-                    {"fecha_cita": date(2026, 10, 8), "hora_cita": "10:00:00"},
-                ]
-            self.fail(f"Estado no esperado: {estado}")
+        filas = [
+            {"fecha_cita": date(2026, 10, 8), "hora_cita": "09:00:00"},
+            {"fecha_cita": date(2026, 10, 4), "hora_cita": "10:00:00"},
+            {"fecha_cita": date(2026, 10, 8), "hora_cita": "11:00:00"},
+            {"fecha_cita": date(2026, 10, 6), "hora_cita": "09:00:00"},
+            {"fecha_cita": date(2026, 10, 8), "hora_cita": "10:00:00"},
+            # La API valida el rango en el borde, aunque el SP ya filtre fechas.
+            {"fecha_cita": date(2026, 11, 1), "hora_cita": "12:00:00"},
+        ]
 
         with patch(
-            "services.citas_service.routes.call_proc", side_effect=fake_call_proc
+            "services.citas_service.routes.call_proc", return_value=filas
         ) as call_proc:
             respuesta = self.client.get(
                 "/_internal/api/citas/ocupadas?medico_id=12"
@@ -65,17 +49,10 @@ class FechasOcupadasServiceTest(unittest.TestCase):
                 },
             },
         )
-        call_proc.assert_has_calls([
-            unittest.mock.call(
-                "sp_listar_citas", ("programada", None, "2026-10-01", "12")
-            ),
-            unittest.mock.call(
-                "sp_listar_citas", ("confirmada", None, "2026-10-01", "12")
-            ),
-            unittest.mock.call(
-                "sp_listar_citas", ("pendiente_pago", None, "2026-10-01", "12")
-            ),
-        ])
+        call_proc.assert_called_once_with(
+            "sp_disponibilidad_citas_rango",
+            (12, "2026-10-01", "2026-10-31"),
+        )
         contenido = respuesta.get_data(as_text=True).lower()
         for clave in ("nombre", "apellido", "dni", "telefono", "paciente"):
             self.assertNotIn(clave, contenido)
