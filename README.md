@@ -77,6 +77,7 @@ Para aplicar las optimizaciones de agenda y KPIs en una base ya provisionada:
 mysql -u USUARIO -p DB_NAME < db_split/migraciones/2026-11-03_optimizar_agenda_panel.sql
 mysql -u USUARIO -p DB_NAME < db_split/migraciones/2026-11-03_disponibilidad_citas_rango.sql
 mysql -u USUARIO -p DB_NAME < db_split/migraciones/2026-11-04_indices_rendimiento.sql
+mysql -u USUARIO -p DB_NAME < db_split/migraciones/2026-11-04_consultas_citas_agrupadas.sql
 mysql -u USUARIO -p DB_NAME < db_split/migraciones/2026-11-04_kpis_fecha_pago_sargable.sql
 ```
 
