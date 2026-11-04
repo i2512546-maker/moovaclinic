@@ -177,17 +177,22 @@ class RiesgoPanelTest(unittest.TestCase):
     def test_renderiza_canceladas_y_ausencias_de_la_semana(self):
         self._admin()
         def responder(ruta):
-            if "estado=cancelada" in ruta:
-                return ({"citas": [{
+            self.assertEqual(
+                ruta,
+                "/api/citas/seguimiento?desde=2026-11-02&hasta=2026-11-08",
+            )
+            return ({"success": True, "citas": [
+                {
                     "fecha_cita": "2026-11-03", "hora_cita": "10:00",
                     "nombre": "Ana", "apellido": "Torres", "telefono": "999888777",
                     "terapeuta": "Dra. Vega", "estado": "cancelada", "dni": "47896066",
-                }]}, 200)
-            return ({"citas": [{
-                "fecha_cita": "2026-11-04", "hora_cita": "11:00",
-                "nombre": "Luis", "apellido": "Paz", "telefono": "988777666",
-                "terapeuta": "Dr. Rojas", "estado": "no_asistio", "dni": "12345678",
-            }]}, 200)
+                },
+                {
+                    "fecha_cita": "2026-11-04", "hora_cita": "11:00",
+                    "nombre": "Luis", "apellido": "Paz", "telefono": "988777666",
+                    "terapeuta": "Dr. Rojas", "estado": "no_asistio", "dni": "12345678",
+                },
+            ]}, 200)
         with patch("gateway.app.citas_client.get", side_effect=responder):
             r = self.client.get(PANEL + "?mes=2026-11&semana=2")
         self.assertEqual(r.status_code, 200)
@@ -207,8 +212,10 @@ class RiesgoPanelTest(unittest.TestCase):
             r = self.client.get(PANEL + "?mes=2026-11&semana=2")
         self.assertEqual(r.status_code, 200)
         rutas = [llamada.args[0] for llamada in get.call_args_list]
-        self.assertTrue(any("estado=cancelada&fecha=2026-11-02" in ruta for ruta in rutas))
-        self.assertTrue(any("estado=no_asistio&fecha=2026-11-02" in ruta for ruta in rutas))
+        self.assertEqual(
+            rutas,
+            ["/api/citas/seguimiento?desde=2026-11-02&hasta=2026-11-08"],
+        )
 
     def test_muestra_error_si_el_servicio_no_responde(self):
         self._admin()
