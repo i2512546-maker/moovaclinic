@@ -115,5 +115,7 @@ Después de recompilar, incluye los bundles actualizados en el cambio.
 4. Tras aprobar la prueba, despliega el mismo commit a producción.
 5. Comprueba los logs del gateway y la ejecución del cron.
 
-No se debe combinar ni renombrar las bases como parte del despliegue. Los
-backups de AlwaysData continúan aplicándose a los siete esquemas actuales.
+El backup debe seguir la misma configuración que la aplicación: define
+`DB_NAME` para respaldar el esquema unificado o `DB_LIST` para una instalación
+histórica de varios esquemas. No cambies la estructura de bases como parte
+de un despliegue de código.
