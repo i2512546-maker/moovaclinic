@@ -14,15 +14,18 @@ import logging
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from apscheduler.schedulers.background import BackgroundScheduler\nfrom apscheduler.triggers.cron import CronTrigger
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
 
 from shared.config import (
-    AUTO_CIERRE_CITAS_ENABLED,\n    LIBERAR_VENCIDOS_ENABLED,
+    AUTO_CIERRE_CITAS_ENABLED,
+    LIBERAR_VENCIDOS_ENABLED,
     RECORDATORIO_HORA,
     RECORDATORIO_INTERVALO_MIN,
     RECORDATORIOS_ENABLED,
 )
-from shared.db import dominio\nfrom shared.proc import call_proc_execute
+from shared.db import dominio
+from shared.proc import call_proc_execute
 
 ZONA = ZoneInfo("America/Lima")
 
