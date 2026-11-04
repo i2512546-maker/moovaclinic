@@ -729,6 +729,8 @@ def create_app():
         if "usuario_id" not in session:
             return redirect(url_for("login"))
         fecha = request.form.get("fecha", hoy_lima().strftime("%Y-%m-%d"))
+        es_admin = session.get("rol") == "admin"
+        url_retorno = url_for("panel_admin") if es_admin else url_retorno
         data, status = citas_client.get(f"/api/citas/{cita_id}/basico")
         if status == 404:
             abort(404)
@@ -745,7 +747,7 @@ def create_app():
             ):
                 if _is_ajax():
                     return jsonify({"success": False, "error": "No autorizado"}), 403
-                return redirect(url_for("interfaz", fecha=fecha))
+                return redirect(url_retorno)
         # solo fechas de hoy o pasadas
         try:
             fecha_cita = datetime.strptime(str(cita.get("fecha_cita"))[:10], "%Y-%m-%d").date()
@@ -754,11 +756,11 @@ def create_app():
         if fecha_cita is None or fecha_cita > hoy_lima():
             if _is_ajax():
                 return jsonify({"success": False, "error": "Fecha no valida"}), 400
-            return redirect(url_for("interfaz", fecha=fecha))
+            return redirect(url_retorno)
         if str(cita.get("estado")) not in ("programada", "confirmada"):
             if _is_ajax():
                 return jsonify({"success": False, "error": "Estado no valido"}), 409
-            return redirect(url_for("interfaz", fecha=fecha))
+            return redirect(url_retorno)
         try:
             resultado, status = citas_client.post(
                 f"/api/citas/{cita_id}/no-asistio", {}
@@ -781,11 +783,11 @@ def create_app():
             if _is_ajax():
                 return jsonify({"success": False, "error": error}), codigo
             flash(f"error:{error}")
-            return redirect(url_for("interfaz", fecha=fecha))
+            return redirect(url_retorno)
 
         if _is_ajax():
             return jsonify({"success": True, "estado": "no_asistio"})
-        return redirect(url_for("interfaz", fecha=fecha))
+        return redirect(url_retorno)
 
     @app.route("/citas", methods=["GET", "POST"])
     def citas_page():
