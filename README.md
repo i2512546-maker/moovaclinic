@@ -21,11 +21,10 @@ separados.
           ┌─────────┬──────────┬────────┼─────────┬────────┐
           ▼         ▼          ▼        ▼         ▼        ▼
        auth     pacientes    citas    pagos     notas   auditoría
-          │         │          │        │         │        │
-          ▼         ▼          ▼        ▼         ▼        ▼
-       esquema   esquema    esquema  esquema   esquema  esquema
-          └─────────┴──────────┴────────┴─────────┴────────┘
-                       + esquema moovacloud_kpis
+          └─────────┴──────────┴────────┴────────┴────────┘
+                         │
+                         ▼
+              MySQL: esquema DB_NAME
 ```
 
 Los módulos están separados por responsabilidad, pero el runtime actual
