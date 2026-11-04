@@ -814,9 +814,6 @@ def create_app():
         identidad = session.get("cita_identidad_verificada") or {}
         if not _dni_ok(dni) or identidad.get("dni") != dni:
             return jsonify({"success": False, "error": "Verifica tu identidad antes de solicitar el código."}), 403
-        error_telefono = validar_telefono(telefono) if telefono else None
-        if error_telefono:
-            return jsonify({"success": False, "error": error_telefono}), 400
         resultado, status = citas_client.post(
             "/api/citas/otp/solicitar",
             {"dni": dni, "accion": "agendar", "telefono": normalizar_telefono(telefono)},
