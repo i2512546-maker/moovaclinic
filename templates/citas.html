@@ -187,7 +187,18 @@
                         </div>
                         <div class="mb-3" id="telefono-container" style="display:none;">
                             <label for="telefono" class="form-label"><i class="fas fa-phone"></i> Teléfono</label>
-                            <input type="tel" name="telefono" id="telefono" class="form-control" placeholder="987654321" maxlength="9" minlength="9" inputmode="numeric" pattern="9[0-9]{8}" title="Ingresa un celular peruano de 9 dígitos que empiece por 9" autocomplete="tel" disabled required>
+                            <input type="tel" name="telefono" id="telefono" class="form-control" placeholder="987654321" maxlength="9" minlength="9" inputmode="numeric" autocomplete="tel" disabled>
+                        </div>
+                        <div class="mb-3" id="otp-agendar-container" style="display:none;">
+                            <button type="button" class="btn btn-outline-success w-100" id="btnSolicitarOtpAgendar">
+                                <i class="fas fa-sms me-1"></i> Enviar código de verificación por SMS
+                            </button>
+                            <div id="otp-agendar-verificar" style="display:none;" class="mt-3">
+                                <label for="otp-agendar-codigo" class="form-label">Código SMS de 6 dígitos</label>
+                                <input type="text" id="otp-agendar-codigo" class="form-control" maxlength="6" minlength="6" inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code" placeholder="123456">
+                                <button type="button" class="btn btn-moova w-100 mt-2" id="btnVerificarOtpAgendar">Verificar código</button>
+                            </div>
+                            <small id="otp-agendar-status" class="text-muted d-block mt-2" role="status" aria-live="polite"></small>
                         </div>
                         <div class="alert alert-success py-2 mb-0" id="identidad-confirmada" style="display:none;" role="status">
                             <i class="fas fa-check-circle me-1"></i> Identidad verificada correctamente.
@@ -679,6 +690,10 @@
         var nombreInput = document.getElementById('nombre');
         var apellidoInput = document.getElementById('apellido');
         var telefonoInput = document.getElementById('telefono');
+        var otpAgendarSolicitado = false;
+        var otpAgendarVerificado = false;
+        var otpAgendarContainer = document.getElementById('otp-agendar-container');
+        var otpAgendarStatus = document.getElementById('otp-agendar-status');
 
         function limpiarDatosPosterioresDni() {
             dniVerificado = false;
@@ -687,6 +702,12 @@
             apellidoInput.value = '';
             telefonoInput.value = '';
             telefonoInput.disabled = true;
+            otpAgendarSolicitado = false;
+            otpAgendarVerificado = false;
+            otpAgendarContainer.style.display = 'none';
+            document.getElementById('otp-agendar-verificar').style.display = 'none';
+            document.getElementById('otp-agendar-codigo').value = '';
+            otpAgendarStatus.textContent = '';
             document.getElementById('telefono-container').style.display = 'none';
             document.getElementById('identidad-confirmada').style.display = 'none';
             document.getElementById('btnNext1').style.display = 'none';
@@ -818,6 +839,7 @@
                 dniVerificado = true;
                 document.getElementById('telefono-container').style.display = '';
                 telefonoInput.disabled = false;
+                otpAgendarContainer.style.display = '';
                 document.getElementById('identidad-confirmada').style.display = '';
                 document.getElementById('btnNext1').style.display = '';
                 btnConfirmarIdentidad.style.display = 'none';
@@ -832,11 +854,71 @@
         });
 
 
+        document.getElementById('btnSolicitarOtpAgendar').addEventListener('click', async function () {
+            if (!dniVerificado || dniInput.value.trim() !== dniValidado) {
+                mostrarPopup('Primero verifica tu identidad.', 'error');
+                return;
+            }
+            var boton = this;
+            boton.disabled = true;
+            otpAgendarStatus.className = 'text-muted d-block mt-2';
+            otpAgendarStatus.textContent = 'Enviando código SMS…';
+            try {
+                var response = await fetch('/api/citas/otp/solicitar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ dni: dniValidado, telefono: telefonoInput.value.trim() })
+                });
+                var data = await response.json();
+                if (!response.ok || !data.success) throw new Error(data.error || 'No se pudo enviar el código.');
+                otpAgendarSolicitado = true;
+                document.getElementById('otp-agendar-verificar').style.display = '';
+                boton.style.display = 'none';
+                otpAgendarStatus.className = 'text-success d-block mt-2';
+                otpAgendarStatus.textContent = 'Código enviado al teléfono ' + (data.tel_mask || 'registrado') + '.';
+            } catch (error) {
+                otpAgendarStatus.className = 'text-danger d-block mt-2';
+                otpAgendarStatus.textContent = error.message || 'No se pudo enviar el código.';
+                boton.disabled = false;
+            }
+        });
+
+        document.getElementById('btnVerificarOtpAgendar').addEventListener('click', async function () {
+            var codigo = document.getElementById('otp-agendar-codigo').value.trim();
+            if (!otpAgendarSolicitado || !/^\\d{6}$/.test(codigo)) {
+                otpAgendarStatus.className = 'text-danger d-block mt-2';
+                otpAgendarStatus.textContent = 'Ingresa el código de 6 dígitos.';
+                return;
+            }
+            var boton = this;
+            boton.disabled = true;
+            try {
+                var response = await fetch('/api/citas/otp/verificar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ dni: dniValidado, otp: codigo })
+                });
+                var data = await response.json();
+                if (!response.ok || !data.success) throw new Error(data.error || 'Código incorrecto o vencido.');
+                otpAgendarVerificado = true;
+                otpAgendarStatus.className = 'text-success d-block mt-2';
+                otpAgendarStatus.textContent = 'Teléfono verificado. Ya puedes continuar.';
+                document.getElementById('btnNext1').style.display = '';
+                document.getElementById('btnNext1').disabled = false;
+            } catch (error) {
+                otpAgendarStatus.className = 'text-danger d-block mt-2';
+                otpAgendarStatus.textContent = error.message || 'No se pudo verificar el código.';
+            } finally {
+                boton.disabled = false;
+            }
+        });
+
         document.getElementById('btnNext1').addEventListener('click', function () {
-            if (!dniVerificado || dniInput.value.trim() !== dniValidado ||
-                !nombreInput.value.trim() || !apellidoInput.value.trim() ||
-                !telefonoInput.value.trim() || !telefonoInput.checkValidity()) {
-                mostrarPopup('Verifica tu identidad y completa un teléfono válido para continuar.', 'error');
+            if (!dniVerificado || !otpAgendarVerificado || dniInput.value.trim() !== dniValidado ||
+                !nombreInput.value.trim() || !apellidoInput.value.trim()) {
+                mostrarPopup('Verifica el código SMS antes de continuar.', 'error');
                 return;
             }
             irPaso(2);
