@@ -1092,7 +1092,7 @@ paths:
   /api/kpis:
     get:
       tags: [citas]
-      summary: Indicadores del negocio (lectura de moovacloud_kpis)
+      summary: Indicadores del negocio (lectura del esquema DB_NAME)
       responses:
         "200":
           description: Indicadores
