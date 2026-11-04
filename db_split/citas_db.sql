@@ -394,7 +394,30 @@ BEGIN
 END$$
 
 -- Conteos de seguimiento en una sola consulta indexada.
-DROP PROCEDURE IF EXISTS `sp_resumen_citas_estados`$$
+-- Consultas agrupadas para seguimiento semanal y pacientes por terapeuta.
+CREATE PROCEDURE `sp_listar_citas_seguimiento`(
+    IN p_desde DATE,
+    IN p_hasta DATE
+)
+BEGIN
+    SELECT h.id, h.id AS historial_id, h.paciente_id, h.terapeuta_id,
+           h.servicio_id, h.fecha_cita, h.hora_cita, h.estado, h.descripcion
+    FROM historial_citas h
+    WHERE h.fecha_cita BETWEEN p_desde AND p_hasta
+      AND h.estado IN ('cancelada', 'no_asistio')
+    ORDER BY h.fecha_cita, h.hora_cita, h.id;
+END$
+
+CREATE PROCEDURE `sp_pacientes_ids_por_terapeuta`(IN p_terapeuta_id INT)
+BEGIN
+    SELECT DISTINCT paciente_id
+    FROM historial_citas
+    WHERE terapeuta_id = p_terapeuta_id
+      AND estado IN ('programada', 'confirmada', 'completada', 'cancelada', 'no_asistio')
+    ORDER BY paciente_id;
+END$
+
+DROP PROCEDURE IF EXISTS `sp_resumen_citas_estados`$
 CREATE PROCEDURE `sp_resumen_citas_estados`(IN p_desde DATE)
 BEGIN
     SELECT h.estado, COUNT(*) AS total
