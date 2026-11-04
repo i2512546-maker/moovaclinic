@@ -103,9 +103,27 @@ class LimiteCrearCitasTest(unittest.TestCase):
         self.app.config["WTF_CSRF_ENABLED"] = False
         self.client = self.app.test_client()
 
-    def _post(self, dni=None):
-        form = {"dni": dni} if dni else {}
+    def _post(self, dni="12345678"):
+        form = {
+            "dni": dni,
+            "nombre": "Ana",
+            "apellido": "Torres",
+            "telefono": "999999999",
+            "medico_id": "3",
+            "fecha_cita": "2026-11-10",
+            "hora_cita": "09:00",
+            "metodo_pago": "yape",
+            "servicio_id": "2",
+        }
+        with self.client.session_transaction() as session:
+            session["cita_identidad_verificada"] = {
+                "dni": dni,
+                "nombre": "ana",
+                "apellido": "torres",
+            }
         with patch.object(
+            ga, "_validar_datos_cita_rapida", return_value="Datos inválidos"
+        ), patch.object(
             ga.citas_client, "get", return_value=({}, 200)
         ), patch.object(
             ga.pacientes_client, "get", return_value=({}, 200)
@@ -113,9 +131,9 @@ class LimiteCrearCitasTest(unittest.TestCase):
             return self.client.post("/citas", data=form)
 
     def test_maximo_cinco_intentos_por_ip_por_hora(self):
-        for _ in range(5):
-            self.assertNotEqual(self._post().status_code, 429)
-        respuesta = self._post()
+        for i in range(5):
+            self.assertNotEqual(self._post(f"1234567{i}").status_code, 429)
+        respuesta = self._post("12345679")
         self.assertEqual(respuesta.status_code, 429)
         self.assertIn("Límite de citas", respuesta.get_json()["error"])
 
