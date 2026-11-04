@@ -117,13 +117,14 @@ def _terapeuta_id_de_sesion():
 # mostrar datos de salud o de mutar una cita (S1). Cada una tiene su
 # propio sello en la sesion: verificar para cancelar no habilita a
 # modificar, ni a tratar.
-ACCIONES_OTP = ("cancelar", "modificar", "tratamiento")
+ACCIONES_OTP = ("cancelar", "modificar", "tratamiento", "consultar")
 
 # Vista a la que vuelve el usuario cuando no tiene la verificacion.
 VISTA_ACCION = {
     "cancelar": "cancelar_cita_page",
     "modificar": "modificar_cita_page",
     "tratamiento": "tratamiento_page",
+    "consultar": "consultar_citas_page",
 }
 
 
@@ -1279,6 +1280,106 @@ def create_app():
                                historial_citas=historial_citas,
                                evaluaciones=evaluaciones,
                                tel_mask=tel_mask, error=error_msg)
+
+
+    @app.route("/consultar-citas", methods=["GET", "POST"])
+    def consultar_citas_page():
+        """Consulta privada del historial del paciente con verificación OTP."""
+        paso = None
+        dni_val = ""
+        tel_mask = ""
+        error_msg = None
+        paciente = None
+        historial = []
+        paquetes = []
+        evaluaciones = []
+
+        def cargar_historial(dni):
+            pdata, pstatus = pacientes_client.get(f"/api/pacientes/{dni}")
+            if pstatus != 200 or not (pdata or {}).get("paciente"):
+                return None, [], [], []
+            paciente_local = pdata["paciente"]
+            historial_local = pdata.get("historial") or []
+            paquetes_local, evaluaciones_local = _cargar_anexos_paciente(
+                paciente_local.get("id")
+            )
+            return paciente_local, historial_local, paquetes_local, evaluaciones_local
+
+        if request.method == "GET":
+            q_paso = request.args.get("paso")
+            q_dni = request.args.get("dni", "").strip()
+            if q_paso == "verificar" and _dni_ok(q_dni):
+                paso, dni_val = "verificar", q_dni
+                tel_mask = session.get("otp_tel_mask", "")
+            elif q_paso == "historial" and _dni_ok(q_dni):
+                proteccion = _proteccion_otp(q_dni, "consultar")
+                if proteccion is not None:
+                    return proteccion
+                paciente, historial, paquetes, evaluaciones = cargar_historial(q_dni)
+                if not paciente:
+                    error_msg = "No se pudo recuperar el historial. Inténtalo nuevamente."
+                    paso = None
+                else:
+                    paso, dni_val = "historial", q_dni
+
+        if request.method == "POST":
+            accion = request.form.get("accion")
+            if accion == "solicitar":
+                dni = request.form.get("dni", "").strip()
+                if not _dni_ok(dni):
+                    error_msg = "DNI inválido, debe tener 8 dígitos."
+                else:
+                    result, status = citas_client.post(
+                        "/api/citas/otp/solicitar",
+                        {"dni": dni, "accion": "consultar"},
+                    )
+                    if status == 200 and (result or {}).get("success"):
+                        session["otp_tel_mask"] = (result or {}).get("tel_mask", "")
+                        return redirect(url_for(
+                            "consultar_citas_page", paso="verificar", dni=dni
+                        ))
+                    error_msg = (result or {}).get(
+                        "error", "No se pudo enviar el código de confirmación."
+                    )
+            elif accion == "verificar":
+                dni = request.form.get("dni", "").strip()
+                otp = request.form.get("otp", "").strip()
+                result, _ = citas_client.post(
+                    "/api/citas/otp/verificar",
+                    {"dni": dni, "otp": otp, "accion": "consultar"},
+                )
+                resultado = (result or {}).get("resultado", "")
+                if resultado == "ok":
+                    _marcar_otp_verificado(dni, "consultar")
+                    return redirect(url_for(
+                        "consultar_citas_page", paso="historial", dni=dni
+                    ))
+                mensajes = {
+                    "expirado": "El código expiró. Solicita uno nuevo.",
+                    "agotado": "Se agotaron los intentos. Solicita un nuevo código.",
+                    "no_existe": "No hay un código vigente. Solicita uno nuevo.",
+                }
+                error_msg = mensajes.get(
+                    resultado,
+                    f"Código incorrecto. Quedan {(result or {}).get('restantes', '?')} intento(s).",
+                )
+                paso, dni_val = "verificar", dni
+                tel_mask = session.get("otp_tel_mask", "")
+
+        if paso == "historial" and paciente is None:
+            paciente, historial, paquetes, evaluaciones = cargar_historial(dni_val)
+
+        return render_template(
+            "consultar_citas.html",
+            paso=paso,
+            dni=dni_val,
+            tel_mask=tel_mask,
+            error=error_msg,
+            paciente=paciente,
+            historial=historial,
+            paquetes=paquetes,
+            evaluaciones=evaluaciones,
+        )
 
     @app.route("/pago")
     def pago_page():
