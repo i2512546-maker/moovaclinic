@@ -145,12 +145,14 @@ def detalle_paciente(dni):
 
     # Historial, pagos y catálogo de terapeutas son independientes.
     # Ejecutarlos en paralelo evita sumar sus latencias a la apertura de ficha.
+    logger = current_app.logger
+
     def _cargar_historial():
         try:
             data, _ = citas_client.get(f"/api/citas/paciente/{paciente_id}")
             return data.get("citas") or []
         except Exception as exc:
-            current_app.logger.warning(
+            logger.warning(
                 "No se pudo cargar el historial de citas del paciente %s: %s: %s",
                 paciente_id, type(exc).__name__, exc,
             )
@@ -165,7 +167,7 @@ def detalle_paciente(dni):
                     resultado[pg["cita_id"]] = pg
             return resultado
         except Exception as exc:
-            current_app.logger.warning(
+            logger.warning(
                 "No se pudo cargar los pagos del paciente %s: %s: %s",
                 paciente_id, type(exc).__name__, exc,
             )
