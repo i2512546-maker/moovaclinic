@@ -547,19 +547,22 @@ webhook se configuran en `moova-gateway`; el cron recibe `GATEWAY_URL` y
 
 ### Backups
 
-`backup_db.sh` respalda las 7 bases y sale con código 1 si alguna falla.
-Se ejecuta desde el cron de Alwaysdata:
+`backup_db.sh` respalda el esquema indicado por `DB_NAME` en la instalación
+actual. Para la instalación histórica de siete esquemas, define `DB_LIST`.
+Sale con código 1 si falla algún volcado. Se ejecuta desde el cron de Alwaysdata:
 
 ```bash
 bash ~/backup_db.sh
 ```
 
-Exige `DB_PASSWORD` en el entorno (nunca en el archivo). Guarda 7 días en
-`~/backups` y comprueba el tamaño de cada volcado: `mysqldump` con
-credenciales malas produce un `.gz` de ~30 bytes que naïve parece válido.
+Exige `DB_PASSWORD` en el entorno (nunca en el archivo). Define también
+`DB_NAME=moovacloud_database` en el cron para respaldar la base unificada;
+si usas el diseño histórico, define `DB_LIST` con los nombres de las bases.
+Guarda 7 días en `~/backups` y comprueba el tamaño de cada volcado para no
+confundir un archivo vacío con un respaldo correcto.
 
-Alternativa más simple: el backup nativo del panel de Alwaysdata, que
-cubre las 7 bases de una vez.
+Alternativa: el backup nativo del panel de Alwaysdata, seleccionando el
+esquema activo de la instalación.
 
 ---
 
