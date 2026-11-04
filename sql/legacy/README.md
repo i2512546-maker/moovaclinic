@@ -1,16 +1,14 @@
 # SQL legado
 
-Estos scripts se conservan solo como referencia histórica.
+Estos archivos se conservan solo como referencia histórica. No forman parte
+del despliegue normal de MOOVA Clinic.
 
-No se usan en la lógica actual de la app.
+- `01_procedures_legacy.sql`: procedimientos de una fase anterior; no contiene
+  el conjunto completo que requiere el runtime actual.
+- `02_reset_dev_split.sql`: script destructivo que elimina datos y reinicia
+  contadores en siete esquemas antiguos. **No ejecutarlo en producción ni
+  contra la base unificada actual.**
 
-## Archivos de referencia
-
-- `migration_v2.sql`
-- `migration_limpieza.sql`
-- `procedures.sql`
-
-## Recomendación
-
-Moverlos aquí y dejarlos solo como historial de migraciones, no como fuente de verdad.
-La lógica activa debe vivir en `sql/core/`.
+La fuente vigente de procedimientos está en
+`database/moovaclinic_unificada.sql`; las actualizaciones incrementales
+están en `db_split/migraciones/`.
