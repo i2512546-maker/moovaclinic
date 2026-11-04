@@ -148,7 +148,7 @@
             <i class="bi bi-calendar3"></i>
             <h2 class="h5 mb-0">Citas de hoy</h2>
         </div>
-        <div class="table-responsive">
+        <div class="table-responsive panel-citas-hoy">
             <table class="table table-hover table-striped align-middle mb-0">
                 <thead>
                     <tr>
@@ -187,13 +187,23 @@
                             </td>
                             <td>
                                 {% if c.estado in ('programada', 'confirmada') %}
-                                <form method="POST" action="{{ url_for('admin_cancelar_cita', cita_id=c.id) }}"
-                                    onsubmit="return confirm('¿Cancelar la cita de {{ c.nombre }}?')">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
-                                    <button type="submit" class="btn btn-icon" title="Cancelar cita">
-                                        <i class="bi bi-ban"></i>
-                                    </button>
-                                </form>
+                                <div class="d-flex flex-wrap gap-2">
+                                    <form method="POST" action="{{ url_for('marcar_no_asistio_gateway', cita_id=c.id) }}"
+                                        onsubmit="return confirm('¿Marcar como no asistió a {{ c.nombre }} {{ c.apellido }}?')">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
+                                        <input type="hidden" name="fecha" value="{{ c.fecha_cita }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Marcar como no asistió">
+                                            <i class="bi bi-person-x me-1"></i>No asistió
+                                        </button>
+                                    </form>
+                                    <form method="POST" action="{{ url_for('admin_cancelar_cita', cita_id=c.id) }}"
+                                        onsubmit="return confirm('¿Cancelar la cita de {{ c.nombre }}?')">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_raw }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary" title="Cancelar cita">
+                                            <i class="bi bi-ban me-1"></i>Cancelar
+                                        </button>
+                                    </form>
+                                </div>
                                 {% else %}
                                 <span class="text-secondary">—</span>
                                 {% endif %}
