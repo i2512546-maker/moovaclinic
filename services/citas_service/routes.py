@@ -1248,6 +1248,15 @@ def confirmar_cita_pago(cita_id):
     return jsonify({"success": False, "error": "La reserva no está pendiente de pago."}), 409
 
 
+@citas_bp.route("/api/citas/<int:cita_id>/descripcion", methods=["PUT"])
+def actualizar_descripcion_cita(cita_id):
+    """Guarda un borrador de notas sin cambiar el estado de la cita."""
+    data = request.get_json() or {}
+    descripcion = (data.get("descripcion") or "").strip()
+    call_proc_execute("sp_actualizar_descripcion_cita", (cita_id, descripcion))
+    return jsonify({"success": True, "guardada": True})
+
+
 @citas_bp.route("/api/citas/<int:cita_id>/completar", methods=["PUT"])
 def completar_cita(cita_id):
     """Marca la cita como completada y guarda la descripcion clinica.
