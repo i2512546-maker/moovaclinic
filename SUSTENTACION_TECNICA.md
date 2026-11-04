@@ -4,7 +4,7 @@
 
 **MOOVA Clinic utiliza una arquitectura de monolito modular con Flask.** La aplicación se despliega en un único proceso web. Los módulos de autenticación, pacientes, citas, pagos, notas clínicas y auditoría mantienen sus responsabilidades separadas, pero se ejecutan dentro de la misma aplicación.
 
-Las llamadas entre módulos se despachan dentro del proceso, sin hacer una llamada de red entre microservicios. El proyecto conserva esquemas de base de datos separados por dominio; eso no convierte la aplicación en una arquitectura de microservicios porque los módulos no se despliegan como servicios independientes.
+Las llamadas entre módulos se despachan dentro del proceso, sin hacer una llamada de red entre microservicios. En la configuración actual, todos los dominios usan el esquema MySQL indicado por `DB_NAME` (por defecto `moovacloud_database`). Los scripts `db_split/` conservan el diseño anterior de esquemas separados y no representan el runtime actual.
 
 ### ¿Por qué es conveniente para el proyecto?
 
@@ -21,7 +21,7 @@ Las llamadas entre módulos se despachan dentro del proceso, sin hacer una llama
 | No se escala cada módulo por separado. | Optimizar consultas e índices primero; escalar el proceso completo si la carga lo requiere. |
 | El código puede acoplarse si no se respetan los límites. | Mantener módulos separados, blueprints, funciones de dominio y contratos de API internos. |
 | Un despliegue actualiza todos los módulos. | Automatizar pruebas en CI y desplegar cambios pequeños con migraciones documentadas. |
-| Los esquemas de datos separados requieren coordinación. | Mantener migraciones versionadas y validar que las referencias entre dominios sean consistentes. |
+| Un esquema compartido puede concentrar carga y acoplar consultas entre dominios. | Mantener procedimientos por dominio, índices, consultas acotadas y migraciones versionadas. |
 
 **Respuesta breve para el jurado:**
 
@@ -37,7 +37,7 @@ Las llamadas entre módulos se despachan dentro del proceso, sin hacer una llama
 | HTML, CSS y JavaScript | Estructura, estilos e interacciones de las páginas. |
 | Bootstrap | Componentes visuales y diseño adaptable. |
 | React | Paneles interactivos concretos, como los indicadores (KPIs) y MoovaTrack. No es necesario afirmar que toda la interfaz usa React. |
-| MySQL | Persistencia de usuarios, pacientes, citas, pagos, notas y auditoría en los esquemas configurados. |
+| MySQL | Persistencia de usuarios, pacientes, citas, pagos, notas y auditoría en el esquema configurado por `DB_NAME`. |
 | Flask-Bcrypt | Hash de contraseñas. |
 | Flask-WTF / CSRFProtect | Protección de formularios contra solicitudes CSRF. |
 | Flasgger / Swagger | Documentación de endpoints de la API. |
