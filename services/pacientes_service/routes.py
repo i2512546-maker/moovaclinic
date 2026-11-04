@@ -1,5 +1,6 @@
-import requests
 from concurrent.futures import ThreadPoolExecutor
+
+import requests
 from flask import current_app, jsonify, request
 
 from services.pacientes_service import pacientes_bp
