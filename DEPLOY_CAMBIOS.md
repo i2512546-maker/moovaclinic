@@ -8,6 +8,11 @@ recrear ni combinar durante este despliegue.
 
 ## 1. Migraciones de base de datos
 
+| Archivo de `db_split/migraciones/` | Base donde se ejecuta | Qué agrega |
+|---|---|---|
+| `2026-11-03_disponibilidad_citas_rango.sql` | `moovacloud_citas` | Consulta única e indexada de disponibilidad por terapeuta y rango de fechas |
+
+
 Ejecuta cada archivo en la base indicada, antes de desplegar el código. Estas
 migraciones actualizan procedimientos almacenados y no sustituyen la
 importación inicial de las bases.
