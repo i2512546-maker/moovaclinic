@@ -179,6 +179,16 @@ def _terapeuta_id_actual():
     return None
 
 
+def _auditar_exito(respuesta, accion, tabla, registro_id=None):
+    if isinstance(respuesta, tuple) and len(respuesta) > 1 and respuesta[1] < 400:
+        identidad = getattr(request, "identidad_movil", {})
+        usuario_id = identidad.get("sub") if identidad.get("tipo") == "staff" else None
+        log_accion(usuario_id=usuario_id, accion=accion, tabla_afectada=tabla,
+                   registro_id=registro_id, detalle="Operación desde API móvil",
+                   ip_origen=request.remote_addr)
+    return respuesta
+
+
 def _paciente_propio(dni):
     identidad = request.identidad_movil
     if identidad["rol"] == "admin":
@@ -336,23 +346,21 @@ def crear_cita():
     if request.identidad_movil["rol"] == "paciente" and request.identidad_movil["sub"] != str(data.get("dni") or "").strip():
         return _error(403, "PACIENTE_NO_AUTORIZADO", "Solo puedes agendar para tu propio DNI.")
     respuesta = _proxy(citas_client, "post", "/api/citas", data)
-    if isinstance(respuesta, tuple) and respuesta[1] == 200:
-        log_accion(usuario_id=request.identidad_movil["sub"], accion="crear_cita",
-                   tabla_afectada="historial_citas", detalle="Creación desde API móvil",
-                   ip_origen=request.remote_addr)
-    return respuesta
+    return _auditar_exito(respuesta, "crear_cita", "historial_citas")
 
 
 @movil_bp.put("/citas/<int:cita_id>")
 @requiere_auth("admin", "terapeuta")
 def modificar_cita(cita_id):
-    return _proxy(citas_client, "put", f"/api/citas/{cita_id}", request.get_json(silent=True))
+    respuesta = _proxy(citas_client, "put", f"/api/citas/{cita_id}", request.get_json(silent=True))
+    return _auditar_exito(respuesta, "modificar_cita_movil", "historial_citas", cita_id)
 
 
 @movil_bp.delete("/citas/<int:cita_id>")
 @requiere_auth("admin", "terapeuta")
 def cancelar_cita(cita_id):
-    return _proxy(citas_client, "delete", f"/api/citas/{cita_id}")
+    respuesta = _proxy(citas_client, "delete", f"/api/citas/{cita_id}")
+    return _auditar_exito(respuesta, "cancelar_cita_movil", "historial_citas", cita_id)
 
 
 @movil_bp.get("/pacientes/<dni>")
@@ -422,8 +430,9 @@ def crear_evaluacion(dni):
     paciente = (paciente_data or {}).get("paciente") or {}
     if status != 200 or not paciente.get("id"):
         return _error(404, "PACIENTE_NO_ENCONTRADO", "Paciente no encontrado.")
-    return _proxy(pacientes_client, "post", f"/api/pacientes/{paciente['id']}/evaluaciones",
-                  request.get_json(silent=True))
+    respuesta = _proxy(pacientes_client, "post", f"/api/pacientes/{paciente['id']}/evaluaciones",
+                        request.get_json(silent=True))
+    return _auditar_exito(respuesta, "crear_evaluacion_movil", "evaluaciones", paciente["id"])
 
 
 @movil_bp.get("/pagos/<int:cita_id>")
@@ -442,7 +451,8 @@ def crear_anticipo():
         cita_id = data.get("cita_id")
         if not cita_id or not _cita_propia_terapeuta(cita_id):
             return _error(403, "CITA_NO_AUTORIZADA", "Solo puedes gestionar anticipos de tus propias citas.")
-    return _proxy(pagos_client, "post", "/api/pagos/anticipo", data)
+    respuesta = _proxy(pagos_client, "post", "/api/pagos/anticipo", data)
+    return _auditar_exito(respuesta, "crear_anticipo_movil", "pagos", data.get("cita_id"))
 
 
 @movil_bp.get("/agenda")
@@ -470,4 +480,5 @@ def notas_cita(cita_id):
 def crear_nota(cita_id):
     if not _cita_propia_terapeuta(cita_id):
         return _error(403, "CITA_NO_AUTORIZADA", "Solo puedes registrar notas de tus propias citas.")
-    return _proxy(notas_client, "post", f"/api/notas/{cita_id}", request.get_json(silent=True))
+    respuesta = _proxy(notas_client, "post", f"/api/notas/{cita_id}", request.get_json(silent=True))
+    return _auditar_exito(respuesta, "crear_nota_movil", "notas", cita_id)
