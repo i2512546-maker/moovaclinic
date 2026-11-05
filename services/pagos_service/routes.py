@@ -230,7 +230,7 @@ def confirmar_pago_servicio(cita_id, referencia=None, datos_respuesta=None, veri
 # ============================================================
 
 def procesar_pagos_vencidos(horas=24):
-    filas = call_proc("sp_liberar_pagos_vencidos", (horas,))
+    filas = call_proc("sp_liberar_pagos_vencidos", (horas,), commit=True)
     cita_ids = sorted({
         int(fila["cita_id"])
         for fila in filas or []
