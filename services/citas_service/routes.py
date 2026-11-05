@@ -119,6 +119,44 @@ def _mapa_terapeutas(timeout=None):
 
 
 
+def _mapa_servicios():
+    """{servicio_id: fila} con la duración real configurada para cada servicio."""
+    def cargar():
+        try:
+            data, _ = pacientes_client.get("/api/servicios")
+            servicios = data.get("servicios") or []
+            return {
+                fila.get("id", fila.get("ID")): fila
+                for fila in servicios
+                if fila.get("id", fila.get("ID")) is not None
+            }
+        except Exception as exc:
+            current_app.logger.warning("No se pudo cargar el catálogo de servicios: %s", exc)
+            return {}
+
+    return _catalogo_cacheado("servicios", cargar)
+
+
+def _enriquecer_horario_cita(cita, servicios=None):
+    """Calcula la hora de término a partir de la duración real del servicio."""
+    servicios = servicios if servicios is not None else _mapa_servicios()
+    servicio_id = cita.get("servicio_id")
+    servicio = servicios.get(servicio_id) or servicios.get(
+        int(servicio_id) if str(servicio_id or "").isdigit() else servicio_id
+    )
+    duracion = (servicio or {}).get("duracion_min", (servicio or {}).get("Duracion_min"))
+    cita["duracion_min"] = int(duracion) if duracion is not None else None
+    hora_inicio = cita.get("hora_cita")
+    cita["hora_fin"] = None
+    if hora_inicio and cita["duracion_min"] is not None:
+        try:
+            inicio = datetime.strptime(str(_fmt_hora(hora_inicio))[:8], "%H:%M:%S")
+            cita["hora_fin"] = (inicio + timedelta(minutes=cita["duracion_min"])).strftime("%H:%M")
+        except (TypeError, ValueError):
+            cita["hora_fin"] = None
+    return cita
+
+
 def _mapas_enriquecimiento():
     """Descarga en paralelo los dos catálogos usados para enriquecer citas."""
     with ThreadPoolExecutor(max_workers=2) as executor:
@@ -399,6 +437,7 @@ def agenda_dia():
         filas_resumen = call_proc("sp_resumen_pacientes") or []
     resumen = {fila["paciente_id"]: fila["total"] for fila in filas_resumen}
     pacientes, terapeutas = _mapas_enriquecimiento()
+    servicios = _mapa_servicios()
 
     resultado = []
     vistos = set()
@@ -406,6 +445,7 @@ def agenda_dia():
         if str(cita.get("fecha_cita", ""))[:10] != fecha:
             continue
         _enriquecer_cita(cita, pacientes, terapeutas)
+        _enriquecer_horario_cita(cita, servicios)
         cita["total_visitas"] = resumen.get(cita.get("paciente_id"), 0)
         _fmt_fecha(cita)
         cita_id = cita.get("id") or cita.get("historial_id") or cita.get("cita_id")
@@ -461,8 +501,10 @@ def resumen_panel_admin():
     ]
     if citas_hoy:
         pacientes, terapeutas = _mapas_enriquecimiento()
+        servicios = _mapa_servicios()
         for cita in citas_hoy:
             _enriquecer_cita(cita, pacientes, terapeutas)
+            _enriquecer_horario_cita(cita, servicios)
             _fmt_fecha(cita)
         citas_hoy.sort(key=lambda cita: str(cita.get("hora_cita") or ""))
 
