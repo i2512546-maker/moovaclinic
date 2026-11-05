@@ -823,6 +823,7 @@ def crear_cita():
         cita = call_proc_one(
             procedimiento_creacion,
             (paciente_id, data["medico_id"], servicio_id, data["fecha_cita"], hora_cita),
+            commit=True,
         )
     except mysql.connector.Error as exc:
         # La restricción uq_reserva es la última barrera contra dos reservas
@@ -1177,7 +1178,7 @@ def modificar_cita(cita_id):
     # el aviso necesita saber quien se queda sin la cita.
     previa = _leer_cita_local(cita_id)
 
-    result = call_proc_one("sp_modificar_cita", (cita_id, nueva_fecha, nuevo_medico, hora_cita))
+    result = call_proc_one("sp_modificar_cita", (cita_id, nueva_fecha, nuevo_medico, hora_cita), commit=True)
     if not result or int(result.get("actualizadas") or 0) == 0:
         return jsonify({"error": "Cita no encontrada o ya no esta programada"}), 404
     ent_paciente_id, ent_paciente_nombre = _datos_paciente_cita(cita_id)
@@ -1205,7 +1206,7 @@ def cancelar_cita(cita_id):
     # fecha, y el aviso necesita los dos.
     previa = _leer_cita_local(cita_id)
 
-    result = call_proc_one("sp_cancelar_cita", (cita_id,))
+    result = call_proc_one("sp_cancelar_cita", (cita_id,), commit=True)
     if not result or int(result.get("actualizadas") or 0) == 0:
         return jsonify({"error": "Cita no encontrada"}), 404
 
@@ -1244,7 +1245,7 @@ def cancelar_cita(cita_id):
     "/api/citas/<int:cita_id>/cancelar-pago-vencido", methods=["POST"]
 )
 def cancelar_cita_pago_vencido(cita_id):
-    result = call_proc_one("sp_cancelar_cita_pago_vencido", (cita_id,))
+    result = call_proc_one("sp_cancelar_cita_pago_vencido", (cita_id,), commit=True)
     cancelada = bool(result and int(result.get("actualizadas") or 0) > 0)
     if cancelada:
         log_accion(
@@ -1261,7 +1262,7 @@ def cancelar_cita_pago_vencido(cita_id):
 def confirmar_cita_pago(cita_id):
     """Activa una reserva pendiente solo después de confirmar su pago."""
     try:
-        resultado = call_proc_one("sp_confirmar_cita_pago", (cita_id,))
+        resultado = call_proc_one("sp_confirmar_cita_pago", (cita_id,), commit=True)
     except Exception as exc:
         current_app.logger.error("No se pudo activar la cita %s tras el pago: %s", cita_id, exc)
         return jsonify({"success": False, "error": "No se pudo activar la cita."}), 500
@@ -1309,7 +1310,7 @@ def completar_cita(cita_id):
 
 @citas_bp.route("/api/citas/<int:cita_id>/no-asistio", methods=["POST"])
 def marcar_no_asistio(cita_id):
-    result = call_proc_one("sp_marcar_no_asistio", (cita_id,))
+    result = call_proc_one("sp_marcar_no_asistio", (cita_id,), commit=True)
     actualizadas = int((result or {}).get("actualizadas") or 0)
     if actualizadas > 0:
         ent_paciente_id, ent_paciente_nombre = _datos_paciente_cita(cita_id)
@@ -1558,7 +1559,7 @@ def enviar_recordatorios(fecha=None):
 
     for cita in pendientes:
         cita_id = cita.get("id")
-        reclamo = call_proc_one("sp_marcar_recordatorio_enviado", (cita_id,))
+        reclamo = call_proc_one("sp_marcar_recordatorio_enviado", (cita_id,), commit=True)
         marcadas = int(reclamo.get("marcadas") or 0) if reclamo else 0
         if marcadas != 1:
             # Otro proceso la reclamo primero: no es nuestra.
