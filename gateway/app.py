@@ -2195,7 +2195,6 @@ def create_app():
         cuerpo = cuerpo if isinstance(cuerpo, dict) else {}
         dni = str(cuerpo.get("dni") or "").strip()
         session.pop("cita_identidad_verificada", None)
-        session.pop("cita_identidad_pendiente", None)
         if not _dni_ok(dni):
             return jsonify({"success": False, "error": "DNI inválido"}), 400
 
