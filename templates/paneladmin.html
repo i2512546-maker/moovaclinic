@@ -165,7 +165,16 @@
                     {% if proximas_citas %}
                         {% for c in proximas_citas %}
                         <tr>
-                            <td><strong>{{ c.fecha_cita }}</strong><div class="small text-muted">{{ c.hora_cita or '—' }}</div></td>
+                            <td>
+                                <strong>{{ c.fecha_cita }}</strong>
+                                <div class="mt-1">
+                                    <span class="badge text-bg-primary">
+                                        <i class="bi bi-clock me-1"></i>
+                                        {{ (c.hora_cita|string)[:5] if c.hora_cita else 'Hora no registrada' }}
+                                    </span>
+                                    <div class="small text-muted mt-1">Hora de atención</div>
+                                </div>
+                            </td>
                             <td>{{ c.nombre }} {{ c.apellido }}</td>
                             <td>{{ c.dni }}</td>
                             <td>{{ c.telefono }}</td>
