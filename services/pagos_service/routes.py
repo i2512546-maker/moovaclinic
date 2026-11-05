@@ -118,7 +118,7 @@ def confirmar_pago_servicio(cita_id, referencia=None, datos_respuesta=None, veri
     datos_json = json.dumps(datos_respuesta) if datos_respuesta else None
     res = call_proc_one("sp_confirmar_pago", (
         cita_id, referencia, datos_json, verificado_por,
-    ))
+    ), commit=True)
     pagado = bool(res and int(res.get("pagado") or 0) > 0)
 
     if pagado:
@@ -271,7 +271,7 @@ def crear_anticipo():
     if not cita_id or not paciente_id or monto is None or not metodo_pago:
         return jsonify({"error": "cita_id, paciente_id, monto y metodo_pago requeridos."}), 400
 
-    result = call_proc_one("sp_crear_pago_anticipo", (cita_id, paciente_id, monto, metodo_pago))
+    result = call_proc_one("sp_crear_pago_anticipo", (cita_id, paciente_id, monto, metodo_pago), commit=True)
     if not result or result.get("id") is None:
         current_app.logger.error(
             "[anticipo] sp_crear_pago_anticipo no devolvió un id para la cita %s",
@@ -394,7 +394,7 @@ def crear_paquete_paciente(paciente_id):
 
     result = call_proc_one("sp_crear_paquete", (
         paciente_id, servicio_id, total_sesiones, fecha_compra, fecha_vencimiento,
-    ))
+    ), commit=True)
     return jsonify({"success": True, "paquete_id": result["id"] if result else None}), 201
 
 
@@ -409,7 +409,7 @@ def usar_sesion_paquete(paquete_id):
     if not cita_id:
         return jsonify({"error": "cita_id requerido."}), 400
 
-    result = call_proc_one("sp_usar_sesion_paquete", (paquete_id, cita_id))
+    result = call_proc_one("sp_usar_sesion_paquete", (paquete_id, cita_id), commit=True)
     usadas = int((result or {}).get("usadas") or 0)
     if usadas == 0:
         return jsonify({"error": "El paquete no esta activo o no tiene sesiones disponibles."}), 409
