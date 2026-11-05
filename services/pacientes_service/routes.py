@@ -13,7 +13,9 @@ from shared.validators import validar_datos_paciente
 
 
 _TERAPEUTAS_MAPA_TTL = 20.0
+_TERAPEUTAS_LISTA_TTL = 15.0
 _TERAPEUTAS_MAPA_CACHE = {"expires": 0.0, "data": None}
+_TERAPEUTAS_LISTA_CACHE = {"expires": 0.0, "data": None}
 _TERAPEUTAS_MAPA_LOCK = threading.Lock()
 
 
@@ -21,6 +23,8 @@ def _invalidar_mapa_terapeutas():
     with _TERAPEUTAS_MAPA_LOCK:
         _TERAPEUTAS_MAPA_CACHE["expires"] = 0.0
         _TERAPEUTAS_MAPA_CACHE["data"] = None
+        _TERAPEUTAS_LISTA_CACHE["expires"] = 0.0
+        _TERAPEUTAS_LISTA_CACHE["data"] = None
 
 
 def _mapa_usuarios():
@@ -336,6 +340,12 @@ def listar_servicios():
 
 @pacientes_bp.route("/api/terapeutas", methods=["GET"])
 def listar_terapeutas():
+    ahora = time.monotonic()
+    with _TERAPEUTAS_MAPA_LOCK:
+        cache = _TERAPEUTAS_LISTA_CACHE
+        if cache["data"] is not None and ahora < cache["expires"]:
+            return jsonify({"success": True, "terapeutas": cache["data"]})
+
     terapeutas = call_proc("sp_listar_terapeutas") or []
     usuarios = _mapa_usuarios()
     especialidades = _mapa_especialidades()
@@ -347,6 +357,10 @@ def listar_terapeutas():
         t["Especialidad"] = especialidades.get(t.get("especialidad_id"))
         t["precio"] = float(t["precio"]) if t.get("precio") is not None else None
 
+    if terapeutas:
+        with _TERAPEUTAS_MAPA_LOCK:
+            _TERAPEUTAS_LISTA_CACHE["data"] = terapeutas
+            _TERAPEUTAS_LISTA_CACHE["expires"] = time.monotonic() + _TERAPEUTAS_LISTA_TTL
     return jsonify({"success": True, "terapeutas": terapeutas})
 
 
