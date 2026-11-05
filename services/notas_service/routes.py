@@ -1,3 +1,6 @@
+import threading
+import time
+
 from flask import jsonify, request
 
 from services.notas_service import notas_bp
@@ -6,16 +9,32 @@ from shared.proc import call_proc, call_proc_one
 from shared.service_client import citas_client, pacientes_client
 
 
+_TERAPEUTAS_CACHE_TTL = 30.0
+_TERAPEATAS_CACHE = {"expires": 0.0, "data": None}
+_TERAPEATAS_CACHE_LOCK = threading.Lock()
+
+
 def _mapa_terapeutas():
-    """{terapeuta_id: {Nombre, ...}} via pacientes_service para
-    enriquecer el autor de las notas (antes JOIN a usuarios via
-    terapeutas en sp_listar_notas, CROSS-DB)."""
+    """Catálogo breve en caché: evita repetir auth/pacientes por cada nota."""
+    ahora = time.monotonic()
+    with _TERAPEATAS_CACHE_LOCK:
+        if ahora < _TERAPEATAS_CACHE["expires"] and _TERAPEATAS_CACHE["data"] is not None:
+            return _TERAPEATAS_CACHE["data"]
+
     try:
-        data, _ = pacientes_client.get("/api/terapeutas")
+        data, status = pacientes_client.get("/api/terapeutas")
+        if status != 200 or not isinstance(data, dict):
+            return {}
         terapeutas = data.get("terapeutas") or []
-        return {t["ID"]: t for t in terapeutas}
+        mapa = {t["ID"]: t for t in terapeutas}
     except Exception:
         return {}
+
+    if mapa:
+        with _TERAPEATAS_CACHE_LOCK:
+            _TERAPEATAS_CACHE["data"] = mapa
+            _TERAPEATAS_CACHE["expires"] = time.monotonic() + _TERAPEATAS_CACHE_TTL
+    return mapa
 
 
 @notas_bp.route("/api/notas/<int:cita_id>", methods=["GET"])
