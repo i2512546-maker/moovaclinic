@@ -75,6 +75,6 @@ def crear_nota(cita_id):
 
     result = call_proc_one("sp_crear_nota", (
         cita_id, paciente_id, terapeuta_id, nota, diagnostico or None,
-    ), db_name=NOTAS_DB_NAME)
+    ), db_name=NOTAS_DB_NAME, commit=True)
     nota_id = result["id"] if result else None
     return jsonify({"success": True, "nota_id": nota_id}), 201
