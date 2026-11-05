@@ -191,9 +191,9 @@ def _datos_paciente_cita(cita_id):
     if not paciente_id:
         return None, None
     try:
-        data, _ = pacientes_client.get("/api/pacientes")
-        mapa = {p["id"]: p for p in (data.get("pacientes") or [])}
-        p = mapa.get(paciente_id) or {}
+        # Reutiliza el catálogo breve ya usado por la agenda; no vuelve a
+        # descargar y recorrer todos los pacientes por cada acción auditada.
+        p = _mapa_pacientes().get(paciente_id) or {}
         nombre = " ".join(x for x in (p.get("nombre"), p.get("apellido")) if x).strip()
         return paciente_id, nombre or None
     except Exception:
