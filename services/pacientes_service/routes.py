@@ -1,3 +1,5 @@
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 import requests
@@ -8,6 +10,17 @@ from shared.config import APIPERU_TOKEN, APIPERU_URL
 from shared.proc import call_proc, call_proc_execute, call_proc_one
 from shared.service_client import auth_client, citas_client, pagos_client
 from shared.validators import validar_datos_paciente
+
+
+_TERAPEUTAS_MAPA_TTL = 20.0
+_TERAPEUTAS_MAPA_CACHE = {"expires": 0.0, "data": None}
+_TERAPEUTAS_MAPA_LOCK = threading.Lock()
+
+
+def _invalidar_mapa_terapeutas():
+    with _TERAPEUTAS_MAPA_LOCK:
+        _TERAPEUTAS_MAPA_CACHE["expires"] = 0.0
+        _TERAPEUTAS_MAPA_CACHE["data"] = None
 
 
 def _mapa_usuarios():
@@ -26,8 +39,14 @@ def _mapa_especialidades():
 
 
 def _mapa_terapeutas(usuarios=None, especialidades=None):
-    """{terapeuta_id: {te_name: Nombre, Especialidad}} para enriquecer
-    citas/historial sin tocar tablas de otras bases."""
+    """Mapa de terapeutas con caché breve para enriquecer fichas e historiales."""
+    ahora = time.monotonic()
+    with _TERAPEUTAS_MAPA_LOCK:
+        cache = _TERAPEUTAS_MAPA_CACHE
+        if usuarios is None and especialidades is None and cache["data"] is not None and ahora < cache["expires"]:
+            return cache["data"]
+
+    usar_cache = usuarios is None and especialidades is None
     usuarios = usuarios if usuarios is not None else _mapa_usuarios()
     especialidades = especialidades if especialidades is not None else _mapa_especialidades()
     terapeutas = call_proc("sp_listar_terapeutas") or []
@@ -39,6 +58,10 @@ def _mapa_terapeutas(usuarios=None, especialidades=None):
             "especialidad": especialidades.get(t.get("especialidad_id")),
             "precio": float(t["precio"]) if t.get("precio") is not None else None,
         }
+    if usar_cache and mapa:
+        with _TERAPEUTAS_MAPA_LOCK:
+            _TERAPEUTAS_MAPA_CACHE["data"] = mapa
+            _TERAPEUTAS_MAPA_CACHE["expires"] = time.monotonic() + _TERAPEUTAS_MAPA_TTL
     return mapa
 
 
@@ -354,6 +377,7 @@ def crear_terapeuta():
         return jsonify({"error": "usuario_id requerido."}), 400
 
     result = call_proc_one("sp_crear_terapeuta", (usuario_id, especialidad_id, precio))
+    _invalidar_mapa_terapeutas()
     return jsonify({"success": True, "id": result["id"] if result else None}), 201
 
 
@@ -364,6 +388,7 @@ def actualizar_precio_terapeuta(medico_id):
     if precio is None:
         return jsonify({"error": "precio requerido."}), 400
     call_proc_execute("sp_actualizar_precio", (medico_id, precio))
+    _invalidar_mapa_terapeutas()
     return jsonify({"success": True})
 
 
@@ -374,6 +399,7 @@ def actualizar_especialidad_terapeuta(medico_id):
     if especialidad_id is None:
         return jsonify({"error": "especialidad_id requerido."}), 400
     call_proc_execute("sp_actualizar_especialidad", (medico_id, especialidad_id))
+    _invalidar_mapa_terapeutas()
     return jsonify({"success": True})
 
 
@@ -384,6 +410,7 @@ def set_terapeuta_activo(medico_id):
     if activo is None:
         return jsonify({"error": "activo requerido."}), 400
     call_proc_execute("sp_set_terapeuta_activo", (medico_id, 1 if activo else 0))
+    _invalidar_mapa_terapeutas()
     return jsonify({"success": True})
 
 
