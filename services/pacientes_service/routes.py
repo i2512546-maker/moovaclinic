@@ -514,7 +514,7 @@ def crear_evaluacion(paciente_id):
         data.get("escala_dolor_eva"),
         data.get("rango_movimiento"),
         data.get("objetivos_terapeuticos"),
-    ))
+    ), commit=True)
     eval_id = result["id"] if result else None
     return jsonify({"success": True, "evaluacion_id": eval_id}), 201
 
