@@ -10,16 +10,16 @@ from shared.service_client import citas_client, pacientes_client
 
 
 _TERAPEUTAS_CACHE_TTL = 30.0
-_TERAPEATAS_CACHE = {"expires": 0.0, "data": None}
-_TERAPEATAS_CACHE_LOCK = threading.Lock()
+_TERAPEUTAS_CACHE = {"expires": 0.0, "data": None}
+_TERAPEUTAS_CACHE_LOCK = threading.Lock()
 
 
 def _mapa_terapeutas():
     """Catálogo breve en caché: evita repetir auth/pacientes por cada nota."""
     ahora = time.monotonic()
-    with _TERAPEATAS_CACHE_LOCK:
-        if ahora < _TERAPEATAS_CACHE["expires"] and _TERAPEATAS_CACHE["data"] is not None:
-            return _TERAPEATAS_CACHE["data"]
+    with _TERAPEUTAS_CACHE_LOCK:
+        if ahora < _TERAPEUTAS_CACHE["expires"] and _TERAPEUTAS_CACHE["data"] is not None:
+            return _TERAPEUTAS_CACHE["data"]
 
     try:
         data, status = pacientes_client.get("/api/terapeutas")
@@ -31,9 +31,9 @@ def _mapa_terapeutas():
         return {}
 
     if mapa:
-        with _TERAPEATAS_CACHE_LOCK:
-            _TERAPEATAS_CACHE["data"] = mapa
-            _TERAPEATAS_CACHE["expires"] = time.monotonic() + _TERAPEATAS_CACHE_TTL
+        with _TERAPEUTAS_CACHE_LOCK:
+            _TERAPEUTAS_CACHE["data"] = mapa
+            _TERAPEUTAS_CACHE["expires"] = time.monotonic() + _TERAPEUTAS_CACHE_TTL
     return mapa
 
 
