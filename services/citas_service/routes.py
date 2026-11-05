@@ -150,7 +150,11 @@ def _enriquecer_horario_cita(cita, servicios=None):
     cita["hora_fin"] = None
     if hora_inicio and cita["duracion_min"] is not None:
         try:
-            inicio = datetime.strptime(str(_fmt_hora(hora_inicio))[:8], "%H:%M:%S")
+            texto_hora = str(_fmt_hora(hora_inicio))
+            try:
+                inicio = datetime.strptime(texto_hora[:8], "%H:%M:%S")
+            except ValueError:
+                inicio = datetime.strptime(texto_hora[:5], "%H:%M")
             cita["hora_fin"] = (inicio + timedelta(minutes=cita["duracion_min"])).strftime("%H:%M")
         except (TypeError, ValueError):
             cita["hora_fin"] = None
