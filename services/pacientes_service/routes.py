@@ -266,7 +266,7 @@ def actualizar_paciente(dni):
         _val("nombre"), _val("apellido"), _val("telefono"), _val("email"),
         _val("estado"), _val("fecha_nacimiento"), _val("sexo"),
         _val("direccion"), _val("seguro"), dni_nuevo,
-    ))
+    ), commit=True)
     return jsonify({"success": True})
 
 
