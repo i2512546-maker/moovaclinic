@@ -165,7 +165,19 @@
                     {% if proximas_citas %}
                         {% for c in proximas_citas %}
                         <tr>
-                            <td><strong>{{ c.fecha_cita }}</strong><div class="small text-muted">{{ c.hora_cita or '—' }}</div></td>
+                            <td>
+                                <strong>{{ c.fecha_cita }}</strong>
+                                <div class="mt-1">
+                                    {% if c.hora_cita and c.hora_fin %}
+                                    <span class="badge text-bg-primary"><i class="bi bi-clock me-1"></i>{{ (c.hora_cita|string)[:5] }} – {{ c.hora_fin }}</span>
+                                    <div class="small text-muted mt-1">{{ c.duracion_min }} minutos</div>
+                                    {% elif c.hora_cita %}
+                                    <span class="badge text-bg-warning">{{ (c.hora_cita|string)[:5] }} – Fin no disponible</span>
+                                    {% else %}
+                                    <span class="badge text-bg-secondary">Horario no registrado</span>
+                                    {% endif %}
+                                </div>
+                            </td>
                             <td>{{ c.nombre }} {{ c.apellido }}</td>
                             <td>{{ c.dni }}</td>
                             <td>{{ c.telefono }}</td>
