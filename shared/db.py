@@ -57,7 +57,7 @@ def _pool_para(db_name):
             pool = MySQLConnectionPool(
                 pool_name=nombre,
                 pool_size=pool_size,
-                pool_reset_session=False,
+                pool_reset_session=True,
                 host=DB_HOST,
                 user=DB_USER,
                 password=DB_PASSWORD,
