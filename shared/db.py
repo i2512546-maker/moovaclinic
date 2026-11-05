@@ -117,7 +117,7 @@ def get_connection(db_name=None):
         cursor = conn.cursor()
         try:
             cursor.execute(
-                "SET SESSION time_zone = '-05:00', innodb_lock_wait_timeout = 5"
+                "SET SESSION time_zone = '-05:00', SESSION innodb_lock_wait_timeout = 5"
             )
         except Exception:
             # Compatibilidad con servidores que no permitan cambiar el
