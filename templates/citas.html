@@ -180,9 +180,8 @@
                         </div>
                         <div class="mb-3" id="verificar-identidad-container">
                             <button type="button" class="btn btn-moova w-100" id="btnVerificarDni">
-                                <i class="fas fa-shield-alt me-1"></i> Verificar identidad
+                                <i class="fas fa-id-card me-1"></i> Consultar DNI
                             </button>
-                            <button type="button" class="btn btn-outline-success w-100 mt-2" id="btnConfirmarIdentidad" style="display:none;">Sí, estos datos son míos</button>
                             <small id="dni-status" class="text-muted d-block mt-2" role="status" aria-live="polite"></small>
                         </div>
                         <div class="mb-3" id="telefono-container" style="display:none;">
@@ -673,7 +672,6 @@
         var dniVerificado = false;
         var dniValidado = '';
         var btnVerificarDni = document.getElementById('btnVerificarDni');
-        var btnConfirmarIdentidad = document.getElementById('btnConfirmarIdentidad');
         var dniInput = document.getElementById('dni');
         var dniStatus = document.getElementById('dni-status');
         var nombreInput = document.getElementById('nombre');
@@ -692,7 +690,6 @@
             document.getElementById('btnNext1').style.display = 'none';
             btnVerificarDni.disabled = false;
             btnVerificarDni.style.display = '';
-            btnConfirmarIdentidad.style.display = 'none';
             dniStatus.className = 'text-muted d-block mt-2';
             dniStatus.textContent = 'Ingresa tu DNI para consultar tus datos.';
             document.getElementById('servicio_id').value = '';
@@ -754,9 +751,14 @@
                 if (!nombreInput.value || !apellidoInput.value) throw new Error('APIPerú no devolvió los nombres completos.');
                 dniValidado = dni;
                 btnVerificarDni.style.display = 'none';
-                btnConfirmarIdentidad.style.display = '';
+                await actualizarDisponibilidadEvaluacionInicial(dni);
+                dniVerificado = true;
+                document.getElementById('telefono-container').style.display = '';
+                telefonoInput.disabled = false;
+                document.getElementById('identidad-confirmada').style.display = '';
+                document.getElementById('btnNext1').style.display = '';
                 dniStatus.className = 'text-success d-block mt-2';
-                dniStatus.textContent = 'Datos encontrados. Revisa tus nombres y apellidos y confirma que este DNI te pertenece.';
+                dniStatus.textContent = 'DNI validado. Completa tu teléfono para continuar.';
             } catch (error) {
                 dniStatus.className = 'text-danger d-block mt-2';
                 dniStatus.textContent = error.message || 'No se pudo consultar el DNI.';
@@ -796,41 +798,6 @@
                 aviso.style.display = '';
             }
         }
-
-        btnConfirmarIdentidad.addEventListener('click', async function () {
-            var dni = dniInput.value.trim();
-            if (!/^\d{8}$/.test(dni) || dni !== dniValidado) {
-                mostrarPopup('Vuelve a consultar tu DNI antes de confirmar.', 'error');
-                limpiarDatosPosterioresDni();
-                return;
-            }
-            btnConfirmarIdentidad.disabled = true;
-            try {
-                var response = await fetch('/api/confirmar_identidad', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
-                    body: JSON.stringify({ dni: dni }),
-                    credentials: 'same-origin'
-                });
-                var data = await response.json();
-                if (!response.ok || !data.success) throw new Error(data.error || 'No se pudo confirmar la identidad.');
-                await actualizarDisponibilidadEvaluacionInicial(dni);
-                dniVerificado = true;
-                document.getElementById('telefono-container').style.display = '';
-                telefonoInput.disabled = false;
-                document.getElementById('identidad-confirmada').style.display = '';
-                document.getElementById('btnNext1').style.display = '';
-                btnConfirmarIdentidad.style.display = 'none';
-                dniStatus.className = 'text-success d-block mt-2';
-                dniStatus.textContent = 'Identidad confirmada. Continúa con tu número de teléfono.';
-            } catch (error) {
-                dniStatus.className = 'text-danger d-block mt-2';
-                dniStatus.textContent = error.message || 'No se pudo confirmar la identidad.';
-            } finally {
-                btnConfirmarIdentidad.disabled = false;
-            }
-        });
-
 
         document.getElementById('btnNext1').addEventListener('click', function () {
             if (!dniVerificado || dniInput.value.trim() !== dniValidado ||
