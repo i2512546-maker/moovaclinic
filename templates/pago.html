@@ -143,20 +143,17 @@
                 {% if pagos_modo_demo %}
                 <div class="pago-panel">
                     <div class="pago-method-head">
-                        <div class="pago-method-icon"><i class="fas fa-flask"></i></div>
+                        <div class="pago-method-icon"><i class="fas fa-credit-card"></i></div>
                         <div>
                             <h2>Confirmar pago</h2>
-                            <p>Este flujo es para la sustentación. No se realizará ningún cobro real.</p>
+                            <p>Completa el pago para confirmar tu cita.</p>
                         </div>
                     </div>
                     <div class="pago-monto">S/ {{ monto_txt }}</div>
                     <button type="button" class="btn btn-moova w-100" id="btnPagoDemo">
-                        <i class="fas fa-check-circle me-1"></i> Confirmar pago
+                        <i class="fas fa-lock me-1"></i> Realizar pago
                     </button>
                     <p class="pago-error" id="msgPagoDemo"></p>
-                    {% if pagos_modo_demo %}
-                    <p class="small text-muted mt-2 mb-0">Entorno de demostración: no se realizan cargos reales.</p>
-                    {% endif %}
                 </div>
                 {% elif cita.metodo_pago == 'yape' %}
                 <div class="pago-panel">
