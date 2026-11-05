@@ -86,9 +86,9 @@ def crear_usuario():
         # Usuario de panel admin (terapeuta) con telefono.
         result = call_proc_one("sp_crear_usuario_admin", (
             nombre, correo, telefono, clave_hash, rol["id"],
-        ))
+        ), commit=True)
     else:
-        result = call_proc_one("sp_crear_usuario", (nombre, correo, clave_hash, rol["id"]))
+        result = call_proc_one("sp_crear_usuario", (nombre, correo, clave_hash, rol["id"]), commit=True)
     usuario_id = result["id"] if result else None
     return jsonify({"success": True, "usuario_id": usuario_id}), 201
 
