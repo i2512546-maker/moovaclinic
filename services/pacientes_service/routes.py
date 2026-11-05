@@ -138,7 +138,7 @@ def crear_paciente_min():
         if existente:
             return jsonify({"error": "Ya existe un paciente con ese DNI.", "dni": existente["dni"]}), 409
 
-        result = call_proc_one("sp_crear_paciente_min", (nombre, apellido, dni, telefono))
+        result = call_proc_one("sp_crear_paciente_min", (nombre, apellido, dni, telefono), commit=True)
     except Exception as exc:
         current_app.logger.error(
             "[crear_paciente_min] Error en BD (sp_crear_paciente_min): %s: %s",
@@ -152,7 +152,7 @@ def crear_paciente_min():
 def eliminar_paciente_min_si_huerfano(paciente_id):
     """Limpia un alta de reserva fallida, solo si aún no tiene historial."""
     try:
-        resultado = call_proc_one("sp_eliminar_paciente_si_huerfano", (paciente_id,))
+        resultado = call_proc_one("sp_eliminar_paciente_si_huerfano", (paciente_id,), commit=True)
     except Exception as exc:
         current_app.logger.warning(
             "No se pudo revertir paciente temporal %s: %s: %s",
@@ -390,7 +390,7 @@ def crear_terapeuta():
     if not usuario_id:
         return jsonify({"error": "usuario_id requerido."}), 400
 
-    result = call_proc_one("sp_crear_terapeuta", (usuario_id, especialidad_id, precio))
+    result = call_proc_one("sp_crear_terapeuta", (usuario_id, especialidad_id, precio), commit=True)
     _invalidar_mapa_terapeutas()
     return jsonify({"success": True, "id": result["id"] if result else None}), 201
 
