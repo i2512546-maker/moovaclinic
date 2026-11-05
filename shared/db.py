@@ -47,9 +47,9 @@ def _pool_para(db_name):
         pool = _POOLS.get(clave)
         if pool is None:
             try:
-                pool_size = int(os.getenv("DB_POOL_SIZE", "4"))
+                pool_size = int(os.getenv("DB_POOL_SIZE", "8"))
             except (TypeError, ValueError):
-                pool_size = 4
+                pool_size = 8
             pool_size = max(2, min(pool_size, 12))
             nombre = "moova_" + hashlib.sha1(
                 "|".join(map(str, clave)).encode("utf-8")
