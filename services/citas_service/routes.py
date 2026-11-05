@@ -1,4 +1,6 @@
 import secrets
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 
@@ -28,6 +30,29 @@ from shared.horarios import (
 from shared.proc import call_proc, call_proc_execute, call_proc_one
 from shared.service_client import auth_client, pacientes_client, pagos_client
 from shared.validators import validar_datos_paciente
+
+
+# Los catálogos de pacientes y terapeutas se usan en cada carga de agenda.
+# Mantenerlos unos segundos evita repetir varias consultas MySQL por navegación.
+_CATALOGO_CACHE_TTL = 20.0
+_CATALOGO_CACHE = {}
+_CATALOGO_CACHE_LOCK = threading.Lock()
+
+
+def _catalogo_cacheado(clave, cargar):
+    ahora = time.monotonic()
+    with _CATALOGO_CACHE_LOCK:
+        entrada = _CATALOGO_CACHE.get(clave)
+        if entrada and ahora - entrada[0] < _CATALOGO_CACHE_TTL:
+            return entrada[1]
+
+    datos = cargar()
+    # No guardar respuestas vacías: podrían ser consecuencia de una caída
+    # temporal del servicio y no queremos ocultarla durante todo el TTL.
+    if datos:
+        with _CATALOGO_CACHE_LOCK:
+            _CATALOGO_CACHE[clave] = (time.monotonic(), datos)
+    return datos
 
 
 def _enviar_sms(telefono, mensaje):
@@ -63,34 +88,34 @@ def medico_disponible(medico_id, fecha_cita, excluir_cita_id=None):
 
 
 def _mapa_pacientes(timeout=None):
-    """{paciente_id: fila} via pacientes_service. Se usa para enriquecer
-    las citas (nombre/apellido/dni/telefono) sin tocar moovacloud_pacientes.
-    `timeout` es opcional; el aviso al terapeuta lo pasa a 5 s para no
-    encadenar esperas largas dentro de un DELETE/PUT."""
-    try:
-        kwargs = {"timeout": timeout} if timeout else {}
-        data, _ = pacientes_client.get(
-            "/api/pacientes", params={"incluir_resumen": "0"}, **kwargs
-        )
-        pacientes = data.get("pacientes") or []
-        return {p["id"]: p for p in pacientes}
-    except Exception:
-        return {}
+    """{paciente_id: fila} via pacientes_service, con cache breve para la agenda."""
+    def cargar():
+        try:
+            kwargs = {"timeout": timeout} if timeout else {}
+            data, _ = pacientes_client.get(
+                "/api/pacientes", params={"incluir_resumen": "0"}, **kwargs
+            )
+            pacientes = data.get("pacientes") or []
+            return {p["id"]: p for p in pacientes}
+        except Exception:
+            return {}
+
+    # Las operaciones sensibles pueden pedir timeout propio y no usan cache.
+    return cargar() if timeout else _catalogo_cacheado("pacientes", cargar)
 
 
 def _mapa_terapeutas(timeout=None):
-    """{terapeuta_id: fila} via pacientes_service.
+    """{terapeuta_id: fila} via pacientes_service, con cache breve para la agenda."""
+    def cargar():
+        try:
+            kwargs = {"timeout": timeout} if timeout else {}
+            data, _ = pacientes_client.get("/api/terapeutas", **kwargs)
+            terapeutas = data.get("terapeutas") or []
+            return {t["ID"]: t for t in terapeutas}
+        except Exception:
+            return {}
 
-    La fila trae ID, usuario_id, Nombre, Telefono, Especialidad y
-    precio: por eso sirve para enriquecer las citas y para resolver
-    el contacto del terapeuta en el aviso."""
-    try:
-        kwargs = {"timeout": timeout} if timeout else {}
-        data, _ = pacientes_client.get("/api/terapeutas", **kwargs)
-        terapeutas = data.get("terapeutas") or []
-        return {t["ID"]: t for t in terapeutas}
-    except Exception:
-        return {}
+    return cargar() if timeout else _catalogo_cacheado("terapeutas", cargar)
 
 
 
