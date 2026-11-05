@@ -59,15 +59,19 @@ def _run(proc_name, params, dictionary, fetch, commit, drain=False, db_name=None
     return rows
 
 
-def call_proc(proc_name, params=(), dictionary=True, fetch=True, commit=True, db_name=None):
+def call_proc(proc_name, params=(), dictionary=True, fetch=True, commit=False, db_name=None):
     """Ejecuta un procedimiento y devuelve la primera (y unica)
     serie de filas resultantes como lista de dict/listas."""
     return _run(proc_name, params, dictionary, fetch, commit, db_name=db_name)
 
 
-def call_proc_one(proc_name, params=(), dictionary=True, db_name=None):
-    """Ejecuta y devuelve la primera fila del resultado (o None)."""
-    rows = _run(proc_name, params, dictionary, fetch=True, commit=True, db_name=db_name)
+def call_proc_one(proc_name, params=(), dictionary=True, db_name=None, commit=False):
+    """Ejecuta una consulta y devuelve la primera fila (o None).
+
+    Las lecturas no necesitan COMMIT; las llamadas que modifican datos
+    deben indicar commit=True explícitamente.
+    """
+    rows = _run(proc_name, params, dictionary, fetch=True, commit=commit, db_name=db_name)
     return rows[0] if rows else None
 
 
