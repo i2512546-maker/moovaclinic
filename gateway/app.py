@@ -2048,40 +2048,46 @@ def create_app():
 
         paquetes, evaluaciones = _cargar_anexos_paciente(paciente.get("id"))
 
-        # Las notas clínicas se guardan por cita; reunirlas para mostrarlas
-        # juntas al final de la ficha del paciente. Si notas_service falla,
-        # no impedir que el administrador consulte el resto de la ficha.
-        notas_paciente = []
-        for cita in historial:
-            # El historial puede exponer el identificador como id,
-            # historial_id o cita_id según el origen de los datos.
+        # Las notas se consultan en paralelo con concurrencia limitada.
+        # Antes se esperaba cada cita en serie, multiplicando la latencia
+        # por el número de citas del historial.
+        def _cargar_notas_cita(cita):
             cita_id = cita.get("id") or cita.get("historial_id") or cita.get("cita_id")
             if not cita_id:
                 app.logger.warning(
                     "No se encontró el ID de cita en el historial del paciente %s: %s",
                     paciente.get("dni"), list(cita.keys()),
                 )
-                continue
+                return []
             try:
                 ndata, status = notas_client.get(f"/api/notas/{cita_id}")
-                if status == 200 and isinstance(ndata, dict):
-                    for nota in (ndata.get("notas") or []):
-                        notas_paciente.append({
-                            **nota,
-                            "cita_id": cita_id,
-                            "fecha_cita": cita.get("fecha_cita"),
-                            "terapeuta": cita.get("terapeuta"),
-                        })
-                else:
+                if status != 200 or not isinstance(ndata, dict):
                     app.logger.warning(
                         "No se pudieron cargar notas de cita %s (HTTP %s)",
                         cita_id, status,
                     )
+                    return []
+                return [
+                    {
+                        **nota,
+                        "cita_id": cita_id,
+                        "fecha_cita": cita.get("fecha_cita"),
+                        "terapeuta": cita.get("terapeuta"),
+                    }
+                    for nota in (ndata.get("notas") or [])
+                ]
             except Exception as exc:
                 app.logger.warning(
                     "No se pudieron cargar las notas de la cita %s: %s: %s",
                     cita_id, type(exc).__name__, exc,
                 )
+                return []
+
+        notas_paciente = []
+        if historial:
+            with ThreadPoolExecutor(max_workers=min(6, len(historial))) as executor:
+                for notas_cita in executor.map(_cargar_notas_cita, historial):
+                    notas_paciente.extend(notas_cita)
 
         return render_template("detalle_paciente.html", paciente=paciente,
                                historial=historial, paquetes=paquetes,
