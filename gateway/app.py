@@ -2243,7 +2243,7 @@ def create_app():
                 texto = "".join(ch for ch in texto if unicodedata.category(ch) != "Mn")
                 return " ".join(texto.casefold().split())
 
-            session["cita_identidad_pendiente"] = {
+            session["cita_identidad_verificada"] = {
                 "dni": dni,
                 "nombre": normalizar_identidad(nombres),
                 "apellido": normalizar_identidad(apellidos),
@@ -2252,24 +2252,6 @@ def create_app():
         except Exception as exc:
             app.logger.error("[verificar_dni] Error consultando APIPerú: %s", exc)
             return jsonify({"success": False, "error": "No se pudo consultar APIPerú. Inténtalo nuevamente."}), 502
-
-    @app.route("/api/confirmar_identidad", methods=["POST"])
-    def confirmar_identidad():
-        cuerpo = request.get_json(silent=True)
-        cuerpo = cuerpo if isinstance(cuerpo, dict) else {}
-        dni = str(cuerpo.get("dni") or "").strip()
-        pendiente = session.get("cita_identidad_pendiente") or {}
-        if not _dni_ok(dni) or pendiente.get("dni") != dni:
-            session.pop("cita_identidad_verificada", None)
-            return jsonify({"success": False, "error": "Primero consulta tu DNI y revisa los datos."}), 400
-
-        session["cita_identidad_verificada"] = {
-            "dni": dni,
-            "nombre": pendiente["nombre"],
-            "apellido": pendiente["apellido"],
-        }
-        session.pop("cita_identidad_pendiente", None)
-        return jsonify({"success": True, "verificado": True}), 200
 
     @app.route("/api/estadisticas")
     def api_estadisticas():
