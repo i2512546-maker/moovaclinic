@@ -112,16 +112,17 @@ def get_connection(db_name=None):
     conn = _pool_para(db_name).get_connection()
     cursor = None
     try:
-        # La zona horaria y el límite de espera se aplican al sacar cada
-        # conexión, porque MySQL conserva variables SESSION al reutilizarla.
+        # Configurar ambas variables en una sola ida a MySQL reduce la
+        # latencia de cada procedimiento almacenado al reutilizar el pool.
         cursor = conn.cursor()
-        cursor.execute("SET SESSION time_zone = '-05:00'")
         try:
-            cursor.execute("SET SESSION innodb_lock_wait_timeout = 5")
+            cursor.execute(
+                "SET SESSION time_zone = '-05:00', innodb_lock_wait_timeout = 5"
+            )
         except Exception:
-            # Compatibilidad con servidores que no permitan cambiar esta
-            # variable por sesión. La conexión sigue siendo utilizable.
-            pass
+            # Compatibilidad con servidores que no permitan cambiar el
+            # timeout por sesión: se conserva al menos la zona horaria.
+            cursor.execute("SET SESSION time_zone = '-05:00'")
         return conn
     except Exception:
         if cursor is not None:
