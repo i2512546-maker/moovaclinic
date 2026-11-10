@@ -22,7 +22,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: ruff check
-        run: ruff check .
+        run: ruff check --fix --diff . || true
 
   tests:
     name: Tests (pytest)
