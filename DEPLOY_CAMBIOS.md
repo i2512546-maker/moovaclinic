@@ -143,3 +143,41 @@ El backup debe seguir la misma configuración que la aplicación: define
 `DB_NAME` para respaldar el esquema unificado o `DB_LIST` para una instalación
 histórica de varios esquemas. No cambies la estructura de bases como parte
 de un despliegue de código.
+
+
+## 8. API móvil JSON
+
+La API móvil se publica en el mismo proceso Flask bajo `/api/movil`; no
+requiere un segundo servicio ni expone los blueprints internos `/_internal`.
+El cliente móvil debe usar HTTPS y no depender de la cookie web.
+
+### Variables obligatorias
+
+Configura `JWT_SECRET` en el entorno de `moova-gateway` con un valor
+aleatorio de al menos 32 bytes. Debe ser diferente de `SECRET_KEY`.
+En producción la aplicación no arranca si falta o coincide con
+`SECRET_KEY`. No guardes el valor real en Git ni lo reutilices entre
+entornos. `.env.example` contiene solo un marcador.
+
+### Despliegue
+
+1. Actualiza dependencias con `pip install -r requirements.txt` (incluye
+   PyJWT fijado en `requirements.txt`).
+2. En Railway define `FLASK_ENV=production` y `JWT_SECRET` (mínimo 32 caracteres aleatorios) antes de desplegar.
+3. Despliega la rama de integración en un entorno de pruebas.
+4. Ejecuta los tests de `tests/test_api_movil.py` y `tests/test_otp_agendar.py`.
+5. Prueba login, expiración JWT, rechazo de cookie, OTP por acción y
+   autorización por paciente/terapeuta antes de publicar.
+
+### Seguridad y operación
+
+- Personal: `Authorization: Bearer <JWT>`, HS256, emisor `moova-clinic`,
+  audiencia `moova-mobile`, duración de 8 horas.
+- Pacientes: OTP enviado al teléfono registrado y credencial firmada
+  `X-Verificacion` con vigencia de 15 minutos y acción/DNI asociados.
+- El gateway nunca autentica la API móvil mediante cookie de sesión.
+- Los intentos de login y OTP se limitan en memoria por IP/correo o IP/DNI.
+  El contador es por proceso y se reinicia al reiniciar el servicio; con
+  múltiples workers cada worker mantiene su propio contador.
+- Los servicios siguen ejecutándose in-process mediante `ServiceClient`;
+  las rutas `/_internal` no deben publicarse ni cambiar sus controles.
