@@ -45,6 +45,12 @@ ACCIONES_VALIDAS = [
     "actualizar_usuario",
     "avisar_terapeuta",
     "ficha_clinica_pdf",
+    "login_movil",
+    "modificar_cita_movil",
+    "cancelar_cita_movil",
+    "crear_nota_movil",
+    "crear_evaluacion_movil",
+    "crear_anticipo_movil",
 ]
 
 

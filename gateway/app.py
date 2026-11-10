@@ -46,6 +46,7 @@ from shared.config import (
 from shared.fechas import fmt_fecha, hoy_lima
 from shared.horarios import generar_slots
 from shared.rate_limit import LimitadorIntentos, ip_del_request
+from shared.validators import normalizar_telefono
 from shared.service_client import (
     audit_client,
     auth_client,
@@ -117,7 +118,7 @@ def _terapeuta_id_de_sesion():
 # mostrar datos de salud o de mutar una cita (S1). Cada una tiene su
 # propio sello en la sesion: verificar para cancelar no habilita a
 # modificar, ni a tratar.
-ACCIONES_OTP = ("cancelar", "modificar", "tratamiento", "consultar")
+ACCIONES_OTP = ("agendar", "cancelar", "modificar", "tratamiento", "consultar")
 
 # Vista a la que vuelve el usuario cuando no tiene la verificacion.
 VISTA_ACCION = {
@@ -328,8 +329,27 @@ def create_app():
     # Solo si se usa HTTPS en producción; en localhost http queda desactivado automaticamente
     if os.getenv("FLASK_ENV") == "production":
         app.config["SESSION_COOKIE_SECURE"] = True
+    jwt_secret = os.getenv("JWT_SECRET")
+    entorno_produccion = (
+        os.getenv("FLASK_ENV", "").strip().lower() == "production"
+        or os.getenv("ENVIRONMENT", "").strip().lower() == "production"
+        or os.getenv("RENDER", "").strip().lower() == "true"
+        or bool(os.getenv("RAILWAY_ENVIRONMENT_NAME") or os.getenv("RAILWAY_PROJECT_ID"))
+    )
+    if entorno_produccion and (
+        not jwt_secret or jwt_secret == secret_key or len(jwt_secret.encode("utf-8")) < 32
+    ):
+        raise RuntimeError(
+            "En producción JWT_SECRET es obligatoria, debe tener al menos 32 caracteres "
+            "y ser distinta de SECRET_KEY."
+        )
+    app.config["JWT_SECRET"] = jwt_secret or (secret_key + "-solo-desarrollo-jwt")
     csrf.init_app(app)
     Compress(app)
+
+    from gateway.movil import movil_bp
+    csrf.exempt(movil_bp)
+    app.register_blueprint(movil_bp)
 
     from services.audit_service import audit_bp
     from services.auth_service import auth_bp
@@ -805,6 +825,58 @@ def create_app():
             return jsonify({"success": True, "estado": "no_asistio"})
         return redirect(url_retorno)
 
+    @app.route("/api/citas/otp/solicitar", methods=["POST"])
+    def solicitar_otp_agendar():
+        data = request.get_json(silent=True) or {}
+        dni = str(data.get("dni") or "").strip()
+        telefono = str(data.get("telefono") or "").strip()
+        identidad = session.get("cita_identidad_verificada") or {}
+        if not _dni_ok(dni) or identidad.get("dni") != dni:
+            return jsonify({"success": False, "error": "Verifica tu identidad antes de solicitar el código."}), 403
+        resultado, status = citas_client.post(
+            "/api/citas/otp/solicitar",
+            {"dni": dni, "accion": "agendar", "telefono": normalizar_telefono(telefono)},
+        )
+        if status != 200 or not (resultado or {}).get("success"):
+            return jsonify({"success": False, "error": (resultado or {}).get("error", "No se pudo enviar el código.")}), status
+        paciente_data, paciente_status = pacientes_client.get(f"/api/pacientes/{dni}")
+        paciente = (paciente_data or {}).get("paciente") or {}
+        telefono_verificado = (
+            normalizar_telefono(str(paciente.get("telefono") or ""))
+            if paciente_status == 200 and paciente else normalizar_telefono(telefono)
+        )
+        session["otp_agendar_pendiente"] = {
+            "dni": dni, "telefono": telefono_verificado, "ts": time.time(),
+        }
+        return jsonify({
+            "success": True, "mensaje": "Código enviado por SMS.",
+            "tel_mask": resultado.get("tel_mask", ""),
+        }), 200
+
+    @app.route("/api/citas/otp/verificar", methods=["POST"])
+    def verificar_otp_agendar():
+        data = request.get_json(silent=True) or {}
+        dni = str(data.get("dni") or "").strip()
+        codigo = str(data.get("otp") or "").strip()
+        pendiente = session.get("otp_agendar_pendiente") or {}
+        if not _dni_ok(dni) or pendiente.get("dni") != dni:
+            return jsonify({"success": False, "error": "Solicita un código para este DNI."}), 403
+        if time.time() - float(pendiente.get("ts") or 0) > 600:
+            session.pop("otp_agendar_pendiente", None)
+            return jsonify({"success": False, "error": "La solicitud de código expiró. Solicita uno nuevo."}), 400
+        resultado, status = citas_client.post(
+            "/api/citas/otp/verificar",
+            {"dni": dni, "otp": codigo, "accion": "agendar"},
+        )
+        if status != 200 or (resultado or {}).get("resultado") != "ok":
+            return jsonify({"success": False, "error": "Código incorrecto o vencido."}), 400
+        _marcar_otp_verificado(dni, "agendar")
+        session["otp_agendar_verificado"] = {
+            "dni": dni, "telefono": pendiente.get("telefono") or "",
+        }
+        session.pop("otp_agendar_pendiente", None)
+        return jsonify({"success": True, "mensaje": "Teléfono verificado correctamente."}), 200
+
     @app.route("/citas", methods=["GET", "POST"])
     def citas_page():
         ip_claves, dni_claves = [], []
@@ -864,6 +936,14 @@ def create_app():
                     "error": "La identidad no está verificada para estos datos. Vuelve al primer paso y verifica tu DNI."
                 }), 403
 
+            verificacion_agendar = session.get("otp_agendar_verificado") or {}
+            if (
+                not _otp_vigente(form_data["dni"], "agendar")
+                or verificacion_agendar.get("dni") != form_data["dni"]
+            ):
+                return jsonify({"error": "Verifica el código SMS antes de reservar la cita."}), 403
+            form_data["telefono"] = verificacion_agendar.get("telefono") or form_data["telefono"]
+
             if not all(form_data.values()):
                 msg = "Por favor completa todos los campos, selecciona un médico y elige una fecha."
                 registrar_fallo_cita()
@@ -888,6 +968,8 @@ def create_app():
             result, status = citas_client.post("/api/citas", form_data)
             if status == 201 and result.get("success"):
                 session.pop("cita_identidad_verificada", None)
+                session.pop("otp_agendar_verificado", None)
+                session.pop("otp_verificado", None)
                 limite_ip.registrar_exito(ip_claves)
                 if dni_claves:
                     limite_dni.registrar_exito(dni_claves)
@@ -2048,46 +2130,40 @@ def create_app():
 
         paquetes, evaluaciones = _cargar_anexos_paciente(paciente.get("id"))
 
-        # Las notas se consultan en paralelo con concurrencia limitada.
-        # Antes se esperaba cada cita en serie, multiplicando la latencia
-        # por el número de citas del historial.
-        def _cargar_notas_cita(cita):
+        # Las notas clínicas se guardan por cita; reunirlas para mostrarlas
+        # juntas al final de la ficha del paciente. Si notas_service falla,
+        # no impedir que el administrador consulte el resto de la ficha.
+        notas_paciente = []
+        for cita in historial:
+            # El historial puede exponer el identificador como id,
+            # historial_id o cita_id según el origen de los datos.
             cita_id = cita.get("id") or cita.get("historial_id") or cita.get("cita_id")
             if not cita_id:
                 app.logger.warning(
                     "No se encontró el ID de cita en el historial del paciente %s: %s",
                     paciente.get("dni"), list(cita.keys()),
                 )
-                return []
+                continue
             try:
                 ndata, status = notas_client.get(f"/api/notas/{cita_id}")
-                if status != 200 or not isinstance(ndata, dict):
+                if status == 200 and isinstance(ndata, dict):
+                    for nota in (ndata.get("notas") or []):
+                        notas_paciente.append({
+                            **nota,
+                            "cita_id": cita_id,
+                            "fecha_cita": cita.get("fecha_cita"),
+                            "terapeuta": cita.get("terapeuta"),
+                        })
+                else:
                     app.logger.warning(
                         "No se pudieron cargar notas de cita %s (HTTP %s)",
                         cita_id, status,
                     )
-                    return []
-                return [
-                    {
-                        **nota,
-                        "cita_id": cita_id,
-                        "fecha_cita": cita.get("fecha_cita"),
-                        "terapeuta": cita.get("terapeuta"),
-                    }
-                    for nota in (ndata.get("notas") or [])
-                ]
             except Exception as exc:
                 app.logger.warning(
                     "No se pudieron cargar las notas de la cita %s: %s: %s",
                     cita_id, type(exc).__name__, exc,
                 )
-                return []
-
-        notas_paciente = []
-        if historial:
-            with ThreadPoolExecutor(max_workers=min(6, len(historial))) as executor:
-                for notas_cita in executor.map(_cargar_notas_cita, historial):
-                    notas_paciente.extend(notas_cita)
 
         return render_template("detalle_paciente.html", paciente=paciente,
                                historial=historial, paquetes=paquetes,
@@ -2201,6 +2277,7 @@ def create_app():
         cuerpo = cuerpo if isinstance(cuerpo, dict) else {}
         dni = str(cuerpo.get("dni") or "").strip()
         session.pop("cita_identidad_verificada", None)
+        session.pop("cita_identidad_pendiente", None)
         if not _dni_ok(dni):
             return jsonify({"success": False, "error": "DNI inválido"}), 400
 
@@ -2248,7 +2325,7 @@ def create_app():
                 texto = "".join(ch for ch in texto if unicodedata.category(ch) != "Mn")
                 return " ".join(texto.casefold().split())
 
-            session["cita_identidad_verificada"] = {
+            session["cita_identidad_pendiente"] = {
                 "dni": dni,
                 "nombre": normalizar_identidad(nombres),
                 "apellido": normalizar_identidad(apellidos),
@@ -2257,6 +2334,24 @@ def create_app():
         except Exception as exc:
             app.logger.error("[verificar_dni] Error consultando APIPerú: %s", exc)
             return jsonify({"success": False, "error": "No se pudo consultar APIPerú. Inténtalo nuevamente."}), 502
+
+    @app.route("/api/confirmar_identidad", methods=["POST"])
+    def confirmar_identidad():
+        cuerpo = request.get_json(silent=True)
+        cuerpo = cuerpo if isinstance(cuerpo, dict) else {}
+        dni = str(cuerpo.get("dni") or "").strip()
+        pendiente = session.get("cita_identidad_pendiente") or {}
+        if not _dni_ok(dni) or pendiente.get("dni") != dni:
+            session.pop("cita_identidad_verificada", None)
+            return jsonify({"success": False, "error": "Primero consulta tu DNI y revisa los datos."}), 400
+
+        session["cita_identidad_verificada"] = {
+            "dni": dni,
+            "nombre": pendiente["nombre"],
+            "apellido": pendiente["apellido"],
+        }
+        session.pop("cita_identidad_pendiente", None)
+        return jsonify({"success": True, "verificado": True}), 200
 
     @app.route("/api/estadisticas")
     def api_estadisticas():

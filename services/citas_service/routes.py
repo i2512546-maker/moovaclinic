@@ -1,6 +1,4 @@
 import secrets
-import threading
-import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 
@@ -29,30 +27,7 @@ from shared.horarios import (
 )
 from shared.proc import call_proc, call_proc_execute, call_proc_one
 from shared.service_client import auth_client, pacientes_client, pagos_client
-from shared.validators import validar_datos_paciente
-
-
-# Los catálogos de pacientes y terapeutas se usan en cada carga de agenda.
-# Mantenerlos unos segundos evita repetir varias consultas MySQL por navegación.
-_CATALOGO_CACHE_TTL = 20.0
-_CATALOGO_CACHE = {}
-_CATALOGO_CACHE_LOCK = threading.Lock()
-
-
-def _catalogo_cacheado(clave, cargar):
-    ahora = time.monotonic()
-    with _CATALOGO_CACHE_LOCK:
-        entrada = _CATALOGO_CACHE.get(clave)
-        if entrada and ahora - entrada[0] < _CATALOGO_CACHE_TTL:
-            return entrada[1]
-
-    datos = cargar()
-    # No guardar respuestas vacías: podrían ser consecuencia de una caída
-    # temporal del servicio y no queremos ocultarla durante todo el TTL.
-    if datos:
-        with _CATALOGO_CACHE_LOCK:
-            _CATALOGO_CACHE[clave] = (time.monotonic(), datos)
-    return datos
+from shared.validators import normalizar_telefono, validar_datos_paciente, validar_telefono
 
 
 def _enviar_sms(telefono, mensaje):
@@ -88,77 +63,35 @@ def medico_disponible(medico_id, fecha_cita, excluir_cita_id=None):
 
 
 def _mapa_pacientes(timeout=None):
-    """{paciente_id: fila} via pacientes_service, con cache breve para la agenda."""
-    def cargar():
-        try:
-            kwargs = {"timeout": timeout} if timeout else {}
-            data, _ = pacientes_client.get(
-                "/api/pacientes", params={"incluir_resumen": "0"}, **kwargs
-            )
-            pacientes = data.get("pacientes") or []
-            return {p["id"]: p for p in pacientes}
-        except Exception:
-            return {}
-
-    # Las operaciones sensibles pueden pedir timeout propio y no usan cache.
-    return cargar() if timeout else _catalogo_cacheado("pacientes", cargar)
+    """{paciente_id: fila} via pacientes_service. Se usa para enriquecer
+    las citas (nombre/apellido/dni/telefono) sin tocar moovacloud_pacientes.
+    `timeout` es opcional; el aviso al terapeuta lo pasa a 5 s para no
+    encadenar esperas largas dentro de un DELETE/PUT."""
+    try:
+        kwargs = {"timeout": timeout} if timeout else {}
+        data, _ = pacientes_client.get(
+            "/api/pacientes", params={"incluir_resumen": "0"}, **kwargs
+        )
+        pacientes = data.get("pacientes") or []
+        return {p["id"]: p for p in pacientes}
+    except Exception:
+        return {}
 
 
 def _mapa_terapeutas(timeout=None):
-    """{terapeuta_id: fila} via pacientes_service, con cache breve para la agenda."""
-    def cargar():
-        try:
-            kwargs = {"timeout": timeout} if timeout else {}
-            data, _ = pacientes_client.get("/api/terapeutas", **kwargs)
-            terapeutas = data.get("terapeutas") or []
-            return {t["ID"]: t for t in terapeutas}
-        except Exception:
-            return {}
+    """{terapeuta_id: fila} via pacientes_service.
 
-    return cargar() if timeout else _catalogo_cacheado("terapeutas", cargar)
+    La fila trae ID, usuario_id, Nombre, Telefono, Especialidad y
+    precio: por eso sirve para enriquecer las citas y para resolver
+    el contacto del terapeuta en el aviso."""
+    try:
+        kwargs = {"timeout": timeout} if timeout else {}
+        data, _ = pacientes_client.get("/api/terapeutas", **kwargs)
+        terapeutas = data.get("terapeutas") or []
+        return {t["ID"]: t for t in terapeutas}
+    except Exception:
+        return {}
 
-
-
-def _mapa_servicios():
-    """{servicio_id: fila} con la duración real configurada para cada servicio."""
-    def cargar():
-        try:
-            data, _ = pacientes_client.get("/api/servicios")
-            servicios = data.get("servicios") or []
-            return {
-                fila.get("id", fila.get("ID")): fila
-                for fila in servicios
-                if fila.get("id", fila.get("ID")) is not None
-            }
-        except Exception as exc:
-            current_app.logger.warning("No se pudo cargar el catálogo de servicios: %s", exc)
-            return {}
-
-    return _catalogo_cacheado("servicios", cargar)
-
-
-def _enriquecer_horario_cita(cita, servicios=None):
-    """Calcula la hora de término a partir de la duración real del servicio."""
-    servicios = servicios if servicios is not None else _mapa_servicios()
-    servicio_id = cita.get("servicio_id")
-    servicio = servicios.get(servicio_id) or servicios.get(
-        int(servicio_id) if str(servicio_id or "").isdigit() else servicio_id
-    )
-    duracion = (servicio or {}).get("duracion_min", (servicio or {}).get("Duracion_min"))
-    cita["duracion_min"] = int(duracion) if duracion is not None else None
-    hora_inicio = cita.get("hora_cita")
-    cita["hora_fin"] = None
-    if hora_inicio and cita["duracion_min"] is not None:
-        try:
-            texto_hora = str(_fmt_hora(hora_inicio))
-            try:
-                inicio = datetime.strptime(texto_hora[:8], "%H:%M:%S")
-            except ValueError:
-                inicio = datetime.strptime(texto_hora[:5], "%H:%M")
-            cita["hora_fin"] = (inicio + timedelta(minutes=cita["duracion_min"])).strftime("%H:%M")
-        except (TypeError, ValueError):
-            cita["hora_fin"] = None
-    return cita
 
 
 def _mapas_enriquecimiento():
@@ -233,9 +166,9 @@ def _datos_paciente_cita(cita_id):
     if not paciente_id:
         return None, None
     try:
-        # Reutiliza el catálogo breve ya usado por la agenda; no vuelve a
-        # descargar y recorrer todos los pacientes por cada acción auditada.
-        p = _mapa_pacientes().get(paciente_id) or {}
+        data, _ = pacientes_client.get("/api/pacientes")
+        mapa = {p["id"]: p for p in (data.get("pacientes") or [])}
+        p = mapa.get(paciente_id) or {}
         nombre = " ".join(x for x in (p.get("nombre"), p.get("apellido")) if x).strip()
         return paciente_id, nombre or None
     except Exception:
@@ -441,7 +374,6 @@ def agenda_dia():
         filas_resumen = call_proc("sp_resumen_pacientes") or []
     resumen = {fila["paciente_id"]: fila["total"] for fila in filas_resumen}
     pacientes, terapeutas = _mapas_enriquecimiento()
-    servicios = _mapa_servicios()
 
     resultado = []
     vistos = set()
@@ -449,7 +381,6 @@ def agenda_dia():
         if str(cita.get("fecha_cita", ""))[:10] != fecha:
             continue
         _enriquecer_cita(cita, pacientes, terapeutas)
-        _enriquecer_horario_cita(cita, servicios)
         cita["total_visitas"] = resumen.get(cita.get("paciente_id"), 0)
         _fmt_fecha(cita)
         cita_id = cita.get("id") or cita.get("historial_id") or cita.get("cita_id")
@@ -505,10 +436,8 @@ def resumen_panel_admin():
     ]
     if citas_hoy:
         pacientes, terapeutas = _mapas_enriquecimiento()
-        servicios = _mapa_servicios()
         for cita in citas_hoy:
             _enriquecer_cita(cita, pacientes, terapeutas)
-            _enriquecer_horario_cita(cita, servicios)
             _fmt_fecha(cita)
         citas_hoy.sort(key=lambda cita: str(cita.get("hora_cita") or ""))
 
@@ -869,7 +798,6 @@ def crear_cita():
         cita = call_proc_one(
             procedimiento_creacion,
             (paciente_id, data["medico_id"], servicio_id, data["fecha_cita"], hora_cita),
-            commit=True,
         )
     except mysql.connector.Error as exc:
         # La restricción uq_reserva es la última barrera contra dos reservas
@@ -1224,7 +1152,7 @@ def modificar_cita(cita_id):
     # el aviso necesita saber quien se queda sin la cita.
     previa = _leer_cita_local(cita_id)
 
-    result = call_proc_one("sp_modificar_cita", (cita_id, nueva_fecha, nuevo_medico, hora_cita), commit=True)
+    result = call_proc_one("sp_modificar_cita", (cita_id, nueva_fecha, nuevo_medico, hora_cita))
     if not result or int(result.get("actualizadas") or 0) == 0:
         return jsonify({"error": "Cita no encontrada o ya no esta programada"}), 404
     ent_paciente_id, ent_paciente_nombre = _datos_paciente_cita(cita_id)
@@ -1252,7 +1180,7 @@ def cancelar_cita(cita_id):
     # fecha, y el aviso necesita los dos.
     previa = _leer_cita_local(cita_id)
 
-    result = call_proc_one("sp_cancelar_cita", (cita_id,), commit=True)
+    result = call_proc_one("sp_cancelar_cita", (cita_id,))
     if not result or int(result.get("actualizadas") or 0) == 0:
         return jsonify({"error": "Cita no encontrada"}), 404
 
@@ -1291,7 +1219,7 @@ def cancelar_cita(cita_id):
     "/api/citas/<int:cita_id>/cancelar-pago-vencido", methods=["POST"]
 )
 def cancelar_cita_pago_vencido(cita_id):
-    result = call_proc_one("sp_cancelar_cita_pago_vencido", (cita_id,), commit=True)
+    result = call_proc_one("sp_cancelar_cita_pago_vencido", (cita_id,))
     cancelada = bool(result and int(result.get("actualizadas") or 0) > 0)
     if cancelada:
         log_accion(
@@ -1308,7 +1236,7 @@ def cancelar_cita_pago_vencido(cita_id):
 def confirmar_cita_pago(cita_id):
     """Activa una reserva pendiente solo después de confirmar su pago."""
     try:
-        resultado = call_proc_one("sp_confirmar_cita_pago", (cita_id,), commit=True)
+        resultado = call_proc_one("sp_confirmar_cita_pago", (cita_id,))
     except Exception as exc:
         current_app.logger.error("No se pudo activar la cita %s tras el pago: %s", cita_id, exc)
         return jsonify({"success": False, "error": "No se pudo activar la cita."}), 500
@@ -1356,7 +1284,7 @@ def completar_cita(cita_id):
 
 @citas_bp.route("/api/citas/<int:cita_id>/no-asistio", methods=["POST"])
 def marcar_no_asistio(cita_id):
-    result = call_proc_one("sp_marcar_no_asistio", (cita_id,), commit=True)
+    result = call_proc_one("sp_marcar_no_asistio", (cita_id,))
     actualizadas = int((result or {}).get("actualizadas") or 0)
     if actualizadas > 0:
         ent_paciente_id, ent_paciente_nombre = _datos_paciente_cita(cita_id)
@@ -1385,14 +1313,35 @@ def solicitar_otp():
     if not dni or len(dni) != 8 or not dni.isdigit():
         return jsonify({"error": "DNI invalido"}), 400
 
-    # Consultar telefono y verificar cita programada mediante el modulo
-    # interno de pacientes (antes sp_obtener_telefono_otp, CROSS-DB).
-    pac_data, pac_status = pacientes_client.get(f"/api/pacientes/{dni}")
-    if pac_status != 200:
-        return jsonify({"error": "No se encontraron citas programadas para ese DNI."}), 404
-    paciente = pac_data.get("paciente") or {}
-    if not pac_data or not paciente:
-        return jsonify({"error": "No se encontraron citas programadas para ese DNI."}), 404
+    if accion not in ("agendar", "modificar", "cancelar", "tratamiento", "consultar"):
+        return jsonify({"error": "Acción OTP inválida"}), 400
+
+    # En agendamiento, el teléfono registrado es la única fuente válida
+    # cuando el paciente existe. Para DNI nuevos se valida el teléfono
+    # ingresado usando el validador compartido.
+    if accion == "agendar":
+        pac_data, pac_status = pacientes_client.get(f"/api/pacientes/{dni}")
+        paciente = (pac_data or {}).get("paciente") or {}
+        if pac_status == 200 and paciente:
+            telefono_destino = str(paciente.get("telefono") or "").strip()
+        elif pac_status == 404 or not paciente:
+            telefono_destino = str(data.get("telefono") or "").strip()
+            error_telefono = validar_telefono(telefono_destino)
+            if error_telefono:
+                return jsonify({"error": error_telefono}), 400
+            telefono_destino = normalizar_telefono(telefono_destino)
+        else:
+            return jsonify({"error": "No se pudo consultar el registro del paciente."}), 502
+        if not telefono_destino:
+            return jsonify({"error": "El paciente no tiene un teléfono registrado."}), 400
+    else:
+        pac_data, pac_status = pacientes_client.get(f"/api/pacientes/{dni}")
+        if pac_status != 200:
+            return jsonify({"error": "No se encontraron citas programadas para ese DNI."}), 404
+        paciente = (pac_data or {}).get("paciente") or {}
+        if not paciente:
+            return jsonify({"error": "No se encontraron citas programadas para ese DNI."}), 404
+        telefono_destino = str(paciente.get("telefono") or "").strip()
 
     if accion in ("tratamiento", "consultar"):
         # Continuar tratamiento tambien debe estar disponible para pacientes
@@ -1432,7 +1381,7 @@ def solicitar_otp():
             return jsonify({
                 "error": "No encontramos citas ni tratamientos asociados a ese DNI."
             }), 404
-    else:
+    elif accion != "agendar":
         if not call_proc_one("sp_existe_cita_programada_paciente", (paciente["id"],)):
             return jsonify({"error": "No se encontraron citas programadas para ese DNI."}), 404
 
@@ -1447,18 +1396,19 @@ def solicitar_otp():
     call_proc_execute("sp_insertar_otp", (dni, codigo, accion, expira))
 
     verbo = {
+        "agendar": "confirmar tu reserva",
         "modificar": "modificar tu cita",
         "cancelar": "cancelar tu cita",
         "tratamiento": "continuar tu tratamiento",
         "consultar": "consultar tu historial de citas",
     }.get(accion, "continuar tu tratamiento")
     mensaje = f"MOOVA Clinic: Tu codigo para {verbo} es {codigo}. Valido por {OTP_EXPIRA_MIN} min."
-    enviado = _enviar_sms(paciente["telefono"], mensaje)
+    enviado = _enviar_sms(telefono_destino, mensaje)
 
     if not enviado:
         return jsonify({"error": "No se pudo enviar el SMS."}), 500
 
-    tel = paciente["telefono"].strip()
+    tel = telefono_destino.strip()
     tel_mask = tel[:3] + "***" + tel[-3:] if len(tel) >= 6 else "***"
     return jsonify({"success": True, "tel_mask": tel_mask})
 
@@ -1469,6 +1419,10 @@ def verificar_otp():
     dni = data.get("dni", "").strip()
     codigo = data.get("otp", "").strip()
     accion = data.get("accion", "modificar")
+    if not dni or len(dni) != 8 or not dni.isdigit() or accion not in (
+        "agendar", "modificar", "cancelar", "tratamiento", "consultar"
+    ):
+        return jsonify({"resultado": "no_existe"}), 400
 
     otp = call_proc_one("sp_obtener_otp", (dni, accion))
     if not otp:
@@ -1605,7 +1559,7 @@ def enviar_recordatorios(fecha=None):
 
     for cita in pendientes:
         cita_id = cita.get("id")
-        reclamo = call_proc_one("sp_marcar_recordatorio_enviado", (cita_id,), commit=True)
+        reclamo = call_proc_one("sp_marcar_recordatorio_enviado", (cita_id,))
         marcadas = int(reclamo.get("marcadas") or 0) if reclamo else 0
         if marcadas != 1:
             # Otro proceso la reclamo primero: no es nuestra.
