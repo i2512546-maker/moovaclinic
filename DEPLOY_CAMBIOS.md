@@ -181,3 +181,34 @@ entornos. `.env.example` contiene solo un marcador.
   múltiples workers cada worker mantiene su propio contador.
 - Los servicios siguen ejecutándose in-process mediante `ServiceClient`;
   las rutas `/_internal` no deben publicarse ni cambiar sus controles.
+
+
+## 9. Despliegue en Railway
+
+El repositorio incluye un `Dockerfile`; Railway debe desplegar el servicio
+usando el builder Dockerfile desde la raíz del repositorio. El contenedor
+arranca Gunicorn en `0.0.0.0:$PORT`; no configures un segundo comando de
+inicio ni un segundo servicio Flask.
+
+En **Variables** del servicio Railway configura:
+
+| Variable | Requisito |
+|---|---|
+| `FLASK_ENV` | `production` |
+| `SECRET_KEY` | Secreto aleatorio largo; distinto de las demás claves |
+| `API_KEY` | Clave aleatoria para las llamadas internas entre módulos |
+| `JWT_SECRET` | Secreto aleatorio de al menos 32 caracteres, distinto de `SECRET_KEY` |
+| `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | Credenciales de la base MySQL que ya contiene el esquema de MOOVA |
+| `DB_PORT` | Puerto MySQL, normalmente `3306` |
+| `TEXTBEE_API_KEY`, `TEXTBEE_DEVICE_ID`, `TEXTBEE_URL` | Necesarias para enviar OTP por SMS |
+
+Railway proporciona `PORT`; no lo fijes manualmente. No subas el archivo
+`.env` ni copies secretos de producción a GitHub. Si usas una base externa,
+habilita conexiones desde Railway y verifica que las migraciones requeridas
+de la sección 1 ya estén aplicadas antes de cambiar el servicio a este commit.
+
+Después del primer despliegue, comprueba en los logs que Gunicorn inicia sin
+errores y prueba `GET /`, el inicio de sesión web, `POST /api/movil/auth/login`
+y el flujo OTP con un número de prueba. El repositorio no permite comprobar
+desde GitHub las variables privadas ni el estado de tu proyecto Railway; el
+despliegue debe validarse en el panel de Railway.

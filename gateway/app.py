@@ -326,9 +326,6 @@ def create_app():
     app.config["SESSION_COOKIE_PATH"] = "/"
     app.config["SESSION_PERMANENT"] = False
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 31536000
-    # Solo si se usa HTTPS en producción; en localhost http queda desactivado automaticamente
-    if os.getenv("FLASK_ENV") == "production":
-        app.config["SESSION_COOKIE_SECURE"] = True
     jwt_secret = os.getenv("JWT_SECRET")
     entorno_produccion = (
         os.getenv("FLASK_ENV", "").strip().lower() == "production"
@@ -336,6 +333,8 @@ def create_app():
         or os.getenv("RENDER", "").strip().lower() == "true"
         or bool(os.getenv("RAILWAY_ENVIRONMENT_NAME") or os.getenv("RAILWAY_PROJECT_ID"))
     )
+    if entorno_produccion:
+        app.config["SESSION_COOKIE_SECURE"] = True
     if entorno_produccion and (
         not jwt_secret or jwt_secret == secret_key or len(jwt_secret.encode("utf-8")) < 32
     ):
