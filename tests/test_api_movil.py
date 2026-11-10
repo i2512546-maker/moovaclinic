@@ -112,7 +112,8 @@ class ApiMovilTest(unittest.TestCase):
 
     def test_paciente_no_puede_consultar_otro_dni(self):
         from gateway.movil import _verificacion_serializer
-        sello = _verificacion_serializer().dumps({"dni": "12345678", "accion": "consultar"})
+        with self.app.app_context():
+            sello = _verificacion_serializer().dumps({"dni": "12345678", "accion": "consultar"})
         response = self.client.get(
             "/api/movil/pacientes/87654321",
             headers={"X-Verificacion": sello},
