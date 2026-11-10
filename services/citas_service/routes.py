@@ -35,7 +35,6 @@ from shared.validators import (
     validar_telefono,
 )
 
-
 # Los catálogos de pacientes y terapeutas se usan en cada carga de agenda.
 # Mantenerlos unos segundos evita repetir varias consultas MySQL por navegación.
 _CATALOGO_CACHE_TTL = 20.0

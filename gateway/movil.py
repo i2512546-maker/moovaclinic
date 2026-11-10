@@ -289,7 +289,7 @@ def verificar_otp_paciente():
         return _error(401, "OTP_INVALIDO", "El código es incorrecto, venció o no existe.")
     _OTP_LIMIT.registrar_exito(claves)
     verificacion = _verificacion_serializer().dumps({"dni": dni, "accion": accion})
-    return _ok({"tipo": "Verificacion", "verificacion": verificacion, "expires_in": 900},
+    return _ok({"tipo": "Verificacion", "verificacion": verificacion, "expires_in": 900, "accion": accion},
                "Identidad verificada durante 15 minutos.")
 
 

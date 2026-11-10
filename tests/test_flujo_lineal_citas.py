@@ -1,6 +1,7 @@
 """El formulario de citas permanece accesible y el pago pendiente es opcional."""
 
 import os
+import time
 import unittest
 from unittest.mock import patch
 
@@ -76,6 +77,12 @@ class FlujoLinealCitasTest(unittest.TestCase):
                 "dni": "12345678",
                 "nombre": "ana",
                 "apellido": "perez",
+            }
+            session["otp_verificado"] = {
+                "agendar": {"dni": "12345678", "ts": time.time()},
+            }
+            session["otp_agendar_verificado"] = {
+                "dni": "12345678", "telefono": "999999999",
             }
 
     def test_citas_sin_sesion_muestra_el_formulario_sin_aviso(self):

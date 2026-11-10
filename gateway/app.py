@@ -46,7 +46,6 @@ from shared.config import (
 from shared.fechas import fmt_fecha, hoy_lima
 from shared.horarios import generar_slots
 from shared.rate_limit import LimitadorIntentos, ip_del_request
-from shared.validators import normalizar_telefono
 from shared.service_client import (
     audit_client,
     auth_client,
@@ -56,6 +55,7 @@ from shared.service_client import (
     pagos_client,
     set_internal_app,
 )
+from shared.validators import normalizar_telefono
 
 csrf = CSRFProtect()
 
@@ -931,6 +931,7 @@ def create_app():
                 and identidad.get("apellido") == normalizar_identidad_post(form_data["apellido"])
             )
             if not identidad_valida:
+                registrar_fallo_cita()
                 session.pop("cita_identidad_verificada", None)
                 return jsonify({
                     "error": "La identidad no está verificada para estos datos. Vuelve al primer paso y verifica tu DNI."
@@ -941,6 +942,7 @@ def create_app():
                 not _otp_vigente(form_data["dni"], "agendar")
                 or verificacion_agendar.get("dni") != form_data["dni"]
             ):
+                registrar_fallo_cita()
                 return jsonify({"error": "Verifica el código SMS antes de reservar la cita."}), 403
             form_data["telefono"] = verificacion_agendar.get("telefono") or form_data["telefono"]
 

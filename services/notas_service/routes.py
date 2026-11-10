@@ -8,7 +8,6 @@ from shared.config import NOTAS_DB_NAME
 from shared.proc import call_proc, call_proc_one
 from shared.service_client import citas_client, pacientes_client
 
-
 _TERAPEUTAS_CACHE_TTL = 30.0
 _TERAPEUTAS_CACHE = {"expires": 0.0, "data": None}
 _TERAPEUTAS_CACHE_LOCK = threading.Lock()

@@ -11,7 +11,6 @@ from shared.proc import call_proc, call_proc_execute, call_proc_one
 from shared.service_client import auth_client, citas_client, pagos_client
 from shared.validators import validar_datos_paciente
 
-
 _TERAPEUTAS_MAPA_TTL = 20.0
 _TERAPEUTAS_LISTA_TTL = 15.0
 _TERAPEUTAS_MAPA_CACHE = {"expires": 0.0, "data": None}

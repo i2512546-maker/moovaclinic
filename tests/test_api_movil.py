@@ -100,7 +100,8 @@ class ApiMovilTest(unittest.TestCase):
 
     def test_otp_no_autoriza_otra_accion(self):
         from gateway.movil import _verificacion_serializer
-        sello = _verificacion_serializer().dumps({"dni": "12345678", "accion": "consultar"})
+        with self.app.app_context():
+            sello = _verificacion_serializer().dumps({"dni": "12345678", "accion": "consultar"})
         response = self.client.post(
             "/api/movil/citas", json={"dni": "12345678"},
             headers={"Authorization": f"Bearer {self.token()}",
