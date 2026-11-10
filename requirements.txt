@@ -19,4 +19,4 @@ ruff==0.16.9
 flask-compress==1.15
 
 # Autenticación JWT de la API móvil
-PyJWT==2.10.1
+PyJWT==2.15.0

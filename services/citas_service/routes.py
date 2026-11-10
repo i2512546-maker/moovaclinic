@@ -28,11 +28,7 @@ from shared.horarios import (
     validar_slot,
 )
 from shared.proc import call_proc, call_proc_execute, call_proc_one
-from shared.service_client import (
-    auth_client,
-    pacientes_client,
-    pagos_client,
-)
+from shared.service_client import auth_client, pacientes_client, pagos_client
 from shared.validators import (
     normalizar_telefono,
     validar_datos_paciente,

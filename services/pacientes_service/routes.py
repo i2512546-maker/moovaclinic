@@ -8,11 +8,7 @@ from flask import current_app, jsonify, request
 from services.pacientes_service import pacientes_bp
 from shared.config import APIPERU_TOKEN, APIPERU_URL
 from shared.proc import call_proc, call_proc_execute, call_proc_one
-from shared.service_client import (
-    auth_client,
-    citas_client,
-    pagos_client,
-)
+from shared.service_client import auth_client, citas_client, pagos_client
 from shared.validators import validar_datos_paciente
 
 
