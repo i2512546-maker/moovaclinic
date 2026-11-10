@@ -44,6 +44,15 @@ OTP_MAX_INTENTOS = int(os.getenv("OTP_MAX_INTENTOS", 3))
 # tiempo de vida del codigo en si, que sigue siendo OTP_EXPIRA_MIN.
 OTP_SESION_MIN = int(os.getenv("OTP_SESION_MIN", 15))
 
+# Modo de pruebas OTP: apagado por defecto. Solo devuelve el código al gateway
+# para DNIs explícitamente autorizados y cuando llega el secreto de Postman.
+OTP_TEST_MODE = os.getenv("OTP_TEST_MODE", "0").strip().lower() in ("1", "true", "yes", "on")
+OTP_TEST_SECRET = os.getenv("OTP_TEST_SECRET", "").strip()
+OTP_TEST_DNIS = frozenset(
+    item.strip() for item in os.getenv("OTP_TEST_DNIS", "").split(",")
+    if item.strip().isdigit() and len(item.strip()) == 8
+)
+
 # Limite de intentos de login en el gateway (S2). No hay captcha ni
 # dependencias de terceros: el gateway corta el intento ANTES de llamar
 # a auth_service.
