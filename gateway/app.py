@@ -4,15 +4,15 @@ import math
 import os
 import random
 import re
-import time
 import secrets
 import sys
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
-
-sys.path.insert(0, os.path.dirname(__file__))
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
+
+sys.path.insert(0, os.path.dirname(__file__))
 
 import yaml
 from flask import (
