@@ -1,3 +1,4 @@
+import hmac
 import secrets
 import threading
 import time
@@ -15,6 +16,9 @@ from shared.config import (
     KPIS_DB_NAME,
     OTP_EXPIRA_MIN,
     OTP_MAX_INTENTOS,
+    OTP_TEST_DNIS,
+    OTP_TEST_MODE,
+    OTP_TEST_SECRET,
     RIESGO_DIAS_UMBRAL,
     TEXTBEE_API_KEY,
     TEXTBEE_DEVICE_ID,
@@ -1485,7 +1489,21 @@ def solicitar_otp():
 
     tel = telefono_destino.strip()
     tel_mask = tel[:3] + "***" + tel[-3:] if len(tel) >= 6 else "***"
-    return jsonify({"success": True, "tel_mask": tel_mask})
+    respuesta = {"success": True, "tel_mask": tel_mask}
+
+    # Este endpoint es interno. Aun así, el OTP solo se incluye si el modo
+    # de pruebas está activo, el DNI está permitido y el secreto coincide.
+    secreto_pruebas = request.headers.get("X-OTP-Test-Secret", "")
+    if (
+        OTP_TEST_MODE
+        and bool(OTP_TEST_SECRET)
+        and dni in OTP_TEST_DNIS
+        and bool(secreto_pruebas)
+        and hmac.compare_digest(secreto_pruebas, OTP_TEST_SECRET)
+    ):
+        respuesta["otp_pruebas"] = codigo
+
+    return jsonify(respuesta)
 
 
 @citas_bp.route("/api/citas/otp/verificar", methods=["POST"])
