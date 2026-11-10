@@ -29,8 +29,11 @@ from shared.horarios import (
 )
 from shared.proc import call_proc, call_proc_execute, call_proc_one
 from shared.service_client import auth_client, pacientes_client, pagos_client
-from shared.validators import validar_datos_paciente
-
+from shared.validators import (
+    normalizar_telefono,
+    validar_datos_paciente,
+    validar_telefono,
+)
 
 # Los catálogos de pacientes y terapeutas se usan en cada carga de agenda.
 # Mantenerlos unos segundos evita repetir varias consultas MySQL por navegación.
@@ -1385,14 +1388,35 @@ def solicitar_otp():
     if not dni or len(dni) != 8 or not dni.isdigit():
         return jsonify({"error": "DNI invalido"}), 400
 
-    # Consultar telefono y verificar cita programada mediante el modulo
-    # interno de pacientes (antes sp_obtener_telefono_otp, CROSS-DB).
-    pac_data, pac_status = pacientes_client.get(f"/api/pacientes/{dni}")
-    if pac_status != 200:
-        return jsonify({"error": "No se encontraron citas programadas para ese DNI."}), 404
-    paciente = pac_data.get("paciente") or {}
-    if not pac_data or not paciente:
-        return jsonify({"error": "No se encontraron citas programadas para ese DNI."}), 404
+    if accion not in ("agendar", "modificar", "cancelar", "tratamiento", "consultar"):
+        return jsonify({"error": "Acción OTP inválida"}), 400
+
+    # En agendamiento, el teléfono registrado es la única fuente válida
+    # cuando el paciente existe. Para DNI nuevos se valida el teléfono
+    # ingresado usando el validador compartido.
+    if accion == "agendar":
+        pac_data, pac_status = pacientes_client.get(f"/api/pacientes/{dni}")
+        paciente = (pac_data or {}).get("paciente") or {}
+        if pac_status == 200 and paciente:
+            telefono_destino = str(paciente.get("telefono") or "").strip()
+        elif pac_status == 404 or (pac_status == 200 and not paciente):
+            telefono_destino = str(data.get("telefono") or "").strip()
+            error_telefono = validar_telefono(telefono_destino)
+            if error_telefono:
+                return jsonify({"error": error_telefono}), 400
+            telefono_destino = normalizar_telefono(telefono_destino)
+        else:
+            return jsonify({"error": "No se pudo consultar el registro del paciente."}), 502
+        if not telefono_destino:
+            return jsonify({"error": "El paciente no tiene un teléfono registrado."}), 400
+    else:
+        pac_data, pac_status = pacientes_client.get(f"/api/pacientes/{dni}")
+        if pac_status != 200:
+            return jsonify({"error": "No se encontraron citas programadas para ese DNI."}), 404
+        paciente = (pac_data or {}).get("paciente") or {}
+        if not paciente:
+            return jsonify({"error": "No se encontraron citas programadas para ese DNI."}), 404
+        telefono_destino = str(paciente.get("telefono") or "").strip()
 
     if accion in ("tratamiento", "consultar"):
         # Continuar tratamiento tambien debe estar disponible para pacientes
@@ -1432,7 +1456,7 @@ def solicitar_otp():
             return jsonify({
                 "error": "No encontramos citas ni tratamientos asociados a ese DNI."
             }), 404
-    else:
+    elif accion != "agendar":
         if not call_proc_one("sp_existe_cita_programada_paciente", (paciente["id"],)):
             return jsonify({"error": "No se encontraron citas programadas para ese DNI."}), 404
 
@@ -1447,18 +1471,19 @@ def solicitar_otp():
     call_proc_execute("sp_insertar_otp", (dni, codigo, accion, expira))
 
     verbo = {
+        "agendar": "confirmar tu reserva",
         "modificar": "modificar tu cita",
         "cancelar": "cancelar tu cita",
         "tratamiento": "continuar tu tratamiento",
         "consultar": "consultar tu historial de citas",
     }.get(accion, "continuar tu tratamiento")
     mensaje = f"MOOVA Clinic: Tu codigo para {verbo} es {codigo}. Valido por {OTP_EXPIRA_MIN} min."
-    enviado = _enviar_sms(paciente["telefono"], mensaje)
+    enviado = _enviar_sms(telefono_destino, mensaje)
 
     if not enviado:
         return jsonify({"error": "No se pudo enviar el SMS."}), 500
 
-    tel = paciente["telefono"].strip()
+    tel = telefono_destino.strip()
     tel_mask = tel[:3] + "***" + tel[-3:] if len(tel) >= 6 else "***"
     return jsonify({"success": True, "tel_mask": tel_mask})
 
@@ -1469,6 +1494,10 @@ def verificar_otp():
     dni = data.get("dni", "").strip()
     codigo = data.get("otp", "").strip()
     accion = data.get("accion", "modificar")
+    if not dni or len(dni) != 8 or not dni.isdigit() or accion not in (
+        "agendar", "modificar", "cancelar", "tratamiento", "consultar"
+    ):
+        return jsonify({"resultado": "no_existe"}), 400
 
     otp = call_proc_one("sp_obtener_otp", (dni, accion))
     if not otp:

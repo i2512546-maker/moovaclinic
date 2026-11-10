@@ -3,16 +3,16 @@ import io
 import math
 import os
 import random
+import re
 import secrets
 import sys
 import threading
-from concurrent.futures import ThreadPoolExecutor
-
-sys.path.insert(0, os.path.dirname(__file__))
-import re
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
+
+sys.path.insert(0, os.path.dirname(__file__))
 
 import yaml
 from flask import (
@@ -55,6 +55,7 @@ from shared.service_client import (
     pagos_client,
     set_internal_app,
 )
+from shared.validators import normalizar_telefono
 
 csrf = CSRFProtect()
 
@@ -117,7 +118,7 @@ def _terapeuta_id_de_sesion():
 # mostrar datos de salud o de mutar una cita (S1). Cada una tiene su
 # propio sello en la sesion: verificar para cancelar no habilita a
 # modificar, ni a tratar.
-ACCIONES_OTP = ("cancelar", "modificar", "tratamiento", "consultar")
+ACCIONES_OTP = ("agendar", "cancelar", "modificar", "tratamiento", "consultar")
 
 # Vista a la que vuelve el usuario cuando no tiene la verificacion.
 VISTA_ACCION = {
@@ -325,11 +326,29 @@ def create_app():
     app.config["SESSION_COOKIE_PATH"] = "/"
     app.config["SESSION_PERMANENT"] = False
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 31536000
-    # Solo si se usa HTTPS en producción; en localhost http queda desactivado automaticamente
-    if os.getenv("FLASK_ENV") == "production":
+    jwt_secret = os.getenv("JWT_SECRET")
+    entorno_produccion = (
+        os.getenv("FLASK_ENV", "").strip().lower() == "production"
+        or os.getenv("ENVIRONMENT", "").strip().lower() == "production"
+        or os.getenv("RENDER", "").strip().lower() == "true"
+        or bool(os.getenv("RAILWAY_ENVIRONMENT_NAME") or os.getenv("RAILWAY_PROJECT_ID"))
+    )
+    if entorno_produccion:
         app.config["SESSION_COOKIE_SECURE"] = True
+    if entorno_produccion and (
+        not jwt_secret or jwt_secret == secret_key or len(jwt_secret.encode("utf-8")) < 32
+    ):
+        raise RuntimeError(
+            "En producción JWT_SECRET es obligatoria, debe tener al menos 32 caracteres "
+            "y ser distinta de SECRET_KEY."
+        )
+    app.config["JWT_SECRET"] = jwt_secret or (secret_key + "-solo-desarrollo-jwt")
     csrf.init_app(app)
     Compress(app)
+
+    from gateway.movil import movil_bp
+    csrf.exempt(movil_bp)
+    app.register_blueprint(movil_bp)
 
     from services.audit_service import audit_bp
     from services.auth_service import auth_bp
@@ -805,6 +824,58 @@ def create_app():
             return jsonify({"success": True, "estado": "no_asistio"})
         return redirect(url_retorno)
 
+    @app.route("/api/citas/otp/solicitar", methods=["POST"])
+    def solicitar_otp_agendar():
+        data = request.get_json(silent=True) or {}
+        dni = str(data.get("dni") or "").strip()
+        telefono = str(data.get("telefono") or "").strip()
+        identidad = session.get("cita_identidad_verificada") or {}
+        if not _dni_ok(dni) or identidad.get("dni") != dni:
+            return jsonify({"success": False, "error": "Verifica tu identidad antes de solicitar el código."}), 403
+        resultado, status = citas_client.post(
+            "/api/citas/otp/solicitar",
+            {"dni": dni, "accion": "agendar", "telefono": normalizar_telefono(telefono)},
+        )
+        if status != 200 or not (resultado or {}).get("success"):
+            return jsonify({"success": False, "error": (resultado or {}).get("error", "No se pudo enviar el código.")}), status
+        paciente_data, paciente_status = pacientes_client.get(f"/api/pacientes/{dni}")
+        paciente = (paciente_data or {}).get("paciente") or {}
+        telefono_verificado = (
+            normalizar_telefono(str(paciente.get("telefono") or ""))
+            if paciente_status == 200 and paciente else normalizar_telefono(telefono)
+        )
+        session["otp_agendar_pendiente"] = {
+            "dni": dni, "telefono": telefono_verificado, "ts": time.time(),
+        }
+        return jsonify({
+            "success": True, "mensaje": "Código enviado por SMS.",
+            "tel_mask": resultado.get("tel_mask", ""),
+        }), 200
+
+    @app.route("/api/citas/otp/verificar", methods=["POST"])
+    def verificar_otp_agendar():
+        data = request.get_json(silent=True) or {}
+        dni = str(data.get("dni") or "").strip()
+        codigo = str(data.get("otp") or "").strip()
+        pendiente = session.get("otp_agendar_pendiente") or {}
+        if not _dni_ok(dni) or pendiente.get("dni") != dni:
+            return jsonify({"success": False, "error": "Solicita un código para este DNI."}), 403
+        if time.time() - float(pendiente.get("ts") or 0) > 600:
+            session.pop("otp_agendar_pendiente", None)
+            return jsonify({"success": False, "error": "La solicitud de código expiró. Solicita uno nuevo."}), 400
+        resultado, status = citas_client.post(
+            "/api/citas/otp/verificar",
+            {"dni": dni, "otp": codigo, "accion": "agendar"},
+        )
+        if status != 200 or (resultado or {}).get("resultado") != "ok":
+            return jsonify({"success": False, "error": "Código incorrecto o vencido."}), 400
+        _marcar_otp_verificado(dni, "agendar")
+        session["otp_agendar_verificado"] = {
+            "dni": dni, "telefono": pendiente.get("telefono") or "",
+        }
+        session.pop("otp_agendar_pendiente", None)
+        return jsonify({"success": True, "mensaje": "Teléfono verificado correctamente."}), 200
+
     @app.route("/citas", methods=["GET", "POST"])
     def citas_page():
         ip_claves, dni_claves = [], []
@@ -859,10 +930,20 @@ def create_app():
                 and identidad.get("apellido") == normalizar_identidad_post(form_data["apellido"])
             )
             if not identidad_valida:
+                registrar_fallo_cita()
                 session.pop("cita_identidad_verificada", None)
                 return jsonify({
                     "error": "La identidad no está verificada para estos datos. Vuelve al primer paso y verifica tu DNI."
                 }), 403
+
+            verificacion_agendar = session.get("otp_agendar_verificado") or {}
+            if (
+                not _otp_vigente(form_data["dni"], "agendar")
+                or verificacion_agendar.get("dni") != form_data["dni"]
+            ):
+                registrar_fallo_cita()
+                return jsonify({"error": "Verifica el código SMS antes de reservar la cita."}), 403
+            form_data["telefono"] = verificacion_agendar.get("telefono") or form_data["telefono"]
 
             if not all(form_data.values()):
                 msg = "Por favor completa todos los campos, selecciona un médico y elige una fecha."
@@ -888,6 +969,8 @@ def create_app():
             result, status = citas_client.post("/api/citas", form_data)
             if status == 201 and result.get("success"):
                 session.pop("cita_identidad_verificada", None)
+                session.pop("otp_agendar_verificado", None)
+                session.pop("otp_verificado", None)
                 limite_ip.registrar_exito(ip_claves)
                 if dni_claves:
                     limite_dni.registrar_exito(dni_claves)

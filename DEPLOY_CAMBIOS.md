@@ -143,3 +143,72 @@ El backup debe seguir la misma configuración que la aplicación: define
 `DB_NAME` para respaldar el esquema unificado o `DB_LIST` para una instalación
 histórica de varios esquemas. No cambies la estructura de bases como parte
 de un despliegue de código.
+
+
+## 8. API móvil JSON
+
+La API móvil se publica en el mismo proceso Flask bajo `/api/movil`; no
+requiere un segundo servicio ni expone los blueprints internos `/_internal`.
+El cliente móvil debe usar HTTPS y no depender de la cookie web.
+
+### Variables obligatorias
+
+Configura `JWT_SECRET` en el entorno de `moova-gateway` con un valor
+aleatorio de al menos 32 bytes. Debe ser diferente de `SECRET_KEY`.
+En producción la aplicación no arranca si falta o coincide con
+`SECRET_KEY`. No guardes el valor real en Git ni lo reutilices entre
+entornos. `.env.example` contiene solo un marcador.
+
+### Despliegue
+
+1. Actualiza dependencias con `pip install -r requirements.txt` (incluye
+   PyJWT fijado en `requirements.txt`).
+2. En Railway define `FLASK_ENV=production` y `JWT_SECRET` (mínimo 32 caracteres aleatorios) antes de desplegar.
+3. Despliega la rama de integración en un entorno de pruebas.
+4. Ejecuta los tests de `tests/test_api_movil.py` y `tests/test_otp_agendar.py`.
+5. Prueba login, expiración JWT, rechazo de cookie, OTP por acción y
+   autorización por paciente/terapeuta antes de publicar.
+
+### Seguridad y operación
+
+- Personal: `Authorization: Bearer <JWT>`, HS256, emisor `moova-clinic`,
+  audiencia `moova-mobile`, duración de 8 horas.
+- Pacientes: OTP enviado al teléfono registrado y credencial firmada
+  `X-Verificacion` con vigencia de 15 minutos y acción/DNI asociados.
+- El gateway nunca autentica la API móvil mediante cookie de sesión.
+- Los intentos de login y OTP se limitan en memoria por IP/correo o IP/DNI.
+  El contador es por proceso y se reinicia al reiniciar el servicio; con
+  múltiples workers cada worker mantiene su propio contador.
+- Los servicios siguen ejecutándose in-process mediante `ServiceClient`;
+  las rutas `/_internal` no deben publicarse ni cambiar sus controles.
+
+
+## 9. Despliegue en Railway
+
+El repositorio incluye un `Dockerfile`; Railway debe desplegar el servicio
+usando el builder Dockerfile desde la raíz del repositorio. El contenedor
+arranca Gunicorn en `0.0.0.0:$PORT`; no configures un segundo comando de
+inicio ni un segundo servicio Flask.
+
+En **Variables** del servicio Railway configura:
+
+| Variable | Requisito |
+|---|---|
+| `FLASK_ENV` | `production` |
+| `SECRET_KEY` | Secreto aleatorio largo; distinto de las demás claves |
+| `API_KEY` | Clave aleatoria para las llamadas internas entre módulos |
+| `JWT_SECRET` | Secreto aleatorio de al menos 32 caracteres, distinto de `SECRET_KEY` |
+| `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | Credenciales de la base MySQL que ya contiene el esquema de MOOVA |
+| `DB_PORT` | Puerto MySQL, normalmente `3306` |
+| `TEXTBEE_API_KEY`, `TEXTBEE_DEVICE_ID`, `TEXTBEE_URL` | Necesarias para enviar OTP por SMS |
+
+Railway proporciona `PORT`; no lo fijes manualmente. No subas el archivo
+`.env` ni copies secretos de producción a GitHub. Si usas una base externa,
+habilita conexiones desde Railway y verifica que las migraciones requeridas
+de la sección 1 ya estén aplicadas antes de cambiar el servicio a este commit.
+
+Después del primer despliegue, comprueba en los logs que Gunicorn inicia sin
+errores y prueba `GET /`, el inicio de sesión web, `POST /api/movil/auth/login`
+y el flujo OTP con un número de prueba. El repositorio no permite comprobar
+desde GitHub las variables privadas ni el estado de tu proyecto Railway; el
+despliegue debe validarse en el panel de Railway.
