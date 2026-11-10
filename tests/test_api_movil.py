@@ -11,6 +11,7 @@ os.environ.setdefault("JWT_SECRET", "jwt-pruebas-distinta")
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import jwt
+
 from gateway.app import create_app
 
 

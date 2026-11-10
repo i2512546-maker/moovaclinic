@@ -3,9 +3,9 @@
 La API pública móvil nunca acepta cookies de sesión. El personal usa JWT
 Bearer; los pacientes usan una credencial efímera X-Verificacion tras OTP.
 """
-from functools import wraps
 import re
 import time
+from functools import wraps
 
 import jwt
 from flask import Blueprint, current_app, jsonify, request
@@ -14,7 +14,11 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from shared.audit import log_accion
 from shared.rate_limit import LimitadorIntentos, ip_del_request
 from shared.service_client import (
-    auth_client, citas_client, pacientes_client, pagos_client, notas_client,
+    auth_client,
+    citas_client,
+    notas_client,
+    pacientes_client,
+    pagos_client,
 )
 
 movil_bp = Blueprint("movil", __name__, url_prefix="/api/movil")
@@ -120,7 +124,7 @@ def _proxy(cliente, metodo, ruta, cuerpo=None, params=None):
             data, status = fn(ruta, params=params) if params is not None else fn(ruta)
         else:
             data, status = fn(ruta, cuerpo or {})
-    except Exception as exc:
+    except Exception:
         current_app.logger.exception("Fallo API móvil al invocar %s", ruta)
         return _error(502, "SERVICIO_NO_DISPONIBLE", "No se pudo completar la operación.")
     if status >= 400:
@@ -151,7 +155,7 @@ def requiere_otp(accion, validar_dni_cuerpo=False):
                 cita = (cita_data or {}).get("cita") or {}
                 if cita_status != 200 or not cita.get("paciente_id"):
                     return _error(404, "CITA_NO_ENCONTRADA", "No se encontró la cita.")
-                paciente_data, paciente_status = pacientes_client.get(f"/api/pacientes")
+                paciente_data, paciente_status = pacientes_client.get("/api/pacientes")
                 pacientes = (paciente_data or {}).get("pacientes") or []
                 paciente = next((p for p in pacientes if str(p.get("id")) == str(cita["paciente_id"])), None)
                 if paciente_status != 200 or not paciente or str(paciente.get("dni")) != str(payload.get("dni")):
