@@ -3,6 +3,7 @@
 La API pública móvil nunca acepta cookies de sesión. El personal usa JWT
 Bearer; los pacientes usan una credencial efímera X-Verificacion tras OTP.
 """
+import hmac
 import re
 import time
 from functools import wraps
@@ -12,6 +13,7 @@ from flask import Blueprint, current_app, jsonify, request
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from shared.audit import log_accion
+from shared.config import OTP_TEST_DNIS, OTP_TEST_MODE, OTP_TEST_SECRET
 from shared.rate_limit import LimitadorIntentos, ip_del_request
 from shared.service_client import (
     auth_client,
@@ -260,13 +262,31 @@ def solicitar_otp_paciente():
         return _error(400, "DNI_INVALIDO", "El DNI debe contener ocho dígitos.")
     if _OTP_LIMIT.bloqueado(claves)[0]:
         return _error(429, "DEMASIADOS_INTENTOS", "Demasiadas solicitudes OTP.")
-    resultado, status = citas_client.post("/api/citas/otp/solicitar", {"dni": dni, "accion": accion, "telefono": data.get("telefono")})
+    # El código solo puede volver al cliente cuando el modo de pruebas está
+    # activado, el DNI está en la allowlist y el secreto de Postman coincide.
+    secreto_pruebas = request.headers.get("X-OTP-Test-Secret", "")
+    otp_test_autorizado = (
+        OTP_TEST_MODE
+        and bool(OTP_TEST_SECRET)
+        and dni in OTP_TEST_DNIS
+        and bool(secreto_pruebas)
+        and hmac.compare_digest(secreto_pruebas, OTP_TEST_SECRET)
+    )
+    headers_internos = {"X-OTP-Test-Secret": OTP_TEST_SECRET} if otp_test_autorizado else None
+    resultado, status = citas_client.post(
+        "/api/citas/otp/solicitar",
+        {"dni": dni, "accion": accion, "telefono": data.get("telefono")},
+        headers=headers_internos,
+    )
     if status >= 400:
         _OTP_LIMIT.registrar_fallo(claves)
         return _error(status, "OTP_NO_ENVIADO", (resultado or {}).get("error", "No se pudo enviar el código."))
     _OTP_LIMIT.registrar_exito(claves)
-    return _ok({"telefono_enmascarado": (resultado or {}).get("tel_mask"),
-                "vigencia_minutos": 10, "accion": accion}, "Código enviado al teléfono registrado.")
+    respuesta = {"telefono_enmascarado": (resultado or {}).get("tel_mask"),
+                 "vigencia_minutos": 10, "accion": accion}
+    if otp_test_autorizado and (resultado or {}).get("otp_pruebas"):
+        respuesta["otp_pruebas"] = resultado["otp_pruebas"]
+    return _ok(respuesta, "Código enviado al teléfono registrado.")
 
 
 @movil_bp.post("/auth/otp/verificar")
